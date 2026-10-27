@@ -1,0 +1,191 @@
+{
+  "revised": "2026-10-27",
+  "voices": {
+    "en": "mms-tts-eng",
+    "fr": "mms-tts-fra",
+    "ar": "phone"
+  },
+  "file": "<id>.<lang>.wav",
+  "clips": [
+    {
+      "id": "hand_right",
+      "en": "Move your hand right.",
+      "ar": "حرّك يدك إلى اليمين.",
+      "fr": "Déplacez la main vers la droite."
+    },
+    {
+      "id": "hand_right_small",
+      "en": "A little to your right.",
+      "ar": "حرّك يدك قليلًا إلى اليمين.",
+      "fr": "Un peu à droite."
+    },
+    {
+      "id": "hand_right_continue",
+      "en": "Keep moving your hand right.",
+      "ar": "واصل تحريك يدك إلى اليمين.",
+      "fr": "Continuez vers la droite."
+    },
+    {
+      "id": "hand_left",
+      "en": "Move your hand left.",
+      "ar": "حرّك يدك إلى اليسار.",
+      "fr": "Déplacez la main vers la gauche."
+    },
+    {
+      "id": "hand_left_small",
+      "en": "A little to your left.",
+      "ar": "حرّك يدك قليلًا إلى اليسار.",
+      "fr": "Un peu à gauche."
+    },
+    {
+      "id": "hand_left_continue",
+      "en": "Keep moving your hand left.",
+      "ar": "واصل تحريك يدك إلى اليسار.",
+      "fr": "Continuez vers la gauche."
+    },
+    {
+      "id": "hand_up",
+      "en": "Move your hand up.",
+      "ar": "ارفع يدك.",
+      "fr": "Montez la main."
+    },
+    {
+      "id": "hand_up_small",
+      "en": "A little higher.",
+      "ar": "ارفع يدك قليلًا.",
+      "fr": "Un peu plus haut."
+    },
+    {
+      "id": "hand_up_continue",
+      "en": "Keep moving your hand up.",
+      "ar": "واصل رفع يدك.",
+      "fr": "Montez encore la main."
+    },
+    {
+      "id": "hand_down",
+      "en": "Move your hand down.",
+      "ar": "اخفض يدك.",
+      "fr": "Descendez la main."
+    },
+    {
+      "id": "hand_down_small",
+      "en": "A little lower.",
+      "ar": "اخفض يدك قليلًا.",
+      "fr": "Un peu plus bas."
+    },
+    {
+      "id": "hand_down_continue",
+      "en": "Keep moving your hand down.",
+      "ar": "واصل خفض يدك.",
+      "fr": "Descendez encore la main."
+    },
+    {
+      "id": "almost",
+      "en": "Almost there.",
+      "ar": "يدك قريبة من المنتج.",
+      "fr": "Vous y êtes presque."
+    },
+    {
+      "id": "reach_forward",
+      "en": "Your hand is lined up. Reach forward slowly to feel for it.",
+      "ar": "يدك في الاتجاه الصحيح. مدّها ببطء إلى الأمام حتى تلمس المنتج.",
+      "fr": "Votre main est alignée avec le produit. Avancez-la doucement pour le toucher."
+    },
+    {
+      "id": "pick_up",
+      "en": "Pick it up.",
+      "ar": "خُذ المنتج.",
+      "fr": "Prenez-le."
+    },
+    {
+      "id": "checking",
+      "en": "I’m checking.",
+      "ar": "أتحقّق من المنتج.",
+      "fr": "Je vérifie."
+    },
+    {
+      "id": "put_back",
+      "en": "Put it back.",
+      "ar": "أعِد المنتج إلى مكانه.",
+      "fr": "Remettez-le à sa place."
+    },
+    {
+      "id": "yes",
+      "en": "Yes.",
+      "ar": "نعم.",
+      "fr": "Oui."
+    },
+    {
+      "id": "no",
+      "en": "No.",
+      "ar": "لا.",
+      "fr": "Non."
+    },
+    {
+      "id": "cannot_confirm",
+      "en": "I can’t confirm yet.",
+      "ar": "لا أستطيع التأكّد بعد.",
+      "fr": "Je ne peux pas encore confirmer."
+    },
+    {
+      "id": "hand_lost",
+      "en": "I lost track of your hand. Keep it still.",
+      "ar": "لم أعد أرى يدك. أبقِ يدك ثابتة.",
+      "fr": "Je ne vois plus votre main. Gardez-la immobile."
+    },
+    {
+      "id": "hand_show",
+      "en": "I can’t see your hand. Move it in front of the camera.",
+      "ar": "لا أرى يدك. ضع يدك أمام الكاميرا.",
+      "fr": "Je ne vois pas votre main. Placez-la devant la caméra."
+    },
+    {
+      "id": "phone_right_slow",
+      "en": "Turn the phone slowly to your right.",
+      "ar": "وجّه كاميرا الهاتف ببطء إلى اليمين.",
+      "fr": "Orientez lentement le téléphone vers la droite."
+    },
+    {
+      "id": "phone_left_slow",
+      "en": "Turn the phone slowly to your left.",
+      "ar": "وجّه كاميرا الهاتف ببطء إلى اليسار.",
+      "fr": "Orientez lentement le téléphone vers la gauche."
+    },
+    {
+      "id": "phone_right_small",
+      "en": "Turn the phone a little to your right.",
+      "ar": "وجّه كاميرا الهاتف قليلًا إلى اليمين.",
+      "fr": "Orientez un peu le téléphone vers la droite."
+    },
+    {
+      "id": "phone_left_small",
+      "en": "Turn the phone a little to your left.",
+      "ar": "وجّه كاميرا الهاتف قليلًا إلى اليسار.",
+      "fr": "Orientez un peu le téléphone vers la gauche."
+    },
+    {
+      "id": "phone_up_small",
+      "en": "Point the phone a little higher.",
+      "ar": "وجّه كاميرا الهاتف إلى الأعلى قليلًا.",
+      "fr": "Orientez le téléphone un peu plus haut."
+    },
+    {
+      "id": "phone_down_small",
+      "en": "Point the phone a little lower.",
+      "ar": "وجّه كاميرا الهاتف إلى الأسفل قليلًا.",
+      "fr": "Orientez le téléphone un peu plus bas."
+    },
+    {
+      "id": "phone_slower",
+      "en": "Move the phone more slowly.",
+      "ar": "حرّك الهاتف ببطء أكثر.",
+      "fr": "Déplacez le téléphone plus lentement."
+    },
+    {
+      "id": "phone_still",
+      "en": "Keep the phone still.",
+      "ar": "أبقِ الهاتف ثابتًا.",
+      "fr": "Gardez le téléphone immobile."
+    }
+  ]
+}

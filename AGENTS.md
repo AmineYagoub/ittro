@@ -44,5 +44,6 @@ No formatter is configured yet, so none runs here.
 - Write only erasable TypeScript (`type`, `interface`, `import type`): no enums, namespaces, or parameter properties. The code stays TypeScript 7 ready and runs under Node type stripping. The toolchain is pinned to TypeScript 6 until a TypeScript parser supports TypeScript 7.
 - Every Muse Spark call uses strict structured output (`json_schema`, `strict: true`, `additionalProperties: false`, all keys in `required`). The relay accepts an answer only when `status` is `completed` and the JSON parses; anything else is an error, never an empty default.
 - A wrong "yes" is the worst outcome. "I can't tell, turn the product" always beats a guess.
+- Spoken counts and claims are computed, never fixed lines: "I checked six products" states the actual number checked.
 - The phone never holds the Meta API key. Only the relay calls Meta.
 - Test on the real phone over wireless adb, never the emulators. Ask before any download, deploy, or public action.

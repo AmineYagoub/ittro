@@ -8,6 +8,8 @@ Ittro is an Android shopping companion for blind and low-vision shoppers. The sh
 
 It is built with Meta AI through the Meta Model API: Muse Spark for understanding requests and reading labels, Muse Voice Transcribe for the always-on microphone, and SAM 3.1 for finding products on the shelf. Hand tracking runs on the phone. Ittro is our entry for the Meta Global AI Developer Hackathon (Indie track).
 
+The demo is English-only by design; Arabic and French are one spoken command away in the app. The English and French voice clips are Meta MMS-TTS (`facebook/mms-tts-eng`, `facebook/mms-tts-fra`), licensed CC BY-NC 4.0: non-commercial use, with credit to Meta.
+
 ## Quick start
 
 ```bash
