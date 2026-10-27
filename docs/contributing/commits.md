@@ -28,30 +28,30 @@ We follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1
 For example:
 
 ```text
-fix(export): leave locked cells untouched in the grade workbook
+fix(guide): say the way with every repeated no
 
-When a pupil had no mark, the workbook fill wrote an empty value into
-the locked cell next to it, and Excel then refused to open the file.
-The fill now skips locked cells entirely, as PRD §5.9 requires.
+When the hand stayed on the wrong product, only the vibration
+repeated. The spoken "no" now repeats with the direction, as
+DESIGN.md requires, so the shopper is never left guessing.
 
 Fixes #214
-Signed-off-by: Nour Benali <nour.benali@example.org>
+Signed-off-by: <your name> <your email>
 ```
 
 Commits made before this guide don't follow it. They stay as they are, because shared history is never rewritten.
 
 ## Types
 
-| Type | For | In the teachers' changelog? |
+| Type | For | In the changelog? |
 |---|---|---|
 | `feat` | A new feature, or a new ability in an existing one | Usually |
 | `fix` | A bug fix | Usually |
-| `perf` | Faster or lighter, with the same behaviour | When teachers will notice |
+| `perf` | Faster or lighter, with the same behaviour | When shoppers will notice |
 | `refactor` | A change to the code that changes no behaviour | No |
 | `style` | Formatting only | No |
 | `test` | Tests only | No |
-| `docs` | Documents: the PRD, decision records, specifications and this handbook | Only if teachers read them |
-| `build` | The build, packaging and dependencies | When teachers will notice |
+| `docs` | Documents: the design spec, decision records and this handbook | Rarely |
+| `build` | The build, packaging and dependencies | When it changes what ships |
 | `ci` | The automated checks | No |
 | `chore` | Other upkeep that fits no other type | No |
 | `revert` | Reverting an earlier commit | If the reverted commit was |
@@ -64,30 +64,28 @@ The scope names the part of the product that changes, not the file. It is option
 
 | Group | Scopes |
 |---|---|
-| Teacher features | `setup`, `today`, `roll-call`, `marks`, `export`, `documents`, `digest`, `sharing` |
-| School features | `reader`, `timetable`, `school-mode` |
-| The shared core | `core`, `engine`, `calendar`, `history`, `layers`, `formats` |
-| Data leaving the device | `sync`, `backup`, `crypto`, `network`, `insights` |
-| Platforms | `android`, `web`, `server` |
+| The shopper's journey | `search`, `guide`, `confirm`, `voice`, `helper` |
+| The app and the phone | `android`, `sensors`, `haptics` |
+| The relay | `server` |
 | Across the product | `i18n`, `a11y`, `deps`, `release` |
-| Documents | `prd`, `decisions`, `design`, `contributing` |
+| Documents | `design`, `contributing`, `decisions` |
 
-Changes in the "data leaving the device" scopes are privacy-sensitive. So are changes to `export`, and to anything that reads or writes the school's official files ([workflow.md](workflow.md#review)).
+Changes in the `server` and `helper` scopes are privacy-sensitive, because pictures and questions leave the phone there. So is anything that stores shopper pictures, audio, or personal data ([workflow.md](workflow.md#review)).
 
 ## The summary
 
 - **Start with a verb in the imperative,** as if completing "This commit will…": "add", "fix", "remove". Not "added" or "adds".
 - **Lower case after the colon,** and **no full stop** at the end.
 - **At most 72 characters,** type and scope included.
-- **Say what changes for whoever uses it:** "keep a class on its pinned plan release", not "update engine.ts".
-- **Mark a breaking change with `!`** after the scope, and explain it in a `BREAKING CHANGE:` trailer. For example: `feat(formats)!: write archive format 2.0`. What counts as breaking is in [versioning.md](versioning.md).
+- **Say what changes for whoever uses it:** "guide to the nearest of three identical bottles", not "update guide.ts".
+- **Mark a breaking change with `!`** after the scope, and explain it in a `BREAKING CHANGE:` trailer. For example: `feat(voice)!: change what a double earbud press means`. What counts as breaking is in [versioning.md](versioning.md).
 
 ## The body
 
 - **Explain why,** and what was wrong before. The diff already shows how.
 - **Leave a blank line after the summary,** and wrap lines at 72 characters.
-- **Link what the change follows:** a PRD section, a decision record or a specification.
-- **Name anything a later reader must know:** a database migration, a new format version, a new network call, or a privacy-sensitive change.
+- **Link what the change follows:** a DESIGN.md section, a decision record or a specification.
+- **Name anything a later reader must know:** a new network call, a new spoken line, or a privacy-sensitive change.
 - A one-line change with an obvious reason may have no body.
 
 ## Trailers
@@ -105,7 +103,7 @@ Trailers go together at the end, after a blank line.
 
 ## Sign-off
 
-Every commit carries a `Signed-off-by` line under the [Developer Certificate of Origin 1.1](https://developercertificate.org/) (DCO), as [decision 0003](../decisions/0003-contributor-terms-dco.md) sets. With it, you certify two things:
+Every commit carries a `Signed-off-by` line under the [Developer Certificate of Origin 1.1](https://developercertificate.org/) (DCO). With it, you certify two things:
 - **You have the right to submit the change under the project's licence,** because you wrote it, or it builds on work under a compatible open-source licence, or someone who certified the same gave it to you unchanged.
 - **The contribution and your sign-off are public,** and are kept for good.
 
@@ -119,16 +117,15 @@ How it works:
 
   Then update your pull request with `git push --force-with-lease`.
 - **The sign-off is not a cryptographic signature.** Signing your commits with GPG or SSH is welcome, but only the sign-off is required.
-- **Content from the teachers' form.** The data curator who commits it signs it off, relying on the licence the teacher accepted in the form ([decision 0003](../decisions/0003-contributor-terms-dco.md)).
 - **Dependabot's updates.** A bot cannot certify the DCO, so the check skips the commits Dependabot makes in the pull requests it opens. The maintainer who reviews and merges an update answers for it, and a commit that a person adds to it is signed off as usual.
 
 ## AI-assisted work
 
-AI-assisted contributions are welcome ([PRD §1.7](../prd/PRD.md#17-contributions)).
+AI-assisted contributions are welcome.
 - **You answer for them** like any other work: you reviewed and tested them, and you have the right to submit them.
 - **Say so.** Mention it in the pull request, and add an `Assisted-by:` trailer when a tool wrote a substantial part. A `Co-authored-by:` trailer that your tool adds is fine instead.
 - **The sign-off is always a person's.** A tool cannot certify the DCO, so it never signs off.
-- **Never give an AI tool pupil data or secrets** (principle 2).
+- **Never give an AI tool shopper pictures, audio, or secrets.**
 
 ## Good commits
 
@@ -137,21 +134,21 @@ AI-assisted contributions are welcome ([PRD §1.7](../prd/PRD.md#17-contribution
 - **Keep reformatting apart** from changes in behaviour.
 - **Never commit:**
   - secrets, such as keys, tokens or passwords;
-  - real pupil data, or anyone's personal data;
+  - shopper pictures, audio, or anyone's personal data;
   - build output;
-  - large binary files, unless the product needs them, such as fonts and test files.
+  - large binary files, unless the product needs them, such as voice clips, sounds and fonts.
 
 ## Examples
 
 Good:
 
 ```text
-feat(roll-call): mark the whole class present in one tap
-fix(documents): shape lam-alef correctly in journal PDFs
-perf(engine): generate a term's sessions without reloading the pack
-refactor(core): move the average rules into the assessment module
-build(deps): update the spreadsheet library to 3.2.1
-docs(prd): fix the anchor links in section 5
+feat(search): look at the shelf while asking "is that right?"
+fix(confirm): read the held product again from a new picture
+perf(guide): reuse a tracked outline instead of re-reading the shelf
+refactor(server): move the schema gate into its own module
+build(deps): update expo to 58.0.19
+docs(design): fix the anchor links in the audit
 ```
 
 Not like this:
@@ -159,6 +156,6 @@ Not like this:
 | Message | Problem |
 |---|---|
 | `Fixed stuff` | No type, and it says nothing |
-| `feat: Added the export.` | Past tense, a capital letter, a full stop, and vague |
-| `fix(roll-call): fix bug #45` | Says nothing unless you open the issue |
-| `feat(sync): new sync + refactor db + bump deps` | Three changes in one commit |
+| `feat: Added the beep.` | Past tense, a capital letter, a full stop, and vague |
+| `fix(guide): fix bug #45` | Says nothing unless you open the issue |
+| `feat(helper): new page + refactor db + bump deps` | Three changes in one commit |
