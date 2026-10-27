@@ -7,6 +7,8 @@ export default tseslint.config(
   {
     rules: {
       'max-lines': ['error', { max: 300, skipBlankLines: false, skipComments: false }],
+      'line-comment-position': ['error', { position: 'above' }],
+      'no-inline-comments': 'error',
     },
   },
 );
