@@ -24,7 +24,7 @@ A maintainer imports it once, in either way:
 - **With the GitHub CLI:**
 
   ```bash
-  gh api repos/OWNER/NAME/rulesets --method POST --input .github/rulesets/main.json
+  gh api repos/AmineYagoub/ittro/rulesets --method POST --input .github/rulesets/main.json
   ```
 
-To change the ruleset later, change `main.json` in a pull request, then update the live ruleset to match. To update it from the file, use `gh api repos/OWNER/NAME/rulesets/ID --method PUT --input .github/rulesets/main.json`, with the ID from `gh api repos/OWNER/NAME/rulesets`.
+To change the ruleset later, change `main.json` in a pull request, then update the live ruleset to match. To update it from the file, use `gh api repos/AmineYagoub/ittro/rulesets/ID --method PUT --input .github/rulesets/main.json`, with the ID from `gh api repos/AmineYagoub/ittro/rulesets`.

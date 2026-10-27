@@ -14,7 +14,7 @@ Thanks for helping. Newcomers are welcome: you don't need to be an expert, and n
 <!-- The exact commands: what to install (with versions), how to get the dependencies, how to run the project. -->
 
 ```bash
-git clone https://github.com/OWNER/NAME
+git clone https://github.com/AmineYagoub/ittro
 cd NAME
 # install the dependencies
 # run the project

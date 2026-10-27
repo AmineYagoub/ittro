@@ -1,0 +1,15 @@
+{
+  "name": "ittro-sensors",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local native module for Ittro: camera frames, microphone and hand tracking. Skeleton only; wiring lands with the dev-client build.",
+  "main": "index.ts",
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1"
+  }
+}

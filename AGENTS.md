@@ -6,16 +6,23 @@ This file tells coding agents (Claude Code, Codex, Cursor, Copilot and others) h
 
 ## The project
 
-<!-- Two or three sentences: what it does, the main folders, the language and framework. -->
+Ittro is an Android shopping companion for blind and low-vision shoppers, speaking Arabic, French or English. It finds a product on the shelf, guides the hand by voice and vibration, and confirms before saying yes.
+
+Folders: `app/` (Expo + React Native), `relay/` (Cloudflare Worker calling Meta), `modules/ittro-sensors/` (local Kotlin module skeleton). Everything is TypeScript; there is no CI yet.
 
 ## Commands
 
 ```bash
-# install the dependencies
-# run the tests (what CI runs)
-# run the linter and the formatter
-# build
+cd app && npm install        # install the app dependencies
+cd app && npx tsc --noEmit   # typecheck the app
+cd app && npm run lint       # lint the app (TypeScript and JavaScript)
+cd relay && npm test         # run the relay tests (node --test)
+cd relay && npm run lint     # lint the relay
+cd modules/ittro-sensors && npm run lint  # lint the sensor shim
+cd app/android && ./gradlew assembleDebug -x lint  # build the debug APK
 ```
+
+No formatter is configured yet, so none runs here.
 
 ## Rules
 
@@ -26,5 +33,16 @@ This file tells coding agents (Claude Code, Codex, Cursor, Copilot and others) h
 - Never commit secrets, tokens, `.env` files or personal data.
 - Don't push, merge, publish a release, deploy, or change repository settings unless the maintainer asks. Never open an issue, a pull request or a comment on your own: a person reviews and submits them ([CONTRIBUTING.md](CONTRIBUTING.md#ai-assisted-contributions)).
 - Don't change the licence, and don't add dependencies without saying why.
+- **At most 300 lines in any file,** blank lines and comments included. ESLint checks TypeScript and JavaScript; keep every other file to the same limit. Split a file that grows past it by what it does ([engineering.md](docs/contributing/engineering.md#code-style)).
+- **Comments at the head only:** a file header and doc comments on exports. None inside a function's body (tool directives and a comment heading a test in a `describe` block aside), none at the end of a line of code (a pinned action's version comment aside), no commented-out code and no TODO: open an issue instead ([engineering.md](docs/contributing/engineering.md#comments)).
+- **Commits follow [commits.md](docs/contributing/commits.md):** a Conventional Commit subject with a listed scope, and an `Assisted-by:` or `Co-authored-by:` trailer for your work. The sign-off (`Signed-off-by:`) certifies the Developer Certificate of Origin, so only the person who submits the change adds it.
+- **Decisions are not yours to make.** A change to a principle, a licence, a data flow, the insights layer or money needs a decision record, which a maintainer decides ([workflow.md](docs/contributing/workflow.md#decision-records)).
+- **Never open an issue, a pull request or a comment on your own:** a person reviews and submits them ([CONTRIBUTING.md](CONTRIBUTING.md#ai-assisted-contributions)).
 
-<!-- Add the project's own rules: style, data sources, things never to touch. -->
+## Ittro rules
+
+- Write only erasable TypeScript (`type`, `interface`, `import type`): no enums, namespaces, or parameter properties. The code stays TypeScript 7 ready and runs under Node type stripping. The toolchain is pinned to TypeScript 6 until a TypeScript parser supports TypeScript 7.
+- Every Muse Spark call uses strict structured output (`json_schema`, `strict: true`, `additionalProperties: false`, all keys in `required`). The relay accepts an answer only when `status` is `completed` and the JSON parses; anything else is an error, never an empty default.
+- A wrong "yes" is the worst outcome. "I can't tell, turn the product" always beats a guess.
+- The phone never holds the Meta API key. Only the relay calls Meta.
+- Test on the real phone over wireless adb, never the emulators. Ask before any download, deploy, or public action.

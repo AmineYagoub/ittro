@@ -1,0 +1,16 @@
+{
+  "name": "ittro-relay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "node --test test/*.test.ts",
+    "lint": "eslint src test"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1"
+  }
+}

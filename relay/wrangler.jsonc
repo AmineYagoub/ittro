@@ -1,0 +1,7 @@
+{
+  // Custom domain (a subdomain of djazair.dev) is wired at deploy time,
+  // with the founder's explicit approval. No routes until then.
+  "name": "ittro-relay",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-27"
+}

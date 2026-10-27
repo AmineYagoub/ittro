@@ -1,38 +1,34 @@
-# djazairdev project template
+# Ittro
 
-[![Template CI](https://github.com/djazairdev/project-template/actions/workflows/template.yml/badge.svg)](https://github.com/djazairdev/project-template/actions/workflows/template.yml)
-[![Good first issues](https://img.shields.io/github/issues/djazairdev/project-template/good%20first%20issue?label=good%20first%20issues&color=7057ff)](https://github.com/djazairdev/project-template/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
-[![Improvements](https://img.shields.io/github/issues/djazairdev/project-template/enhancement?label=improvements&color=a2eeef)](https://github.com/djazairdev/project-template/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement+sort%3Areactions-%2B1-desc)
+[![Latest release](https://img.shields.io/github/v/release/AmineYagoub/ittro?sort=semver)](https://github.com/AmineYagoub/ittro/releases/latest)
+[![Good first issues](https://img.shields.io/github/issues/AmineYagoub/ittro/good%20first%20issue?label=good%20first%20issues&color=7057ff)](https://github.com/AmineYagoub/ittro/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+[![Improvements](https://img.shields.io/github/issues/AmineYagoub/ittro/enhancement?label=improvements&color=a2eeef)](https://github.com/AmineYagoub/ittro/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement+sort%3Areactions-%2B1-desc)
 
-[djazairdev](https://github.com/djazairdev) wants every Algerian developer to be able to make a first open-source contribution to an active local project. This template makes a project ready for them: beginner issues that are easy to find, clear steps to contribute, a reply within 7 days, and a listing in the [djazair.dev Hub](https://djazair.dev/en/hub/).
+Ittro is an Android shopping companion for blind and low-vision shoppers. The shopper says what they want in Arabic, French or English; Ittro finds that exact product on the shelf through the phone camera, guides their hand to it by voice and vibration, and confirms the product in hand before saying yes.
 
-## Make your project djazairdev ready
+It is built with Meta AI through the Meta Model API: Muse Spark for understanding requests and reading labels, Muse Voice Transcribe for the always-on microphone, and SAM 3.1 for finding products on the shelf. Hand tracking runs on the phone. Ittro is our entry for the Meta Global AI Developer Hackathon (Indie track).
 
-**A new project:** click **Use this template**, then ask a coding agent in the new repository:
+## Quick start
 
-> Follow docs/ADOPT.md in this repository.
+```bash
+git clone https://github.com/AmineYagoub/ittro
+```
 
-**An existing project:** ask a coding agent in it:
+The Android app (`app/`) and the relay (`relay/`) are being scaffolded for the hackathon. This section grows tested commands as each part lands. Until then, follow the issues for status.
 
-> Follow https://github.com/djazairdev/project-template/blob/main/docs/ADOPT.md to make this repository djazairdev ready.
+## How it works
 
-The agent checks the project against the [checklist](docs/CHECKLIST.md), adds what's missing, and asks before anything public. Everything else is in [`docs/`](docs/).
+The phone never holds the Meta API key. The app talks to a small relay, and only the relay calls Meta. Every Muse Spark call uses structured output, and the relay accepts an answer only when it completed and parses. A wrong "yes" is the worst outcome, so "I can't tell, turn the product" always beats a guess.
 
 ## Make your first contribution
 
-1. Pick a project in the [Hub](https://djazair.dev/en/hub/), or an issue labelled [good first issue](https://github.com/djazairdev/project-template/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) here.
-2. Comment `/take` on the issue: it's assigned to you, and you can start.
-3. Follow [CONTRIBUTING.md](CONTRIBUTING.md) and open a pull request.
+1. Pick an issue labelled [good first issue](https://github.com/AmineYagoub/ittro/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
+2. Comment on it to say you're working on it.
+3. Follow [CONTRIBUTING.md](CONTRIBUTING.md) to set up, test and open a pull request.
 4. We reply to newcomers' pull requests within 7 days. A review or a merge may take longer.
 
-## Feedback
-
-- [Ask a question](https://github.com/orgs/djazairdev/discussions/categories/q-a)
-- [Report a bug](https://github.com/djazairdev/project-template/issues/new?template=bug.yml)
-- [Suggest an improvement](https://github.com/djazairdev/project-template/issues/new?template=idea.yml), or 👍 the [improvements](https://github.com/djazairdev/project-template/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement+sort%3Areactions-%2B1-desc) you want most
-- [Propose a new project](https://github.com/orgs/djazairdev/discussions/categories/ideas)
-- Follow djazairdev on [Facebook](https://www.facebook.com/djazairdev) and [X](https://x.com/djazairdev) for news
+You can help without writing code, too: docs, translation, testing, design and accessibility.
 
 ## Licence
 
-[MIT](LICENSE). Projects made from the template choose their own.
+[MIT](LICENSE).
