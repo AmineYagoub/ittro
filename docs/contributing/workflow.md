@@ -1,6 +1,6 @@
 # Workflow: from an issue to a merged change
 
-This guide is for everyone who changes the project's files through Git: developers, data curators and maintainers. Teachers don't need Git. They contribute as [CONTRIBUTING.md](../../CONTRIBUTING.md) explains.
+This guide is for everyone who changes the project's files through Git. Shoppers never need Git.
 
 - [Where things happen](#where-things-happen)
 - [Before you start](#before-you-start)
@@ -19,31 +19,28 @@ This guide is for everyone who changes the project's files through Git: develope
 
 | Place | For |
 |---|---|
-| [Issues](https://github.com/djazairdev/minhajna/issues) | Bugs, plan corrections, templates, translations and agreed tasks |
-| Discussions | Questions, and ideas that are not yet a task |
+| [Issues](https://github.com/AmineYagoub/ittro/issues) | Bugs, design corrections, translations and agreed tasks |
 | Pull requests | Proposed changes |
-| The private channel in [SECURITY.md](../../SECURITY.md) | Security problems. Never a public issue |
-| [Decision records](../decisions/) | Decisions about a principle, a licence, a data flow, the insights layer, money or a partnership |
+| [Decision records](../decisions/) | Decisions about a principle, a licence, a data flow, voice behaviour, money or a partnership |
 
-- **Everything here is public, and stays public.** Never post real pupil data ([CONTRIBUTING.md](../../CONTRIBUTING.md#never-post-real-pupil-data)).
-- **Language.** Code, commits, pull requests and developer discussions are in English. Teachers may write issues in Arabic, French or English. A maintainer adds an English summary when developers need one.
+- **Everything here is public, and stays public.** Never post a shopper's picture, audio, or anyone's personal data.
+- **Language.** Code, commits and pull requests are in English. Issues may be in Arabic, French or English. A maintainer adds an English summary when developers need one.
 
 ## Before you start
 
 - **Small fixes,** such as a typo, a broken link or an obvious bug: open a pull request directly.
 - **Anything larger:** open an issue first, or comment on an existing one. Agree the approach with a maintainer before you write the code, so you don't do work that cannot be merged.
-- **Decisions come before code.** A change that touches a principle, a licence, a data flow, the insights layer, money or a partnership needs an accepted decision record first ([Decision records](#decision-records)).
-- **Take an issue** by commenting `/take` on it: it's assigned to you straight away, unless someone already has it. Comment `/drop` if you stop. If an assigned issue has no activity for 30 days, it can go to someone else.
-- **Code is welcome from anyone** ([0021](../decisions/0021-code-contributions-open-to-all.md)). Issues labelled `good first issue` and `help wanted` are ready to take.
+- **Decisions come before code.** A change that touches a principle, a licence, a data flow, voice behaviour, money or a partnership needs an accepted decision record first ([Decision records](#decision-records)).
+- **Code is welcome from anyone.** Issues labelled `good first issue` and `help wanted` are ready to take.
 
 ## Setting up
 
 Fork the repository on GitHub, then:
 
 ```sh
-git clone https://github.com/<your-account>/minhajna.git
-cd minhajna
-git remote add upstream https://github.com/djazairdev/minhajna.git
+git clone https://github.com/<your-account>/ittro.git
+cd ittro
+git remote add upstream https://github.com/AmineYagoub/ittro.git
 git config user.name "The name you use in the project"
 git config user.email "you@example.org"
 ```
@@ -55,19 +52,18 @@ The name and email address go into your sign-off ([commits.md](commits.md#sign-o
 - **Search first,** including closed issues. Add to an existing issue rather than opening a duplicate.
 - **One problem per issue.**
 - **Bug reports** give:
-  - the app's version, and the device or browser;
-  - the steps to reproduce the bug, using the demo class or made-up data;
+  - the app's version, and the phone model with its Android version;
+  - the steps to reproduce the bug, with made-up product names;
   - what you expected, and what happened.
-- **Feature requests start with the teacher's problem:** who has it, when, and what they do today on paper. Then describe your idea.
-- **Plan corrections and templates** give their source, and the level, subject and school year they apply to ([CONTRIBUTING.md](../../CONTRIBUTING.md#content-contributions)).
-- **Security problems never go in an issue** ([SECURITY.md](../../SECURITY.md)).
+- **Feature requests start with the shopper's problem:** who has it, when, and what they do today. Then describe your idea.
+- **Security problems never go in an issue.** Report them privately to a maintainer, never in public.
 
 **Labels**
 
 | Label | Meaning |
 |---|---|
 | `bug`, `feature`, `docs` | The kind of work |
-| `plan-correction`, `template`, `translation` | Content contributions |
+| `translation` | Arabic or French wording |
 | `area: <name>` | The part of the product, named as in the commit scopes ([commits.md](commits.md#scopes)) |
 | `privacy-sensitive` | Touches a privacy-sensitive area, so it gets extra review ([Review](#review)) |
 | `needs-decision` | Waits for a decision record |
@@ -80,11 +76,9 @@ The name and email address go into your sign-off ([commits.md](commits.md#sign-o
 ## Branches
 
 - **`main` is always releasable.** Every commit on it has passed the checks, and every change reaches it through a pull request.
-  - Until the first code lands, the lead maintainer may still commit documents directly to `main`.
-- **Release branches,** named `release/<major>.<minor>` (for example `release/1.5`), are made when a release is prepared. They receive only fixes ([releases.md](releases.md#branches-and-tags)).
 - **Work branches.**
   - Contributors work on a branch in their own fork. Maintainers may make branches in the main repository.
-  - Name a branch after its change, as `<type>/<short-topic>`, using the commit types ([commits.md](commits.md#types)). Add the issue number if there is one. For example: `fix/workbook-locked-cells` or `feat/123-one-tap-roll-call`.
+  - Name a branch after its change, as `<type>/<short-topic>`, using the commit types ([commits.md](commits.md#types)). Add the issue number if there is one. For example: `fix/repeat-no-with-direction` or `feat/123-arabic-clips`.
   - Keep branches short-lived: merge or close them within a few weeks.
 - **Keeping up to date.** Rebase your branch on the latest `main`, rather than merging `main` into it:
 
@@ -95,7 +89,7 @@ The name and email address go into your sign-off ([commits.md](commits.md#sign-o
   ```
 
   Once review has started, push follow-up commits instead of rewriting the branch, so reviewers can see what changed. The commits are squashed when the pull request is merged ([Merging](#merging)).
-- **Shared history is never rewritten.** Nobody force-pushes to `main` or a release branch. The one exception is removing pupil data or a secret ([engineering.md](engineering.md#if-something-leaks)).
+- **Shared history is never rewritten.** Nobody force-pushes to `main`. The one exception is removing a secret or shopper data ([engineering.md](engineering.md#if-something-leaks)).
 
 ## Pull requests
 
@@ -105,58 +99,51 @@ The name and email address go into your sign-off ([commits.md](commits.md#sign-o
 - **Keep reformatting and moved code separate** from changes in behaviour, so reviewers can see what really changed.
 - **Open a draft pull request early** when you want feedback on the approach.
 
-**The title** becomes the commit subject on `main`, so it follows the commit format ([commits.md](commits.md)). For example: `fix(export): leave locked cells untouched in the grade workbook`.
+**The title** becomes the commit subject on `main`, so it follows the commit format ([commits.md](commits.md)). For example: `fix(guide): say the way with every repeated no`.
 
 **The description** covers:
 - **what changes and why,** with `Fixes #123` or `Refs #123`;
-- **how you tested it:** on which devices and browsers. For screens, also right to left, with text at 200% and with the screen reader, where relevant;
-- **screenshots or recordings,** if any, **from the demo class or made-up data only;**
+- **how you tested it:** on which phone, and against Metro or a dev build. For screens, also right to left, with text at 200% and with the screen reader, where relevant;
+- **screenshots or recordings,** if any, **with made-up products only;**
 - **whether it is privacy-sensitive,** and which of the areas in [Review](#review) it touches;
-- **`NETWORK.md`,** updated in the same pull request if a network call is added or changed;
-- **the changelog:** a fragment in `changelog.d/`, or "no change teachers can see" ([releases.md](releases.md#changelog-fragments));
-- **documents:** format specifications, test files, the PRD or a decision record, updated when the change affects them;
+- **documents:** the design spec, a decision record or a voice script, updated when the change affects them;
 - **credit:** how you'd like to be credited in the release notes, or whether you'd rather not be.
 
 **Checks.** These must pass before a merge:
-- the build, the type checks, the linter and the tests;
+- the TypeScript check, the linter and the tests;
 - the sign-off on every commit (DCO);
-- the licence of every file (REUSE);
 - the pull request's title, against the commit format;
-- secret scanning;
-- the licences and known vulnerabilities of dependencies.
+- the licences of new dependencies.
 
 If a check fails for a reason unrelated to your change, say so in the pull request, and a maintainer will look into it.
 
 ## Review
 
 **Who reviews**
-- **Every change is reviewed by a maintainer other than its author,** from the day the project has two maintainers ([PRD §1.7](../prd/PRD.md#17-contributions)). Until then, the lead maintainer reviews every contribution, and merges their own changes once the checks pass.
-- **Code owners.** `.github/CODEOWNERS` names the maintainers who review each area.
-- **Reference data** is reviewed by a data curator and a subject maintainer, against the source pages ([PRD §4.3](../prd/PRD.md#43-the-pack-pipeline)).
+- **Every change is reviewed by a maintainer other than its author,** from the day the project has two maintainers. Until then, the lead maintainer reviews every contribution, and merges their own changes once the checks pass.
+- **Code owners.** `.github/CODEOWNERS` names the maintainers who review each area, once that file exists.
 
 **Privacy-sensitive changes**
 
 A change is privacy-sensitive if it touches:
-- network calls;
-- encryption;
-- sync;
-- insights;
-- the export of marks;
-- anything that reads or writes the school's official files.
+- pictures or audio leaving the phone;
+- the Meta API key or any credential;
+- how long pictures, answers or helper data are kept;
+- the microphone or camera lifecycle.
 
 Such a change:
-- is labelled `privacy-sensitive`, by its author, a reviewer or the automatic labeller;
+- is labelled `privacy-sensitive`, by its author or a reviewer;
 - needs two maintainers' approval;
-- carries a plain-Arabic line for the release notes ([releases.md](releases.md#the-changelog)).
+- carries a plain-words line for the release notes ([releases.md](releases.md#the-changelog)).
 
-While there is only one maintainer, a public notice goes out at least a week before the release that ships the change, instead of the second approval ([PRD §1.7](../prd/PRD.md#17-contributions)).
+While there is only one maintainer, a public notice goes out at least a week before the release that ships the change, instead of the second approval.
 
 **What reviewers check, in this order**
-1. **The principles.** Does anything new leave the device? Is each record's layer respected? Are dates stored without clock times? Is there any real pupil data in the code, the tests or the screenshots? ([engineering.md](engineering.md))
+1. **The principles.** Does any picture or audio leave the phone beyond Meta and the chosen helper? Is every spoken number computed, never fixed? Is there any shopper data in the code, the tests or the screenshots? ([engineering.md](engineering.md))
 2. **Correctness.** Does it do what it says? Do the tests prove it, edge cases included?
-3. **Teachers.** Arabic first and right to left, offline, accessible, and fast on a budget phone ([PRD §6.8](../prd/PRD.md#68-non-functional-requirements)).
+3. **Shoppers.** Voice-first, right to left where relevant, accessible, and fast on a budget phone.
 4. **Fit.** Is it readable, and does it follow the code around it?
-5. **Everything else:** new dependencies and their licences, documents, `NETWORK.md` and the changelog.
+5. **Everything else:** new dependencies and their licences, documents and the changelog.
 
 **How to review**
 - Review the change, not the person. Be specific, and explain why.
@@ -179,37 +166,36 @@ While there is only one maintainer, a public notice goes out at least a week bef
 - **Who merges:** a maintainer, once the approvals are in and the checks pass. A maintainer may merge their own pull request once it is approved.
 - **After the merge,** the branch is deleted and the linked issues close.
 
-**Reverting.** When a change breaks `main` or a release being prepared, it is reverted first and fixed afterwards, in a new pull request. The revert explains what broke, and blames nobody.
+**Reverting.** When a change breaks `main`, it is reverted first and fixed afterwards, in a new pull request. The revert explains what broke, and blames nobody.
 
 ## Decision records
 
-A decision about a principle, a licence, a data flow, the insights layer, money or a partnership gets a record in [`docs/decisions/`](../decisions/) ([PRD §1.8](../prd/PRD.md#18-governance-and-decisions)).
+A decision about a principle, a licence, a data flow, voice behaviour, money or a partnership gets a record in [`docs/decisions/`](../decisions/). The folder starts with the first decision; the format follows the template the maintainers agree when it is needed.
 
-1. **Propose.** Copy [the template](../decisions/template.md), give it the next number and the status `Proposed`, and open a pull request titled `docs(decisions): propose 00NN on <subject>`. Link it from the issue.
-2. **Discuss.** A proposal stays open for comments for at least 7 days. A change to a principle stays open for at least 30 days ([PRD §1.2](../prd/PRD.md#12-principles)). Teachers hear about it where they are: an Arabic summary goes on the website and in the teachers' Facebook group, with the website's form for comments, and the field-check teachers are asked directly. Comments made there count like those on the pull request, and each gets an answer in the record ([PRD §1.8](../prd/PRD.md#18-governance-and-decisions)).
-3. **Decide.** The lead maintainer decides, after hearing contributors and, from the launch, the teacher council ([GOVERNANCE.md](../../GOVERNANCE.md)). After adoption, a change to a principle or the charter also needs the teacher council's consent ([0016](../decisions/0016-non-commercial.md)). The status becomes `Accepted` or `Rejected`, and the record is merged either way, so the reasons stay public.
-4. **Change it later.** An accepted record is not rewritten. A new record replaces it, and the pull request that accepts the new record also sets the old one's status to `Superseded by 00NN`, or `Superseded in part by 00NN` when it replaces only part, in the record and in the index. Typos and broken links may be fixed at any time.
+1. **Propose.** Open a pull request titled `docs(decisions): propose 00NN on <subject>`. Link it from the issue.
+2. **Discuss.** A proposal stays open for comments for at least 7 days. A change to a principle stays open for at least 30 days.
+3. **Decide.** The lead maintainer decides, after hearing contributors. The status becomes `Accepted` or `Rejected`, and the record is merged either way, so the reasons stay public.
+4. **Change it later.** An accepted record is not rewritten. A new record replaces it, and the pull request that accepts the new record also sets the old one's status to `Superseded by 00NN`, or `Superseded in part by 00NN` when it replaces only part. Typos and broken links may be fixed at any time.
 
 The pull requests that carry out a decision link to its record.
 
 ## Documents
 
-- **Changing a settled section of the PRD.** Open a pull request that says what changes and why. The section's decisions table records the change and its date. A change to a principle follows [PRD §1.2](../prd/PRD.md#12-principles).
-- **Specifications,** such as the file formats, change as [versioning.md](versioning.md#file-formats) explains.
-- **Writing.** Plain English in short sentences, with British spelling ("licence", "organisation"). Cite the PRD section or decision record that a rule comes from. Anything teachers need to know is summarised in Arabic in the README.
-- **What public documents never contain:** real pupil data, quotes from teachers in the research, or the names of competing teacher apps and their developers ([PRD §1.4](../prd/PRD.md#14-what-is-open-and-what-stays-private)).
+- **Changing a settled design section.** Open a pull request that says what changes and why. A change to a principle follows the decision process above.
+- **Writing.** Plain English in short sentences. Cite the DESIGN.md section or decision record that a rule comes from. Anything shoppers need to know is kept short enough to say aloud.
+- **What public documents never contain:** shopper pictures or audio, real product lists from a named shop, or anyone's personal data.
 
 ## Becoming a maintainer
 
 Maintainers are invited from regular contributors whose changes and reviews show good judgement, above all about the principles. The lead maintainer invites them, and announces each invitation in public ([GOVERNANCE.md](../../GOVERNANCE.md)).
 
-Every maintainer turns on two-factor authentication ([PRD §1.8](../prd/PRD.md#18-governance-and-decisions)), and signs the release tags they make.
+Every maintainer turns on two-factor authentication, and signs the release tags they make.
 
 ## Repository settings
 
 These settings enforce the rules above. They are listed here so that anyone can check them.
 
-- **Branch protection** on `main` and `release/*`, for everyone, maintainers included, from the first code:
+- **Branch protection** on `main`, for everyone, maintainers included, from the first code:
   - changes only through pull requests;
   - the checks must pass;
   - approval by a maintainer other than the author, from the day there are two maintainers;
@@ -217,6 +203,4 @@ These settings enforce the rules above. They are listed here so that anyone can 
   - no force-push and no deletion.
 - **Merging:** squash and rebase only. Branches are deleted after the merge.
 - **Security:** secret scanning with push protection, private vulnerability reporting, and alerts for vulnerable dependencies.
-- **Reported content:** reports to the maintainers accepted from all users, so conduct problems can be reported privately ([CODE_OF_CONDUCT.md](../../CODE_OF_CONDUCT.md)).
 - **Sign-off required** for commits made on the GitHub website.
-- **Two-factor authentication** required for every member of the organisation.
