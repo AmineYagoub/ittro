@@ -78,7 +78,7 @@ Changes in the `server` and `helper` scopes are privacy-sensitive, because pictu
 - **Lower case after the colon,** and **no full stop** at the end.
 - **At most 72 characters,** type and scope included.
 - **Say what changes for whoever uses it:** "guide to the nearest of three identical bottles", not "update guide.ts".
-- **Mark a breaking change with `!`** after the scope, and explain it in a `BREAKING CHANGE:` trailer. For example: `feat(voice)!: change what a double earbud press means`. What counts as breaking is in [versioning.md](versioning.md).
+- **Mark a breaking change with `!`** after the scope, and explain it in a `BREAKING CHANGE:` trailer. For example: `feat(voice)!: change what a double earbud press means`. What counts as breaking is in [releases.md](releases.md#versions).
 
 ## The body
 
