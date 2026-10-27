@@ -1,0 +1,44 @@
+name: Wording or translation
+description: Text in Arabic, French, English or Tamazight that is wrong, unclear or missing.
+labels: ['translation']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks. Native speakers catch what reviewers miss. If you'd rather fix it yourself, say so, and see CONTRIBUTING.md.
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language
+      multiple: true
+      options:
+        - Arabic
+        - Tamazight
+        - French
+        - English
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where is it?
+      description: The page address, the screen, or the file and line.
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: The text as it is
+    validations:
+      required: true
+  - type: textarea
+    id: suggested
+    attributes:
+      label: The text as it should be
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: Optional. What's wrong with it, for someone who doesn't speak the language.

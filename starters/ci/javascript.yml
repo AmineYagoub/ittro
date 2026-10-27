@@ -1,0 +1,38 @@
+# CI for a JavaScript or TypeScript project: the linter, the tests and the build on every pull
+# request and every push to main. Copy to .github/workflows/ci.yml; the steps run the package.json
+# scripts lint, test and build when they exist.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['lts/*']            # add the other versions the project supports
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm               # pnpm or yarn: see https://github.com/actions/setup-node#caching-global-packages-data
+      - run: npm ci
+      - run: npm run lint --if-present
+      - run: npm test --if-present
+      - run: npm run build --if-present

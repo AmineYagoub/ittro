@@ -1,0 +1,33 @@
+# CI for a Go module: formatting, go vet, the tests with the race detector, and the build on every
+# pull request and every push to main. Copy to .github/workflows/ci.yml.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Check formatting
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; echo 'Run gofmt -w on the files above.'; exit 1; }
+      - run: go vet ./...
+      - run: go test -race ./...
+      - run: go build ./...

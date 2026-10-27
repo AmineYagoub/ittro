@@ -1,0 +1,57 @@
+# Checks the template itself: every workflow starter passes actionlint, and the ruleset and release-please files are well formed.
+# A project made from the template deletes this file (ADOPT.md, step 6).
+name: Template
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check the starters
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Lint the workflows
+        run: >-
+          docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12 -color
+          starters/ci/*.yml starters/release-please/*.yml .github/workflows/*.yml
+      - name: Check the ruleset
+        run: |
+          python3 - <<'EOF'
+          import json
+          r = json.load(open('.github/rulesets/main.json'))
+          assert r['conditions']['ref_name']['include'] == ['~DEFAULT_BRANCH']
+          types = [rule['type'] for rule in r['rules']]
+          assert {'deletion', 'non_fast_forward', 'pull_request', 'required_status_checks'} <= set(types), types
+          checks = next(rule for rule in r['rules'] if rule['type'] == 'required_status_checks')['parameters']['required_status_checks']
+          assert checks and all(c['context'] and c['integration_id'] == 15368 for c in checks), checks
+          assert 'PR title' in [c['context'] for c in checks], checks
+          pr = next(rule for rule in r['rules'] if rule['type'] == 'pull_request')['parameters']
+          assert pr['allowed_merge_methods'] == ['squash'], pr
+          assert pr['required_review_thread_resolution'] is True, pr
+          print('ruleset ok:', [c['context'] for c in checks])
+          EOF
+      - name: Check the issue forms parse
+        run: |
+          for f in starters/community/*.yml; do
+            ruby -ryaml -e 'YAML.load_file(ARGV[0])' "$f"
+            echo "ok $f"
+          done
+      - name: Check the release-please files
+        run: |
+          python3 - <<'EOF'
+          import json, re
+          config = json.load(open('starters/release-please/release-please-config.json'))
+          manifest = json.load(open('starters/release-please/.release-please-manifest.json'))
+          assert set(config['packages']) == set(manifest), (config['packages'], manifest)
+          assert all(re.fullmatch(r'\d+\.\d+\.\d+', v) for v in manifest.values()), manifest
+          print('release-please ok:', {k: p['release-type'] for k, p in config['packages'].items()})
+          EOF

@@ -1,0 +1,20 @@
+# Dependabot opens a pull request each week when a dependency has a new version.
+# Keep the ecosystems this project uses and delete the others (docs: https://docs.github.com/code-security/dependabot).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+  # - package-ecosystem: pip        # Python: requirements.txt or pyproject.toml
+  # - package-ecosystem: npm        # JavaScript and TypeScript, npm, pnpm or yarn
+  # - package-ecosystem: composer   # PHP
+  # - package-ecosystem: gomod      # Go
+  # - package-ecosystem: cargo      # Rust
+  # - package-ecosystem: pub        # Flutter and Dart
+  #   directory: /
+  #   schedule:
+  #     interval: weekly
