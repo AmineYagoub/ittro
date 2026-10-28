@@ -35,12 +35,6 @@ export const privacyLine: Trilingual = {
   fr: 'Je trouve les produits et je guide votre main vers eux. J’envoie les images de la caméra à Meta pour trouver et lire les produits. Je ne les garde pas.',
 };
 
-export const buttonsLine: Trilingual = {
-  en: 'You can also hold the volume-down key to stop me.',
-  ar: 'يمكنك أيضًا الضغط مطولًا على زر خفض الصوت لإيقافي.',
-  fr: 'Vous pouvez aussi maintenir la touche de volume bas pour m’arrêter.',
-};
-
 export const tourOffer: Trilingual = {
   en: 'Do you want to hear what my sounds mean? It takes 30 seconds. Say yes or no.',
   ar: 'هل تريد أن تسمع ماذا تعني أصواتي؟ يستغرق ذلك 30 ثانية. قل نعم أو لا.',
@@ -70,6 +64,195 @@ export const phoneHot: Trilingual = {
   ar: 'الهاتف يسخن. سأبطئ قليلًا.',
   fr: 'Le téléphone chauffe. Je vais ralentir un peu.',
 };
+
+export const askChange: Trilingual = {
+  en: 'Okay. What should I change?',
+  ar: 'حسنًا. ما الذي يجب أن أغيّره؟',
+  fr: 'D’accord. Que dois-je changer ?',
+};
+
+export const searchNext: Trilingual = {
+  en: 'Yes. Searching the shelf comes next.',
+  ar: 'نعم. البحث في الرف هو الخطوة التالية.',
+  fr: 'Oui. La recherche dans le rayon vient ensuite.',
+};
+
+export const notBuilt: Trilingual = {
+  en: "I can't do that yet.",
+  ar: 'لا أستطيع فعل ذلك بعد.',
+  fr: 'Je ne peux pas encore faire ça.',
+};
+
+export const didntCatch: Trilingual = {
+  en: "I didn't catch that. Say it again.",
+  ar: 'لم أفهم ذلك. قله مرة أخرى.',
+  fr: 'Je n’ai pas compris. Redites-le.',
+};
+
+export const didntCatchHelp: Trilingual = {
+  en: "I didn't catch that. Say it again, or say help.",
+  ar: 'لم أفهم ذلك. قله مرة أخرى، أو قل مساعدة.',
+  fr: 'Je n’ai pas compris. Redites-le, ou dites aide.',
+};
+
+export const askAgain: Trilingual = {
+  en: "I'm listening. Say yes or no.",
+  ar: 'أنا أستمع. قل نعم أو لا.',
+  fr: 'Je vous écoute. Dites oui ou non.',
+};
+
+export const offerHelp: Trilingual = {
+  en: 'Say help to hear what you can say.',
+  ar: 'قل مساعدة لتسمع ما يمكنك قوله.',
+  fr: 'Dites aide pour entendre ce que vous pouvez dire.',
+};
+
+export const helpWelcome: Trilingual = {
+  en: 'You can say: what you are looking for, repeat, speak Arabic, or stop. What are you looking for?',
+  ar: 'يمكنك أن تقول: ما تبحث عنه، أو كرر، أو تكلم بالإنجليزية، أو قف. ما الذي تبحث عنه؟',
+  fr: 'Vous pouvez dire : ce que vous cherchez, répétez, parlez arabe, ou arrêtez. Que cherchez-vous ?',
+};
+
+export const helpConfirm: Trilingual = {
+  en: 'You can say: yes, no, repeat, or stop. Is that right? Say yes or no.',
+  ar: 'يمكنك أن تقول: نعم، أو لا، أو كرر، أو قف. هل هذا صحيح؟ قل نعم أو لا.',
+  fr: 'Vous pouvez dire : oui, non, répétez, ou arrêtez. C’est bien ça ? Dites oui ou non.',
+};
+
+export const stopped: Trilingual = {
+  en: 'Stopped. Say Ittro when you need me.',
+  ar: 'توقفت. قل إيترو عندما تحتاجني.',
+  fr: 'Arrêté. Dites Ittro quand vous avez besoin de moi.',
+};
+
+export const doneLine: Trilingual = {
+  en: 'Okay. Say Ittro when you need me.',
+  ar: 'حسنًا. قل إيترو عندما تحتاجني.',
+  fr: 'D’accord. Dites Ittro quand vous avez besoin de moi.',
+};
+
+export const pausing: Trilingual = {
+  en: "I'm pausing. Open Ittro to wake me.",
+  ar: 'سأتوقف مؤقتًا. افتح إيترو لإيقاظي.',
+  fr: 'Je me mets en pause. Ouvrez Ittro pour me réveiller.',
+};
+
+export const lostInternet: Trilingual = {
+  en: "I've lost the internet. I'll keep trying.",
+  ar: 'فقدت الاتصال بالإنترنت. سأستمر في المحاولة.',
+  fr: 'J’ai perdu internet. Je réessaie.',
+};
+
+export const whatToFind: Trilingual = {
+  en: 'What are you looking for?',
+  ar: 'ما الذي تبحث عنه؟',
+  fr: 'Que cherchez-vous ?',
+};
+
+export const helpSearching: Trilingual = {
+  en: 'You can say: find another, repeat, speak Arabic, or stop.',
+  ar: 'يمكنك أن تقول: ابحث عن غيره، أو كرر، أو تكلم بالإنجليزية، أو قف.',
+  fr: 'Vous pouvez dire : cherchez un autre, répétez, parlez arabe, ou arrêtez.',
+};
+
+export const shorterAck: Trilingual = {
+  en: 'Okay, shorter.',
+  ar: 'حسنًا، باختصار.',
+  fr: 'D’accord, plus court.',
+};
+
+export const moreAck: Trilingual = {
+  en: 'Okay, more detail.',
+  ar: 'حسنًا، بتفصيل أكثر.',
+  fr: 'D’accord, plus de détails.',
+};
+
+export const fasterAck: Trilingual = {
+  en: 'Okay, faster.',
+  ar: 'حسنًا، أسرع.',
+  fr: 'D’accord, plus vite.',
+};
+
+export const slowerAck: Trilingual = {
+  en: 'Okay, slower.',
+  ar: 'حسنًا، أبطأ.',
+  fr: 'D’accord, plus lentement.',
+};
+
+export const keepSpeaking: Trilingual = {
+  en: "Okay, I'll keep speaking English.",
+  ar: 'حسنًا، سأستمر في التحدث بالعربية.',
+  fr: 'D’accord, je continue en français.',
+};
+
+const backName: Record<Language, Record<Language, string>> = {
+  en: { en: 'English', ar: 'Arabic', fr: 'French' },
+  ar: { en: 'الإنجليزية', ar: 'العربية', fr: 'الفرنسية' },
+  fr: { en: 'l’anglais', ar: 'l’arabe', fr: 'le français' },
+};
+
+export function switchedTo(target: Language, previous: Language): string {
+  if (target === 'ar') {
+    return `حسناً، سأتكلم بالعربية الآن. قل ${previous === 'fr' ? 'French' : 'English'} للعودة إلى ${backName.ar[previous]}.`;
+  }
+  if (target === 'fr') {
+    return `D’accord, je parle français maintenant. Dites ${previous === 'ar' ? 'عربي' : 'English'} pour revenir au ${backName.fr[previous]}.`;
+  }
+  return `Okay, I'll speak English now. Say speak ${backName.en[previous]} to switch back.`;
+}
+
+export function offerLanguage(target: Language): string {
+  if (target === 'ar') {
+    return 'هل تريد أن أتكلم بالعربية؟ قل نعم أو لا.';
+  }
+  if (target === 'fr') {
+    return 'Voulez-vous que je parle français ? Dites oui ou non.';
+  }
+  return 'Do you want me to speak English? Say yes or no.';
+}
+
+export function confirmRequest(product: string, lang: Language): string {
+  if (lang === 'ar') {
+    return `طلبت ${product}. هل هذا صحيح؟ قل نعم أو لا.`;
+  }
+  if (lang === 'fr') {
+    return `Vous avez demandé ${product}. C’est bien ça ? Dites oui ou non.`;
+  }
+  return `You asked for ${product}. Is that right? Say yes or no.`;
+}
+
+const COUNT_WORDS = ['one', 'two', 'three', 'four', 'five'];
+
+export function confirmList(items: string[], lang: Language): string {
+  if (lang === 'ar') {
+    return `طلبت ${items.length} أشياء: ${items.join('، ثم ')}. هل هذا صحيح؟ قل نعم أو لا.`;
+  }
+  if (lang === 'fr') {
+    return `Vous avez demandé ${items.length} choses : ${items.join(', puis ')}. C’est bien ça ? Dites oui ou non.`;
+  }
+  const count = COUNT_WORDS[items.length - 1] ?? String(items.length);
+  return `You asked for ${count} things: ${items.join(', then ')}. Is that right? Say yes or no.`;
+}
+
+export function stillLooking(product: string, lang: Language): string {
+  if (lang === 'ar') {
+    return `ما زلت أبحث عن ${product}. قل ابحث عن غيره لتغييره.`;
+  }
+  if (lang === 'fr') {
+    return `Je cherche toujours ${product}. Dites chercher un autre pour changer.`;
+  }
+  return `Still looking for ${product}. Say find another to change it.`;
+}
+
+export function welcomeBackLooking(product: string, lang: Language): string {
+  if (lang === 'ar') {
+    return `مرحبًا بعودتك. ما زلت تبحث عن ${product}.`;
+  }
+  if (lang === 'fr') {
+    return `Bon retour. Vous cherchez toujours ${product}.`;
+  }
+  return `Welcome back. Still looking for ${product}.`;
+}
 
 export const tourMeaning: Trilingual[] = [
   {
@@ -103,3 +286,9 @@ export const tourMeaning: Trilingual[] = [
     fr: 'Ce carillon descendant signifie non.',
   },
 ];
+
+export const buttonsLine: Trilingual = {
+  en: 'You can also hold the volume-down key to stop me.',
+  ar: 'يمكنك أيضًا الضغط مطولًا على زر خفض الصوت لإيقافي.',
+  fr: 'Vous pouvez aussi maintenir la touche de volume bas pour m’arrêter.',
+};
