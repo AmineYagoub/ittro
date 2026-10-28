@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShelfLoop } from '../src/shelf/loop';
-import type { LoopDeps, LoopPhoto, ShelfLoop } from '../src/shelf/loop';
+import type { LoopDeps, LoopPhoto, ShelfLoop } from '../src/shelf/loopTypes';
 import { ingestGrey } from '../src/shelf/tracker';
 import type { GreyFrame } from '../src/shelf/tracker';
 import type { ShelfBox, ShelfOutline, ShelfRead } from '../src/relay';
@@ -24,7 +24,7 @@ function read(id: string, verdict: ShelfRead['verdict']): ShelfRead {
 }
 
 function photo(): LoopPhoto {
-  return { image: 'frame', mime: 'image/jpeg', grey: { data: new Uint8Array(0), w: 0, h: 0 } };
+  return { image: 'frame', mime: 'image/jpeg', w: 112, h: 96, grey: { data: new Uint8Array(0), w: 0, h: 0 } };
 }
 
 function paint(w: number, h: number, dx: number, dy: number): GreyFrame {
@@ -80,7 +80,7 @@ function harness(script: Script): {
       calls.outline.push(phrase);
       const fresh = script.outlines[Math.min(outlined, script.outlines.length - 1)] ?? [];
       outlined += 1;
-      return { outlines: fresh, samMs: 5 };
+      return { outlines: fresh, samMs: 5, maskMs: 1 };
     },
     fetchPhrase: async () => {
       calls.phrase += 1;
@@ -114,7 +114,10 @@ function harness(script: Script): {
   };
 }
 
-const BAGS = [outline(0, box(8, 8, 40, 40)), outline(1, box(56, 8, 88, 40))];
+const BAGS = [
+  { ...outline(0, box(8, 8, 40, 40)), mask: { points: [8, 8, 40, 8, 40, 40, 8, 40] } },
+  outline(1, box(56, 8, 88, 40)),
+];
 
 test('outlines move between passes without a new SAM call', async () => {
   const rig = harness({ outlines: [BAGS], reads: [[read('shelf-t1', 'yes'), read('shelf-t2', 'no')]] });
@@ -127,6 +130,10 @@ test('outlines move between passes without a new SAM call', async () => {
   assert.equal(moved.length, 1);
   const first = moved[0];
   assert.equal(first.type === 'OUTLINES_MOVED' && first.outlines[0]?.box.x1, 8 + 3 * 4);
+  assert.deepEqual(first.type === 'OUTLINES_MOVED' && first.outlines[0]?.mask, {
+    points: [20, 12, 52, 12, 52, 44, 20, 44],
+  });
+  assert.equal(first.type === 'OUTLINES_MOVED' && first.outlines[1]?.mask, undefined);
   assert.equal(rig.calls.outline.length, 1);
 });
 
@@ -164,7 +171,7 @@ test('an unsure read is tried again while yes and no stand', async () => {
 });
 
 test('a stale pass after a new epoch never reaches the shopper', async () => {
-  const gated = deferred<{ outlines: ShelfOutline[]; samMs: number }>();
+  const gated = deferred<{ outlines: ShelfOutline[]; samMs: number; maskMs: number }>();
   const sent: ConversationEvent[] = [];
   const deps: LoopDeps = {
     now: () => 0,
@@ -184,7 +191,7 @@ test('a stale pass after a new epoch never reaches the shopper', async () => {
   const pass = loop.cloudPass([photo()]);
   await flush();
   loop.setTarget('rice', 2);
-  gated.resolve({ outlines: BAGS, samMs: 5 });
+  gated.resolve({ outlines: BAGS, samMs: 5, maskMs: 1 });
   await pass;
   await flush();
   assert.deepEqual(sent, []);
@@ -198,7 +205,7 @@ test('the found line goes out with the priority batch, not the rest', async () =
   let reads = 0;
   const loop = createShelfLoop({
     now: () => 0,
-    outline: async () => ({ outlines: three, samMs: 5 }),
+    outline: async () => ({ outlines: three, samMs: 5, maskMs: 1 }),
     fetchPhrase: async () => 'bag',
     read: async () => {
       reads += 1;

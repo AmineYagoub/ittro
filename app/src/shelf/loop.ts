@@ -3,86 +3,14 @@
 // outline and read in the background without blocking it. The clock,
 // the frames and the cloud are injected, so tests walk the loop with
 // simulated time and the phone drives it with real timers.
-import type { Language } from '../theme';
-import type { SceneView, ShelfCrop, ShelfOutline, ShelfRead } from '../relay';
+import type { ShelfCrop, ShelfOutline, ShelfRead } from '../relay';
 import { createTracker, pickSharpest, sharpness, trackPan } from './tracker';
-import type { GreyFrame, Tracker } from './tracker';
+import type { GreyFrame } from './tracker';
 import { moveOutlines } from './outlines';
 import { biggestFirst, needsRead, reconcileTracks } from './shelfTracks';
-import type { Tracked } from './shelfTracks';
 import { outlineSignature, packageKind } from './match';
 import { QUIET_MS, maybeSwept, readBatch, reportEmpty, reportVerdicts } from './loopReads';
-import type { ConversationEvent } from '../conversation/types';
-
-export interface LoopPhoto {
-  image: string;
-  mime: string;
-  grey: GreyFrame;
-}
-
-export interface LoopContext {
-  lang: Language;
-  alternative: string | null;
-  checkedCount: number;
-}
-
-export interface LoopCut {
-  track: string;
-  outline: ShelfOutline;
-}
-
-export interface LoopDeps {
-  now: () => number;
-  outline: (image: string, mime: string, phrase: string) => Promise<{ outlines: ShelfOutline[]; samMs: number }>;
-  fetchPhrase: (request: string, image: string, mime: string) => Promise<string>;
-  read: (request: string, crops: ShelfCrop[]) => Promise<{ reads: ShelfRead[]; readMs: number }>;
-  classify: (request: string, image: string, mime: string) => Promise<SceneView>;
-  cutCrops: (image: string, tracks: LoopCut[]) => Promise<ShelfCrop[]>;
-  readContext: () => LoopContext;
-  send: (event: ConversationEvent) => void;
-  log: (line: string) => void;
-}
-
-export interface LoopStats {
-  samCalls: number;
-  readCalls: number;
-  readCrops: number;
-  classifyCalls: number;
-}
-
-export interface LoopState {
-  request: string;
-  epoch: number;
-  tracker: Tracker;
-  tracks: Tracked[];
-  counter: number;
-  phrases: Map<string, string>;
-  cloudBusy: boolean;
-  outlinedAt: number | null;
-  sceneChanged: boolean;
-  lastSignature: string;
-  lastScene: string;
-  failAt: number | null;
-  classifyAt: number | null;
-  emptyPasses: number;
-  emptyOutlines: number;
-  fruitlessPasses: number;
-  sweptEpoch: number;
-  foundKey: string;
-  turnRightNext: boolean;
-  stats: LoopStats;
-}
-
-export interface ShelfLoop {
-  setTarget: (request: string, epoch: number) => void;
-  reset: () => void;
-  fail: (error: unknown) => void;
-  busy: () => boolean;
-  cloudDue: () => boolean;
-  trackFrame: (grey: GreyFrame, photoW: number) => void;
-  cloudPass: (photos: LoopPhoto[], hand?: ShelfCrop | null) => Promise<void>;
-  stats: () => LoopStats;
-}
+import type { LoopDeps, LoopPhoto, LoopState, LoopStats, ShelfLoop } from './loopTypes';
 
 const REFRESH_MS = 15000;
 const EMPTY_BEFORE_CLEAR = 3;
@@ -222,21 +150,24 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
           }
           state.phrases.set(request, phrase);
         }
-        let outlined = await deps.outline(sharpest.image, sharpest.mime, phrase);
+        let outlined = await deps.outline(sharpest.image, sharpest.mime, phrase, sharpest.w, sharpest.h);
         state.stats.samCalls += 1;
         if (stale(epoch)) {
           return;
         }
         if (outlined.outlines.length === 0 && phrase.includes(' ')) {
           const shorter = phrase.trim().split(/\s+/).pop() as string;
-          outlined = await deps.outline(sharpest.image, sharpest.mime, shorter);
+          outlined = await deps.outline(sharpest.image, sharpest.mime, shorter, sharpest.w, sharpest.h);
           state.stats.samCalls += 1;
           deps.log(`shelf sam retry ${shorter} ${outlined.samMs}ms outlines ${outlined.outlines.length}`);
           if (stale(epoch)) {
             return;
           }
         }
-        deps.log(`shelf sam ${outlined.samMs}ms outlines ${outlined.outlines.length} sharpness ${Math.round(picked)}`);
+        const masked = outlined.outlines.filter((outline) => outline.mask).length;
+        deps.log(
+          `shelf sam ${outlined.samMs}ms masks ${outlined.maskMs}ms outlines ${outlined.outlines.length} masked ${masked} sharpness ${Math.round(picked)}`,
+        );
         state.outlinedAt = deps.now();
         state.sceneChanged = false;
         if (outlined.outlines.length === 0) {

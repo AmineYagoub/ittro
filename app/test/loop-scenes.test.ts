@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShelfLoop } from '../src/shelf/loop';
-import type { LoopDeps, ShelfLoop } from '../src/shelf/loop';
+import type { LoopDeps, ShelfLoop } from '../src/shelf/loopTypes';
 import type { ShelfOutline, ShelfRead } from '../src/relay';
 import type { SceneView } from '../src/relay';
 import type { ConversationEvent } from '../src/conversation/types';
@@ -28,7 +28,7 @@ function rig(scenes: SceneView[]): {
   const calls = { read: [] as string[][], classify: 0 };
   const deps: LoopDeps = {
     now: () => now,
-    outline: async () => ({ outlines: [], samMs: 5 }),
+    outline: async () => ({ outlines: [], samMs: 5, maskMs: 1 }),
     fetchPhrase: async () => 'bag',
     read: async (_request, crops) => {
       calls.read.push(crops.map((crop) => crop.id));
@@ -55,8 +55,8 @@ function rig(scenes: SceneView[]): {
   };
 }
 
-function photo(): { image: string; mime: string; grey: { data: Uint8Array; w: number; h: number } } {
-  return { image: 'frame', mime: 'image/jpeg', grey: { data: new Uint8Array(0), w: 0, h: 0 } };
+function photo(): { image: string; mime: string; w: number; h: number; grey: { data: Uint8Array; w: number; h: number } } {
+  return { image: 'frame', mime: 'image/jpeg', w: 112, h: 96, grey: { data: new Uint8Array(0), w: 0, h: 0 } };
 }
 
 test('a shelf without the kind points to a person, once per scene', async () => {
@@ -99,7 +99,7 @@ test('a crop in the hand reads before the shelf', async () => {
   const calls: string[][] = [];
   const loop = createShelfLoop({
     now: () => 0,
-    outline: async () => ({ outlines: [outline(0), outline(1)], samMs: 5 }),
+    outline: async () => ({ outlines: [outline(0), outline(1)], samMs: 5, maskMs: 1 }),
     fetchPhrase: async () => 'bag',
     read: async (_request, crops) => {
       calls.push(crops.map((crop) => crop.id));

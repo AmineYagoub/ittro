@@ -68,10 +68,15 @@ export interface ShelfBox {
   confidence: number | null;
 }
 
+export interface ShelfMask {
+  points: number[];
+}
+
 export interface ShelfOutline {
   id: number;
   frame: number;
   box: ShelfBox;
+  mask?: ShelfMask;
 }
 
 export interface ShelfCrop {
@@ -115,8 +120,10 @@ export async function outlineShelf(
   image: string,
   mime: string,
   phrase: string,
-): Promise<{ outlines: ShelfOutline[]; samMs: number }> {
-  return postShelf('/outline', { image, mime, phrase });
+  w: number,
+  h: number,
+): Promise<{ outlines: ShelfOutline[]; samMs: number; maskMs: number }> {
+  return postShelf('/outline', { image, mime, phrase, w, h });
 }
 
 export async function fetchPackagePhrase(request: string, image: string, mime: string): Promise<string> {

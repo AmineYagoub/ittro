@@ -2,14 +2,19 @@
 // quarter second moves the outlines with the phone, while cloud
 // passes outline and read in the background without blocking it.
 // Stills are silent (no shutter sound, no processing stall) and the
-// native side deletes each one after decoding it.
+// native side deletes each one after decoding it. Shots wait for the
+// camera to report ready, so a fresh mount never takes a rejected
+// picture; a failed capture retries silently while only a failed
+// cloud pass tells the shopper. Every fortieth track tick logs its
+// rate and cost, so the phone check reads frames per second, skipped
+// ticks and heat straight from the log.
 import { useEffect, useRef } from 'react';
-import { cropShelfPhoto, prepareShelfPhoto, prepareTrackGrey } from 'ittro-sensors';
+import { cropShelfPhoto, prepareShelfPhoto, prepareTrackGrey, thermalStatus } from 'ittro-sensors';
 import { classifySceneView, outlineShelf, fetchPackagePhrase, readShelfCrops } from '../relay';
 import type { ShelfCrop } from '../relay';
 import type { Language } from '../theme';
 import { createShelfLoop } from './loop';
-import type { LoopPhoto, ShelfLoop } from './loop';
+import type { LoopPhoto, ShelfLoop } from './loopTypes';
 import { decodeBase64, ingestGrey } from './tracker';
 import type { GreyFrame } from './tracker';
 import type { ConversationContext, ConversationEvent } from '../conversation/types';
@@ -27,13 +32,23 @@ export interface SearchActor {
 const TRACK_EVERY_MS = 250;
 const CLOUD_EVERY_MS = 500;
 
+const TRACK_SUMMARY_EVERY = 40;
+
 const SILENT_SHOT = { shutterSound: false, skipProcessing: true, exif: false };
+
+function percentile(sorted: number[], rank: number): number {
+  if (sorted.length === 0) {
+    return 0;
+  }
+  return sorted[Math.min(sorted.length - 1, Math.floor(rank * sorted.length))] as number;
+}
 
 export function useShelfSearch(
   camera: { current: SearchCamera | null },
   actor: { current: SearchActor | null },
   active: boolean,
   request: string | null,
+  ready: { current: boolean },
 ): void {
   const held = useRef<{ loop: ShelfLoop | null; ring: LoopPhoto[] }>({ loop: null, ring: [] });
 
@@ -78,6 +93,10 @@ export function useShelfSearch(
     held.current = { loop, ring: [] };
     let stopped = false;
     let shooting = false;
+    let captures: number[] = [];
+    let pans = 0;
+    let skipped = 0;
+    let windowStart = Date.now();
     syncTarget();
     const trackTimer = setInterval(() => {
       void trackTick();
@@ -101,20 +120,49 @@ export function useShelfSearch(
       }
     }
 
+    function note(line: string): void {
+      if (__DEV__) console.log(`[ittro] ${stamp()} ${line}`);
+    }
+
+    function summarizeTracks(): void {
+      const secs = (Date.now() - windowStart) / 1000;
+      const ordered = [...captures].sort((a, b) => a - b);
+      const heat = thermalStatus();
+      note(
+        `track ${(captures.length / Math.max(1, secs)).toFixed(1)}/s capture p50 ${percentile(ordered, 0.5)}ms p95 ${percentile(ordered, 0.95)}ms pan ${Math.round(pans / Math.max(1, captures.length))}ms skipped ${skipped} thermal ${heat === null ? 'unknown' : heat}`,
+      );
+      captures = [];
+      pans = 0;
+      skipped = 0;
+      windowStart = Date.now();
+    }
+
     async function trackTick(): Promise<void> {
       const eye = camera.current;
-      if (stopped || !eye || shooting) {
+      if (stopped || !eye || !ready.current) {
+        return;
+      }
+      if (shooting) {
+        skipped += 1;
         return;
       }
       shooting = true;
       try {
         syncTarget();
+        const shotStart = Date.now();
         const picture = await eye.takePictureAsync({ ...SILENT_SHOT });
         const track = await prepareTrackGrey(picture.uri);
+        const shotMs = Date.now() - shotStart;
         if (stopped || !track) {
           return;
         }
+        const panStart = Date.now();
         loop.trackFrame(ingestGrey(decodeBase64(track.grey), track.gw, track.gh), track.pw);
+        captures.push(shotMs);
+        pans += Date.now() - panStart;
+        if (captures.length >= TRACK_SUMMARY_EVERY) {
+          summarizeTracks();
+        }
       } catch {
         return;
       } finally {
@@ -124,24 +172,32 @@ export function useShelfSearch(
 
     async function cloudTick(): Promise<void> {
       const eye = camera.current;
-      if (stopped || !eye || shooting || !loop.cloudDue()) {
+      if (stopped || !eye || !ready.current || shooting || !loop.cloudDue()) {
         return;
       }
       shooting = true;
       try {
         syncTarget();
-        const picture = await eye.takePictureAsync({ ...SILENT_SHOT });
-        const prepared = await prepareShelfPhoto(picture.uri);
+        const shotStart = Date.now();
+        let uri: string | null = null;
+        try {
+          uri = (await eye.takePictureAsync({ ...SILENT_SHOT })).uri;
+        } catch (error) {
+          note(`shelf capture failed: ${String((error as Error)?.message ?? error).slice(0, 80)}`);
+          return;
+        }
+        const prepared = await prepareShelfPhoto(uri);
         if (stopped || !prepared) {
           return;
         }
+        note(`shelf capture ${Date.now() - shotStart}ms photo ${prepared.w}x${prepared.h}`);
         let grey: GreyFrame = { data: new Uint8Array(0), w: 0, h: 0 };
         try {
           grey = ingestGrey(decodeBase64(prepared.grey), prepared.gw, prepared.gh);
         } catch {
           grey = { data: new Uint8Array(0), w: 0, h: 0 };
         }
-        const ring = [...held.current.ring, { image: prepared.photo, mime: 'image/jpeg', grey }].slice(-3);
+        const ring = [...held.current.ring, { image: prepared.photo, mime: 'image/jpeg', w: prepared.w, h: prepared.h, grey }].slice(-3);
         held.current.ring = ring;
         shooting = false;
         await loop.cloudPass(ring, null);

@@ -40,9 +40,10 @@ export default function App(): React.JSX.Element {
   const [, requestCamera, getCameraPermission] = useCameraPermissions();
   const actorRef = useRef<ConversationActor | null>(null);
   const cameraRef = useRef<CameraView | null>(null);
+  const cameraReady = useRef(false);
   const inLive = useRef(false);
 
-  useShelfSearch(cameraRef, actorRef, searching, searchRequest);
+  useShelfSearch(cameraRef, actorRef, searching, searchRequest, cameraReady);
 
   useEffect(() => {
     let gone = false;
@@ -166,11 +167,19 @@ export default function App(): React.JSX.Element {
     <View style={styles.container} onLayout={measured}>
       {cameraOn ? (
         <CameraView
-          ref={cameraRef}
+          ref={(view) => {
+            cameraRef.current = view;
+            if (!view) {
+              cameraReady.current = false;
+            }
+          }}
           style={styles.camera}
           facing="back"
           accessible={false}
           importantForAccessibility="no"
+          onCameraReady={() => {
+            cameraReady.current = true;
+          }}
         />
       ) : null}
       {cameraOn && outlines.length > 0 && viewSize.width > 0 ? (

@@ -4,7 +4,7 @@
 import { aisleFallback, findCloseMatch, packageKind } from './match';
 import { createReadQueue, dropEpoch, enqueueRead, nextRead } from './queue';
 import type { ShelfRead } from '../relay';
-import type { LoopDeps, LoopState } from './loop';
+import type { LoopDeps, LoopState } from './loopTypes';
 import type { Tracked } from './shelfTracks';
 
 export const QUIET_MS = 8000;
