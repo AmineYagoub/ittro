@@ -14,6 +14,18 @@ A dated log of what was built each day, for the hackathon submission. New work o
 - Design pack landed in `docs/design/`: DESIGN.md, AUDIT.md, 31 screens with layouts, tokens, 11 sounds, 30 trilingual voice cues (English and French recorded with MMS-TTS; Arabic generated on-device). Made 27 October with Claude as the tool.
 - Reviewed the design pack; licence credit and demo-scope notes added to the README.
 
+## Not built during the event
+
+For the new-work rule: everything above was made 26 October 2026 onward. The following predate the event or came from outside it, and are tools and materials, not the entry.
+
+- `djazairdev/project-template` files (MIT): repo scaffolding only (readme shape, contributing guides, governance, licence text). No product behaviour.
+- Expo blank-app starter: replaced file by file (TypeScript sources, camera screen, config). Only the build wiring remains.
+- Libraries, installed from npm, not written here: `expo`, `react-native`, `react`, `expo-camera`, `typescript`, `eslint`, `typescript-eslint`. See each folder's `package.json` and lockfile.
+- Build tooling: Android SDK, Gradle, JDK. Nothing of theirs ships in the repo.
+- Meta's models, called through the Model API, and Meta MMS-TTS voices (CC BY-NC 4.0) used to record the English and French cues. Recordings were made 27 October; the models themselves are Meta's.
+- Readex Pro font (OFL-1.1) named by the design; the app does not bundle it yet.
+- Research results R1 and R2 (22 October) and the 22–26 October test project: read as background, referenced by `docs/design/AUDIT.md`. None of their code entered this repository.
+
 ## Build order
 
 1. English voice path with recorded clips (demo speaks English only).
