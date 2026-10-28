@@ -1,0 +1,273 @@
+// Conversation actions: everything the states do that is not a
+// state. Muting, spawning, notes, boot lines and pause lines.
+import {
+  assignConversation as assign,
+  enqueueConversation as enqueue,
+  persistSnapshot,
+  raiseConversation as raise,
+  requestKeywords,
+  sendToConversation as sendTo,
+} from './actors';
+import type { Language } from '../theme';
+import { playSound, setSpeechRate, stopVoice } from '../speech';
+import type { UnderstandAnswer } from '../relay';
+import {
+  askAgain,
+  chooseLanguage,
+  confirmList,
+  confirmRequest,
+  lostInternet,
+  offerHelp,
+  offerLanguage,
+  pausing,
+  refusedMic,
+  stillLooking,
+  tourOffer,
+  welcome,
+  welcomeBack,
+  welcomeBackLooking,
+  whatToFind,
+} from '../lines';
+import { HELP_CHIP, NO_CHIP, YES_CHIP } from '../chips';
+import { streamClient } from './streamActor';
+import type { ConversationContext, ExpressionEvent, SpokenLine, StreamCommand } from './types';
+import { stamp } from '../stamp';
+
+export type ContextArgs = { context: ConversationContext };
+
+export type EventArgs = { context: ConversationContext; event: ExpressionEvent };
+
+export function wsUrl(relayUrl: string): string {
+  return relayUrl.replace(/^http/, 'ws');
+}
+
+export function toStream(command: StreamCommand | ((args: ContextArgs) => StreamCommand)) {
+  return sendTo(
+    ({ context }: ContextArgs) => context.streamRef as NonNullable<ConversationContext['streamRef']>,
+    command,
+  );
+}
+
+export const muteMic = toStream({ type: 'MUTE' });
+
+export const unmuteMic = toStream({ type: 'UNMUTE' });
+
+export const sendStop = toStream({ type: 'STOP' });
+
+export const sendStart = toStream(({ context }) => ({ type: 'START', keywords: requestKeywords(context.request) }));
+
+export const ensureStream = enqueue(({ enqueue: collect, context }) => {
+  if (!context.streamUp) {
+    collect(sendStart);
+  }
+});
+
+export const raiseQuestion = raise({ type: 'QUESTION_ASKED' });
+
+export const raiseHeard = raise({ type: 'HEARD' });
+
+export const raiseReprompt = raise({ type: 'REPROMPT' });
+
+export const raiseHelp = raise({ type: 'HELP' });
+
+export const noteSaid = assign({
+  lastLine: ({ context }: ContextArgs) => context.pendingSay[context.pendingSay.length - 1]?.text ?? context.lastLine,
+  lastChips: ({ context }: ContextArgs) => context.pendingSay[context.pendingSay.length - 1]?.chips ?? context.lastChips,
+  pendingSay: [],
+});
+
+export const noteHeard = assign({
+  transcript: ({ event }: EventArgs) => (event.type === 'FINAL_TEXT' ? event.text : ''),
+  askedEpoch: ({ context }: ContextArgs) => context.epoch,
+});
+
+export const logHeard = ({ event }: EventArgs): void => {
+  if (event.type === 'FINAL_TEXT' && __DEV__) {
+    console.log(`[ittro] ${stamp()} heard: ${JSON.stringify(event.text)}`);
+  }
+};
+
+export const playHeard = (): void => {
+  playSound('heard');
+  if (__DEV__) console.log(`[ittro] ${stamp()} speech ended`);
+};
+
+export interface DoneArgs {
+  context: ConversationContext;
+  event: ExpressionEvent;
+}
+
+export const noteUnderstood = assign({
+  routeAnswer: ({ event }: DoneArgs) =>
+    'output' in event ? ((event.output as UnderstandAnswer | undefined) ?? null) : null,
+  misses: ({ context, event }: DoneArgs) =>
+    'output' in event && (event.output as UnderstandAnswer | undefined)?.intent === 'not_understood'
+      ? context.misses + 1
+      : 0,
+});
+
+export const noteStreamOpen = assign({ streamUp: true });
+
+export const noteStreamDown = assign({ streamUp: false });
+
+export const noteSnapshot = ({ context }: ContextArgs): void => persistSnapshot(context.request);
+
+export const spawnStream = assign({
+  streamRef: ({ spawn, context }) =>
+    spawn(streamClient, {
+      input: { url: wsUrl(context.relayUrl), code: context.relayCode, keywords: requestKeywords(context.request) },
+    }),
+});
+
+export const applyInitialRate = ({ context }: ContextArgs): void => setSpeechRate(context.rate);
+
+export const freshAnswer: (args: ContextArgs) => boolean = ({ context }) => context.askedEpoch === context.epoch;
+
+export const nonEmptyFinal: (args: EventArgs) => boolean = ({ event }) =>
+  event.type === 'FINAL_TEXT' && event.text.trim().length > 0;
+
+export const netDue: (args: ContextArgs) => boolean = ({ context }) => Date.now() - context.netSaidAt > 8000;
+
+export const micDue: (args: ContextArgs) => boolean = ({ context }) => Date.now() - context.micSaidAt > 60000;
+
+export const alertDue = ({ context, event }: EventArgs): boolean => {
+  if (event.type !== 'ALERT') {
+    return false;
+  }
+  return event.kind === 'battery' ? !context.warnedBattery : !context.warnedHeat;
+};
+
+export const noteAlert = assign({
+  warnedBattery: ({ context, event }: EventArgs) =>
+    context.warnedBattery || (event.type === 'ALERT' && event.kind === 'battery'),
+  warnedHeat: ({ context, event }: EventArgs) =>
+    context.warnedHeat || (event.type === 'ALERT' && event.kind === 'heat'),
+  pendingSay: ({ event }: EventArgs) => (event.type === 'ALERT' ? [{ text: event.text, chips: [] as string[] }] : []),
+});
+
+export const noteNetComplaint = assign({
+  netSaidAt: () => Date.now(),
+  pendingSay: ({ context }: ContextArgs) => [{ text: lostInternet[context.lang], chips: [] as string[] }],
+});
+
+export const noteMicComplaint = assign({
+  micSaidAt: () => Date.now(),
+  pendingSay: ({ context }: ContextArgs) => [{ text: refusedMic[context.lang], chips: [] as string[] }],
+});
+
+export function repromptLines(step: ConversationContext['step'], request: string | null, lang: Language): SpokenLine[] {
+  if (step === 'confirm' || step === 'offer') {
+    return [{ text: askAgain[lang], chips: [YES_CHIP[lang], NO_CHIP[lang]] }];
+  }
+  if (step === 'tour') {
+    return [{ text: tourOffer[lang], chips: [YES_CHIP[lang], NO_CHIP[lang]] }];
+  }
+  if (step === 'language') {
+    return [
+      { text: chooseLanguage.en, chips: [] },
+      { text: chooseLanguage.ar, chips: [] },
+      { text: chooseLanguage.fr, chips: [] },
+    ];
+  }
+  if (request) {
+    return [{ text: stillLooking(request, lang), chips: [] }];
+  }
+  return [{ text: whatToFind[lang], chips: [] }];
+}
+
+export const assignReprompt = assign({
+  pendingSay: ({ context }: ContextArgs) => repromptLines(context.step, context.request, context.lang),
+});
+
+export const logReprompt = (): void => {
+  if (__DEV__) console.log(`[ittro] ${stamp()} silence 8s, asking again`);
+};
+
+export const assignHelp = assign({
+  pendingSay: ({ context }: ContextArgs) => [{ text: offerHelp[context.lang], chips: [HELP_CHIP[context.lang]] }],
+});
+
+export const logHelp = (): void => {
+  if (__DEV__) console.log(`[ittro] ${stamp()} silence 20s, offering help`);
+};
+
+export const flLangLines = assign({
+  step: 'language',
+  pendingQuestion: null,
+  pendingSay: [
+    { text: chooseLanguage.en, chips: [] },
+    { text: chooseLanguage.ar, chips: [] },
+    { text: chooseLanguage.fr, chips: [] },
+  ],
+});
+
+export const freshLines = assign({
+  step: 'welcome',
+  pendingSay: ({ context }: ContextArgs) => [{ text: welcome[context.lang], chips: [HELP_CHIP[context.lang]] }],
+});
+
+export const backLines = assign({
+  step: 'welcome',
+  pendingSay: ({ context }: ContextArgs) => [
+    { text: context.request ? welcomeBackLooking(context.request, context.lang) : welcome[context.lang], chips: [] },
+  ],
+});
+
+export function pausedLines(context: ConversationContext): SpokenLine[] {
+  const lang = context.lang;
+  if (context.step === 'sleep') {
+    return [{ text: welcomeBack[lang], chips: [] }];
+  }
+  if (context.step === 'confirm' && context.pendingRequest) {
+    const text = context.pendingItems
+      ? confirmList(context.pendingItems, lang)
+      : confirmRequest(context.pendingRequest, lang);
+    return [{ text, chips: [YES_CHIP[lang], NO_CHIP[lang]] }];
+  }
+  if (context.step === 'offer' && context.offerTarget) {
+    return [{ text: offerLanguage(context.offerTarget), chips: [YES_CHIP[context.offerTarget], NO_CHIP[context.offerTarget]] }];
+  }
+  if (context.step === 'tour') {
+    return [{ text: tourOffer[lang], chips: [YES_CHIP[lang], NO_CHIP[lang]] }];
+  }
+  if (context.step === 'language') {
+    return [
+      { text: chooseLanguage.en, chips: [] },
+      { text: chooseLanguage.ar, chips: [] },
+      { text: chooseLanguage.fr, chips: [] },
+    ];
+  }
+  if (context.request) {
+    return [{ text: welcomeBackLooking(context.request, lang), chips: [] }];
+  }
+  return [
+    { text: welcomeBack[lang], chips: [] },
+    { text: whatToFind[lang], chips: [] },
+  ];
+}
+
+export const notePaused = assign({
+  epoch: ({ context }: ContextArgs) => context.epoch + 1,
+  pausedNote: ({ context }: ContextArgs) => pausedLines(context),
+  pausedReturn: ({ context }: ContextArgs) => (context.step === 'sleep' ? 'sleeping' : 'listening'),
+});
+
+export const usePausedNote = assign({
+  pendingSay: ({ context }: ContextArgs) => context.pausedNote,
+});
+
+export const returnSleeping: (args: ContextArgs) => boolean = ({ context }) => context.pausedReturn === 'sleeping';
+
+export const needsFirstLaunch: (args: ContextArgs) => boolean = ({ context }) => !context.firstLaunchDone;
+
+export const hasRequest: (args: ContextArgs) => boolean = ({ context }) => context.request !== null;
+
+export const pausingLines = assign({
+  pendingSay: ({ context }: ContextArgs) => [{ text: pausing[context.lang], chips: [] as string[] }],
+});
+
+export const chimePausing = (): void => playSound('pausing');
+
+export const quietVoice = (): void => {
+  stopVoice();
+};
