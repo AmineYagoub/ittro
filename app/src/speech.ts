@@ -6,6 +6,7 @@ import * as Speech from 'expo-speech';
 import { createAudioPlayer } from 'expo-audio';
 import type { AudioPlayer } from 'expo-audio';
 import type { Language, SoundName } from './theme';
+import { soundFile } from './theme';
 import { cueClip, cueText } from './voiceClips';
 import { soundAsset } from './soundBank';
 
@@ -14,6 +15,7 @@ const SPEECH_LOCALE: Record<Language, string> = { en: 'en-US', ar: 'ar-SA', fr: 
 let generation = 0;
 let talkBack = false;
 let activePlayer: AudioPlayer | null = null;
+let speechRate = 1;
 
 export async function initVoice(): Promise<void> {
   talkBack = await AccessibilityInfo.isScreenReaderEnabled();
@@ -21,6 +23,10 @@ export async function initVoice(): Promise<void> {
     talkBack = enabled;
     stopVoice();
   });
+}
+
+export function setSpeechRate(rate: number): void {
+  speechRate = Math.min(2, Math.max(0.5, rate));
 }
 
 export function stopVoice(): void {
@@ -69,6 +75,7 @@ export function say(text: string, lang: Language): Promise<void> {
   return new Promise((resolve) => {
     Speech.speak(text, {
       language: SPEECH_LOCALE[lang],
+      rate: speechRate,
       onDone: () => {
         if (alive(g)) {
           resolve();
@@ -93,12 +100,28 @@ function stopPlayer(): void {
   }
 }
 
-function playFile(source: unknown): Promise<void> {
+function playFile(source: unknown, rate: number): Promise<void> {
   const g = ++generation;
   stopPlayer();
-  const player = createAudioPlayer(source as number);
+  let player: AudioPlayer;
+  try {
+    player = createAudioPlayer(source as number);
+  } catch {
+    return Promise.resolve();
+  }
   activePlayer = player;
-  player.play();
+  try {
+    player.setPlaybackRate(rate);
+    player.play();
+  } catch {
+    activePlayer = null;
+    try {
+      player.remove();
+    } catch {
+      // Nothing plays; the line still shows.
+    }
+    return Promise.resolve();
+  }
   return new Promise((resolve) => {
     const subscription = player.addListener('playbackStatusUpdate', (status) => {
       if (status.didJustFinish || !alive(g)) {
@@ -125,9 +148,13 @@ export function sayClip(id: string, lang: Language): Promise<void> {
   if (!clip) {
     return say(cue[lang], lang);
   }
-  return playFile(clip);
+  return playFile(clip, speechRate);
 }
 
 export function playSound(name: SoundName): void {
-  void playFile(soundAsset[name]);
+  const stem = soundFile[name].replace(/\.wav$/, '');
+  const asset = (soundAsset as Record<string, unknown>)[stem];
+  if (asset) {
+    void playFile(asset, 1);
+  }
 }

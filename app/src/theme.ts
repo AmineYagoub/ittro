@@ -51,11 +51,14 @@ export const haptics = {
 export type Language = 'en' | 'ar' | 'fr';
 
 export const speech = {
-  defaultLanguage: 'en' as Language,
-  lineStartsWithinMs: 300,
   firstLaunchListenMs: 5000,
   firstLaunchWords: { ar: 'عربي', fr: 'français' },
+  defaultLanguage: 'en' as Language,
+  lineStartsWithinMs: 300,
   workingTickEveryMs: 2000,
+  askAgainMs: 8000,
+  offerHelpMs: 20000,
+  reminderEveryMs: 60000,
   idlePauseAfterMs: 120000,
   lowVolumeThreshold: 0.3,
   raisedVolume: 0.5,

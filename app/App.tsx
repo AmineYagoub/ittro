@@ -130,7 +130,7 @@ export default function App(): React.JSX.Element {
         if (!alive.current) {
           return;
         }
-        await savePrefs({ language: langRef.current, firstLaunchDone: true });
+        await savePrefs({ language: langRef.current, firstLaunchDone: true, brief: false, rate: 1 });
       }
       setCameraOn(true);
       if (__DEV__) console.log('[ittro] sensors.getStatus:', JSON.stringify(sensorsStatus()));
