@@ -14,22 +14,19 @@ import type { UnderstandAnswer } from '../relay';
 import {
   askAgain,
   chooseLanguage,
-  confirmList,
-  confirmRequest,
   lostInternet,
   offerHelp,
   offerLanguage,
   pausing,
   refusedMic,
-  stillLooking,
   tourOffer,
   welcome,
   welcomeBack,
-  welcomeBackLooking,
   whatToFind,
 } from '../lines';
+import { confirmList, confirmRequest, stillLooking, welcomeBackLooking } from '../requestLines';
 import { HELP_CHIP, NO_CHIP, YES_CHIP } from '../chips';
-import { streamClient } from './streamActor';
+import type { streamClient } from './streamActor';
 import type { ConversationContext, ExpressionEvent, SpokenLine, StreamCommand } from './types';
 import { stamp } from '../stamp';
 
@@ -114,7 +111,7 @@ export const noteSnapshot = ({ context }: ContextArgs): void => persistSnapshot(
 
 export const spawnStream = assign({
   streamRef: ({ spawn, context }) =>
-    spawn(streamClient, {
+    spawn('streamClient' as unknown as typeof streamClient, {
       input: { url: wsUrl(context.relayUrl), code: context.relayCode, keywords: requestKeywords(context.request) },
     }),
 });
@@ -254,6 +251,18 @@ export const notePaused = assign({
 
 export const usePausedNote = assign({
   pendingSay: ({ context }: ContextArgs) => context.pausedNote,
+});
+
+export const noteOver = assign({
+  epoch: ({ context }: ContextArgs) => context.epoch + 1,
+  pausedNote: ({ context }: ContextArgs) =>
+    context.request
+      ? [{ text: welcomeBackLooking(context.request, context.lang), chips: [] as string[] }]
+      : [
+          { text: welcomeBack[context.lang], chips: [] as string[] },
+          { text: whatToFind[context.lang], chips: [] as string[] },
+        ],
+  pausedReturn: 'listening',
 });
 
 export const returnSleeping: (args: ContextArgs) => boolean = ({ context }) => context.pausedReturn === 'sleeping';

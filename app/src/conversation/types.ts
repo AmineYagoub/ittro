@@ -6,7 +6,7 @@ import type { Language } from '../theme';
 import type { Prefs } from '../store';
 import type { UnderstandAnswer } from '../relay';
 
-export type ConversationStep = 'welcome' | 'confirm' | 'offer' | 'sleep' | 'language' | 'tour';
+export type ConversationStep = 'welcome' | 'confirm' | 'offer' | 'sleep' | 'language' | 'tour' | 'translate';
 
 export interface SpokenLine {
   text: string;
@@ -36,6 +36,7 @@ export type StreamEmitted =
   | { type: 'STREAM_ERROR'; message: string }
   | { type: 'SPEECH_ENDED' }
   | { type: 'FINAL_TEXT'; text: string }
+  | { type: 'PARTIAL_TEXT'; text: string }
   | { type: 'MIC_FAILED' };
 
 export type StreamRef = ActorRef<Snapshot<undefined>, StreamCommand | StreamEmitted> | null;
@@ -53,7 +54,14 @@ export interface ConversationContext {
   deferred: UnderstandAnswer | null;
   offered: boolean;
   misses: number;
+  specText: string | null;
+  specAnswer: UnderstandAnswer | null;
+  specEpoch: number;
   request: string | null;
+  requestLang: Language | null;
+  translateSource: string | null;
+  translateItems: string[] | null;
+  translatePending: boolean;
   rate: number;
   firstLaunchDone: boolean;
   lastLine: string;
@@ -71,10 +79,12 @@ export interface ConversationContext {
   streamRef: StreamRef;
   relayUrl: string;
   relayCode: string;
+  cameraOn: boolean;
 }
 
 export type ConversationEvent =
   | { type: 'FINAL_TEXT'; text: string }
+  | { type: 'PARTIAL_TEXT'; text: string }
   | { type: 'SPEECH_ENDED' }
   | { type: 'STREAM_OPEN' }
   | { type: 'STREAM_CLOSED' }

@@ -3,6 +3,7 @@
 // the epoch so nothing heard before it is acted on after.
 import { setup } from 'xstate';
 import { speakMany, ticking, tourSequence, understandAnswer } from './actors';
+import { streamClient } from './streamActor';
 import { speech } from '../theme';
 import {
   alertDue,
@@ -28,6 +29,7 @@ import {
   noteHeard,
   noteMicComplaint,
   noteNetComplaint,
+  noteOver,
   notePaused,
   noteSaid,
   noteSnapshot,
@@ -49,6 +51,9 @@ import {
   usePausedNote,
 } from './actions';
 import type { ContextArgs } from './actions';
+import { chimeWake } from './answers';
+import { applyTranslated } from './translation';
+import { notePartial, partialWorthy, speculatingState } from './speculating';
 import { chainActions, routingTransitions } from './routing';
 import type { ConversationContext, ConversationEvent, MachineInput } from './types';
 
@@ -75,7 +80,7 @@ const listeningShared = {
 
 export const conversationMachine = setup({
   types: { context: {} as ConversationContext, events: {} as ConversationEvent, input: {} as MachineInput },
-  actors: { speakMany, understandAnswer, ticking, tourSequence },
+  actors: { speakMany, understandAnswer, ticking, tourSequence, streamClient },
 }).createMachine({
   id: 'conversation',
   context: ({ input }) => ({
@@ -91,7 +96,14 @@ export const conversationMachine = setup({
     deferred: null,
     offered: false,
     misses: 0,
+    specText: null,
+    specAnswer: null,
+    specEpoch: 0,
     request: input.snapshot.request,
+    requestLang: null,
+    translateSource: null,
+    translateItems: null,
+    translatePending: false,
     rate: input.prefs.rate,
     firstLaunchDone: input.prefs.firstLaunchDone,
     lastLine: '',
@@ -109,6 +121,7 @@ export const conversationMachine = setup({
     streamRef: null,
     relayUrl: input.relayUrl,
     relayCode: input.relayCode,
+    cameraOn: false,
   }),
   initial: 'live',
   states: {
@@ -152,6 +165,10 @@ export const conversationMachine = setup({
               entry: [ensureStream, noteSnapshot],
               on: {
                 ...listeningShared,
+                PARTIAL_TEXT: [
+                  { guard: partialWorthy, actions: [notePartial, raiseHeard], target: 'speculating' },
+                  { actions: [raiseHeard] },
+                ],
                 STREAM_CLOSED: { actions: [noteStreamDown, sendStart] },
                 STREAM_ERROR: [
                   { guard: netDue, actions: [noteStreamDown, noteNetComplaint, sendStart], target: 'saying' },
@@ -163,6 +180,22 @@ export const conversationMachine = setup({
                 HELP: { actions: [assignHelp, logHelp], target: 'sayingHelp' },
               },
             },
+            translating: {
+              invoke: {
+                src: 'understandAnswer',
+                input: ({ context }: ContextArgs) => ({
+                  transcript: context.translateSource ?? '',
+                  lang: context.lang,
+                  step: 'translate',
+                  pendingQuestion: null,
+                  pendingRequest: context.translateSource,
+                  lastLine: '',
+                }),
+                onDone: { actions: [applyTranslated], target: 'saying' },
+                onError: { target: 'saying' },
+              },
+            },
+            speculating: speculatingState,
             understanding: {
               invoke: [
                 {
@@ -260,8 +293,8 @@ export const conversationMachine = setup({
       on: { RESUME: 'live.talk.resuming' },
     },
     over: {
-      type: 'final',
-      entry: [sendStop],
+      entry: [sendStop, noteOver],
+      on: { RESUME: { target: 'live.talk.resuming', actions: [chimeWake] } },
     },
   },
 });
