@@ -47,6 +47,7 @@ export interface Driver {
   flush: () => Promise<void>;
   advance: (ms: number) => Promise<void>;
   talk: () => string;
+  search: () => string;
   context: () => ConversationContext;
   stop: () => void;
 }
@@ -124,6 +125,13 @@ export function startConversation(options?: StartOptions): Driver {
         return value;
       }
       return (value as { live: { talk: string } }).live.talk;
+    },
+    search(): string {
+      const value = actor.getSnapshot().value;
+      if (typeof value === 'string') {
+        return value;
+      }
+      return (value as { live: { search: string } }).live.search;
     },
     context(): ConversationContext {
       return actor.getSnapshot().context;

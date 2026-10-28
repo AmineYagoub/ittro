@@ -134,7 +134,7 @@ test('no thanks with a standing request drops the search', async () => {
   }
 });
 
-test('the camera stays off through the whole conversation', async () => {
+test('the camera follows the search: on at confirm, off at no', async () => {
   resetStorage();
   const driver = await startListening();
   try {
@@ -142,21 +142,16 @@ test('the camera stays off through the whole conversation', async () => {
       if (input.transcript.includes('Masaad')) {
         return answer({ intent: 'request_product', product_text: 'Masaad water' });
       }
-      if (input.transcript.includes('Yes')) {
-        return answer({ intent: 'confirm_yes' });
-      }
-      return answer({ intent: 'stop' });
+      return answer({ intent: 'confirm_no' });
     });
     assert.equal(driver.context().cameraOn, false);
+    assert.equal(driver.search(), 'idle');
     await driver.heard("I'm looking for Masaad water");
+    assert.equal(driver.context().cameraOn, true);
+    assert.equal(driver.search(), 'active');
+    await driver.heard('No thanks');
     assert.equal(driver.context().cameraOn, false);
-    await driver.heard('Yes');
-    assert.equal(driver.context().cameraOn, false);
-    await driver.heard('stop');
-    assert.equal(driver.context().cameraOn, false);
-    driver.send({ type: 'PAUSE' });
-    await driver.flush();
-    assert.equal(driver.context().cameraOn, false);
+    assert.equal(driver.search(), 'idle');
   } finally {
     driver.stop();
   }

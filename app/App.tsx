@@ -3,6 +3,7 @@
 // this screen only shows what it says.
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
+import type { LayoutChangeEvent } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
 import * as Font from 'expo-font';
@@ -15,6 +16,9 @@ import { loadPrefs, loadSnapshot } from './src/store';
 import { relayConfig } from './src/relay';
 import { batteryLow, phoneHot, preparePhone, restPhone, watchAppState } from './src/phone';
 import { conversationMachine } from './src/conversation/machine';
+import { OutlineOverlay } from './src/shelf/OutlineOverlay';
+import { useShelfSearch } from './src/shelf/useShelfSearch';
+import type { ShelfOutline } from './src/relay';
 import { lowBattery, micLine, phoneHot as phoneHotLine, refusedCamera, refusedMic } from './src/lines';
 import { color, font, size } from './src/theme';
 import type { Language } from './src/theme';
@@ -29,9 +33,16 @@ export default function App(): React.JSX.Element {
   const [lang, setLang] = useState<Language>('en');
   const [cameraOn, setCameraOn] = useState(false);
   const [talkBack, setTalkBack] = useState(false);
+  const [outlines, setOutlines] = useState<ShelfOutline[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchRequest, setSearchRequest] = useState<string | null>(null);
+  const [viewSize, setViewSize] = useState({ width: 0, height: 0 });
   const [, requestCamera, getCameraPermission] = useCameraPermissions();
   const actorRef = useRef<ConversationActor | null>(null);
+  const cameraRef = useRef<CameraView | null>(null);
   const inLive = useRef(false);
+
+  useShelfSearch(cameraRef, actorRef, searching, searchRequest);
 
   useEffect(() => {
     let gone = false;
@@ -125,6 +136,9 @@ export default function App(): React.JSX.Element {
           setChips(state.context.lastChips);
           setLang(state.context.lang);
           setCameraOn(live && state.context.cameraOn);
+          setOutlines(live ? state.context.outlines : []);
+          setSearching(live && state.context.searching);
+          setSearchRequest(state.context.pendingRequest ?? state.context.request);
           if (live && !inLive.current) {
             inLive.current = true;
             void preparePhone();
@@ -143,15 +157,24 @@ export default function App(): React.JSX.Element {
 
   const rtl = lang === 'ar';
 
+  function measured(event: LayoutChangeEvent): void {
+    const { width, height } = event.nativeEvent.layout;
+    setViewSize((before) => (before.width === width && before.height === height ? before : { width, height }));
+  }
+
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={measured}>
       {cameraOn ? (
         <CameraView
+          ref={cameraRef}
           style={styles.camera}
           facing="back"
           accessible={false}
           importantForAccessibility="no"
         />
+      ) : null}
+      {cameraOn && outlines.length > 0 && viewSize.width > 0 ? (
+        <OutlineOverlay outlines={outlines} width={viewSize.width} height={viewSize.height} />
       ) : null}
       <View style={cameraOn ? styles.overlay : styles.plain}>
         <Text
