@@ -12,7 +12,6 @@ import { initVoice, playSound, say, stopVoice } from './src/speech';
 import { listenOnce } from './src/listen';
 import { loadPrefs, savePrefs } from './src/store';
 import { checkPhoneOnce, preparePhone, restPhone, watchAppState } from './src/phone';
-// TEMP-DEBUG: removed before commit.
 import { sensorsStatus } from 'ittro-sensors';
 import { buttonsLine, chooseLanguage, lowBattery, micLine, phoneHot, privacyLine, refusedCamera, refusedMic, tourMeaning, tourOffer, welcome, welcomeBack } from './src/lines';
 import { color, font, size, speech } from './src/theme';
@@ -204,44 +203,25 @@ export default function App(): React.JSX.Element {
           facing="back"
           accessible={false}
           importantForAccessibility="no"
+        />
+      ) : null}
+      <View style={cameraOn ? styles.overlay : styles.plain}>
+        <Text
+          style={[styles.line, rtl && styles.lineRtl]}
+          accessible
+          accessibilityRole="text"
+          accessibilityLiveRegion="polite"
         >
-          <View style={styles.overlay}>
-            <Text
-              style={[styles.line, rtl && styles.lineRtl]}
-              accessible
-              accessibilityRole="text"
-              accessibilityLiveRegion="polite"
-            >
-              {line}
+          {line}
+        </Text>
+        <View style={styles.chips}>
+          {chips.map((chip) => (
+            <Text key={chip} style={styles.chip}>
+              {chip}
             </Text>
-            <View style={styles.chips}>
-              {chips.map((chip) => (
-                <Text key={chip} style={styles.chip}>
-                  {chip}
-                </Text>
-              ))}
-            </View>
-          </View>
-        </CameraView>
-      ) : (
-        <View style={styles.plain}>
-          <Text
-            style={[styles.line, rtl && styles.lineRtl]}
-            accessible
-            accessibilityRole="text"
-            accessibilityLiveRegion="polite"
-          >
-            {line}
-          </Text>
-          <View style={styles.chips}>
-            {chips.map((chip) => (
-              <Text key={chip} style={styles.chip}>
-                {chip}
-              </Text>
-            ))}
-          </View>
+          ))}
         </View>
-      )}
+      </View>
     </View>
   );
 }
@@ -252,8 +232,11 @@ const styles = StyleSheet.create({
     backgroundColor: color.ink,
   },
   camera: {
-    flex: 1,
-    width: '100%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   plain: {
     flex: 1,
@@ -262,7 +245,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: size.screenPadding,
   },
   overlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'flex-end',
     paddingBottom: 48,
