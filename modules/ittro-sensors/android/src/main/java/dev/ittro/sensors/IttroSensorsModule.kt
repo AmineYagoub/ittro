@@ -4,40 +4,50 @@ import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
+import android.util.Base64
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
-import java.io.File
-import java.io.FileOutputStream
-import java.io.RandomAccessFile
 import java.util.concurrent.atomic.AtomicBoolean
 
-// On-phone sensors for Ittro. Owned grayscale frame buffers and hand
-// tracking land here in a later phase; volume and thermal status are
-// needed now for the real-phone rules.
+// On-phone sensors for Ittro. The microphone streams 24 kHz PCM frames
+// to JavaScript while listening; Meta's realtime endpointing decides
+// where sentences end, so there are no fixed-length clips.
 class IttroSensorsModule : Module() {
   private var recorder: AudioRecord? = null
-  private var recordThread: Thread? = null
-  private var recordFile: File? = null
-  private val capturing = AtomicBoolean(false)
+  private var streamThread: Thread? = null
+  private var chunkSequence = 0
+  private val streaming = AtomicBoolean(false)
+  private val mainHandler = Handler(Looper.getMainLooper())
 
   private fun audioManager(): AudioManager? {
     val context = appContext.reactContext ?: return null
     return context.getSystemService(AudioManager::class.java)
   }
 
-  private fun startCapture(): Boolean {
-    if (capturing.get()) {
+  private fun emitChunk(chunk: ByteArray) {
+    val payload = Base64.encodeToString(chunk, Base64.NO_WRAP)
+    val sequence = chunkSequence
+    chunkSequence += 1
+    mainHandler.post {
+      sendEvent("onAudioChunk", mapOf("chunk" to payload, "sequence" to sequence))
+    }
+  }
+
+  private fun startStream(): Boolean {
+    if (streaming.get()) {
       return false
     }
     val channel = AudioFormat.CHANNEL_IN_MONO
     val encoding = AudioFormat.ENCODING_PCM_16BIT
-    val minBuf = AudioRecord.getMinBufferSize(CAPTURE_RATE, channel, encoding)
+    val minBuf = AudioRecord.getMinBufferSize(STREAM_RATE, channel, encoding)
     if (minBuf <= 0) {
       return false
     }
     val record = try {
-      AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, CAPTURE_RATE, channel, encoding, minBuf * 2)
+      AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, STREAM_RATE, channel, encoding, minBuf * 2)
     } catch (e: Exception) {
       return false
     }
@@ -45,36 +55,27 @@ class IttroSensorsModule : Module() {
       record.release()
       return false
     }
-    val dir = appContext.cacheDirectory ?: return false
-    val file = File(dir, "ittro-clip.wav")
     try {
-      val stream = FileOutputStream(file)
-      stream.write(wavHeader(0))
       recorder = record
-      recordFile = file
-      capturing.set(true)
+      chunkSequence = 0
+      streaming.set(true)
       record.startRecording()
-      recordThread = Thread {
+      streamThread = Thread {
         val buffer = ByteArray(minBuf)
-        while (capturing.get()) {
+        var frame = ByteArray(0)
+        while (streaming.get()) {
           val read = record.read(buffer, 0, buffer.size)
           if (read > 0) {
-            try {
-              stream.write(buffer, 0, read)
-            } catch (e: Exception) {
-              break
+            frame += buffer.sliceArray(0 until read)
+            while (frame.size >= STREAM_FRAME_BYTES) {
+              emitChunk(frame.sliceArray(0 until STREAM_FRAME_BYTES))
+              frame = frame.sliceArray(STREAM_FRAME_BYTES until frame.size)
             }
           }
         }
-        try {
-          stream.close()
-        } catch (e: Exception) {
-        }
-        try {
-          val fix = RandomAccessFile(file, "rw")
-          fix.write(wavHeader((file.length() - 44).toInt()))
-          fix.close()
-        } catch (e: Exception) {
+        val tail = if (frame.size % 2 == 1) frame.sliceArray(0 until frame.size - 1) else frame
+        if (tail.size >= 2) {
+          emitChunk(tail)
         }
         try {
           record.stop()
@@ -82,7 +83,7 @@ class IttroSensorsModule : Module() {
         }
         record.release()
       }
-      recordThread?.start()
+      streamThread?.start()
       return true
     } catch (e: Exception) {
       record.release()
@@ -90,26 +91,23 @@ class IttroSensorsModule : Module() {
     }
   }
 
-  private fun stopCapture(): String? {
-    if (!capturing.getAndSet(false)) {
-      return null
+  private fun stopStream(): Boolean {
+    if (!streaming.getAndSet(false)) {
+      return false
     }
     try {
-      recordThread?.join(2000)
+      streamThread?.join(2000)
     } catch (e: Exception) {
     }
-    recordThread = null
+    streamThread = null
     recorder = null
-    val file = recordFile
-    recordFile = null
-    if (file == null || !file.exists() || file.length() <= 44) {
-      return null
-    }
-    return file.absolutePath
+    return true
   }
 
   override fun definition() = ModuleDefinition {
     Name("IttroSensors")
+
+    Events("onAudioChunk")
 
     Function("getStatus") {
       mapOf(
@@ -144,33 +142,16 @@ class IttroSensorsModule : Module() {
       }
     }
 
-    Function("startAudioCapture") {
-      startCapture()
+    Function("startAudioStream") {
+      startStream()
     }
 
-    Function("stopAudioCapture") {
-      stopCapture()
+    Function("stopAudioStream") {
+      stopStream()
     }
   }
 }
 
-private const val CAPTURE_RATE = 16000
+private const val STREAM_RATE = 24000
 
-private fun wavHeader(dataBytes: Int): ByteArray {
-  val total = 36 + dataBytes
-  val out = java.nio.ByteBuffer.allocate(44).order(java.nio.ByteOrder.LITTLE_ENDIAN)
-  out.put("RIFF".toByteArray())
-  out.putInt(total)
-  out.put("WAVE".toByteArray())
-  out.put("fmt ".toByteArray())
-  out.putInt(16)
-  out.putShort(1)
-  out.putShort(1)
-  out.putInt(CAPTURE_RATE)
-  out.putInt(CAPTURE_RATE * 2)
-  out.putShort(2)
-  out.putShort(16)
-  out.put("data".toByteArray())
-  out.putInt(dataBytes)
-  return out.array()
-}
+private const val STREAM_FRAME_BYTES = 3840

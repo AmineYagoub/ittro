@@ -20,6 +20,13 @@ interface SensorsNative {
   getThermalStatus: () => number;
   startAudioCapture: () => boolean;
   stopAudioCapture: () => string | null;
+  startAudioStream: () => boolean;
+  stopAudioStream: () => boolean;
+}
+
+export interface AudioChunk {
+  chunk: string;
+  sequence: number;
 }
 
 function loadNative(): SensorsNative | null {
@@ -69,6 +76,43 @@ export function thermalStatus(): number | null {
   return status < 0 ? null : status;
 }
 
+export function startAudioStream(): boolean {
+  if (!native) {
+    return false;
+  }
+  try {
+    return native.startAudioStream();
+  } catch {
+    return false;
+  }
+}
+
+export function stopAudioStream(): boolean {
+  if (!native) {
+    return false;
+  }
+  try {
+    return native.stopAudioStream();
+  } catch {
+    return false;
+  }
+}
+
+export function addAudioChunkListener(listener: (chunk: AudioChunk) => void): { remove: () => void } | null {
+  if (!native) {
+    return null;
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- optional native module, absent until prebuild links it
+    const core = require('expo-modules-core') as {
+      EventEmitter: new (module: object) => { addListener: (event: string, listener: (chunk: AudioChunk) => void) => { remove: () => void } };
+    };
+    return new core.EventEmitter(native).addListener('onAudioChunk', listener);
+  } catch {
+    return null;
+  }
+}
+
 export function startAudioCapture(): boolean {
   if (!native) {
     return false;
@@ -79,6 +123,7 @@ export function startAudioCapture(): boolean {
     return false;
   }
 }
+
 
 export function stopAudioCapture(): string | null {
   if (!native) {
