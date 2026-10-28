@@ -18,8 +18,6 @@ interface SensorsNative {
   getMediaVolume: () => VolumeState;
   setMediaVolume: (fraction: number) => boolean;
   getThermalStatus: () => number;
-  startAudioCapture: () => boolean;
-  stopAudioCapture: () => string | null;
   startAudioStream: () => boolean;
   stopAudioStream: () => boolean;
 }
@@ -108,29 +106,6 @@ export function addAudioChunkListener(listener: (chunk: AudioChunk) => void): { 
       EventEmitter: new (module: object) => { addListener: (event: string, listener: (chunk: AudioChunk) => void) => { remove: () => void } };
     };
     return new core.EventEmitter(native).addListener('onAudioChunk', listener);
-  } catch {
-    return null;
-  }
-}
-
-export function startAudioCapture(): boolean {
-  if (!native) {
-    return false;
-  }
-  try {
-    return native.startAudioCapture();
-  } catch {
-    return false;
-  }
-}
-
-
-export function stopAudioCapture(): string | null {
-  if (!native) {
-    return null;
-  }
-  try {
-    return native.stopAudioCapture();
   } catch {
     return null;
   }

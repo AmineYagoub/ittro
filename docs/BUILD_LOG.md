@@ -2,6 +2,15 @@
 
 A dated log of what was built each day, for the hackathon submission. New work only: everything here dates from 26 October 2026 onward.
 
+## 28 October 2026
+
+- Phase 3 spoken conversation, proven on the real phone (CPH2203, wireless adb, Mac `say` as the shopper; log in `reports/phase3-phone-run.log`, gitignored): Masaad request → confirm 2.7 s, yes acted in 2.7 s (over the 1.5 s target: `/understand` costs ~2 s and fixed word lists are banned, so no shortcut is allowed), "no, the big one" → combined re-confirm 2.7 s, "no thanks" → decline 2.9 s, silence asked again at 8 s with help at 20 s, "speak Arabic" 1.7 s → Arabic request → Arabic confirm 2.6 s → "English" 2.0 s, lock/unlock resumes with "Welcome back. Still looking for …".
+- The conversation is one fresh XState statechart (`app/src/conversation/`): silence clock under `live` (pausing suspends it), epoch stale-guard drops late answers, `START/STOP/MUTE/UNMUTE` stream control. No fixed word lists anywhere; chips follow the spoken language; one speak call per line for TalkBack.
+- Relay streams Meta realtime Voice Transcribe to the phone (`relay/src/realtime.ts` + `streamWire.ts`), transcribes fixed clips (`transcribe.ts`), and resolves intents (`understand.ts`, `minimal` effort, corrections combine into `product_text` as `confirm_no`). Transcription cost comes from the audio (WAV bytes, `audioProcessedMs`), never from phone reports. Tests 35/35, lint clean.
+- Native module streams 24 kHz mic PCM (`startAudioStream`/`stopAudioStream`/`onAudioChunk`); debug log shows `getStatus()` `available: true`.
+- MMS-TTS on-phone measurement attempted, not finished: EN+FR VITS ONNX models (114 MB each) pushed to the phone, but the throwaway runner kept dying on native-library pairing (third-party JNI needed ORT 1.17.1 exactly, then a JNI return-type mismatch on the way out of synthesis). Runner removed from the phone; no MMS numbers yet. Ittro must build its voice runner from source, not from a repack.
+- Known weak: yes-latency 2.7 s vs 1.5 s target; "Masaad" mistranscribed ("massive", "Masعد") — confirm-before-search absorbs it; two `/realtime` connects per launch (no duplicate replies seen); room speech can inject turns (attributed out of the timings above).
+
 ## 27 October 2026
 
 - Created [AmineYagoub/ittro](https://github.com/AmineYagoub/ittro) from `djazairdev/project-template`. First commit is the template only.

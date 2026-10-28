@@ -7,9 +7,6 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { mediaVolume, sensorsStatus, setMediaVolumeFraction, thermalStatus } from 'ittro-sensors';
 import { haptics, speech } from './theme';
 
-let batteryWarned = false;
-let heatWarned = false;
-
 function buzz(pattern: readonly number[]): void {
   Vibration.vibrate([...pattern]);
 }
@@ -43,20 +40,6 @@ export async function batteryLow(): Promise<boolean> {
 export function phoneHot(): boolean {
   const status = thermalStatus();
   return status !== null && status >= 2;
-}
-
-export async function checkPhoneOnce(
-  onBattery: () => void,
-  onHeat: () => void,
-): Promise<void> {
-  if (!batteryWarned && (await batteryLow())) {
-    batteryWarned = true;
-    onBattery();
-  }
-  if (!heatWarned && phoneHot()) {
-    heatWarned = true;
-    onHeat();
-  }
 }
 
 export function watchAppState(onPause: () => void, onResume: () => void): () => void {

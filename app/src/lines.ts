@@ -286,9 +286,3 @@ export const tourMeaning: Trilingual[] = [
     fr: 'Ce carillon descendant signifie non.',
   },
 ];
-
-export const buttonsLine: Trilingual = {
-  en: 'You can also hold the volume-down key to stop me.',
-  ar: 'يمكنك أيضًا الضغط مطولًا على زر خفض الصوت لإيقافي.',
-  fr: 'Vous pouvez aussi maintenir la touche de volume bas pour m’arrêter.',
-};

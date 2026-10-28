@@ -51,8 +51,6 @@ export const haptics = {
 export type Language = 'en' | 'ar' | 'fr';
 
 export const speech = {
-  firstLaunchListenMs: 5000,
-  firstLaunchWords: { ar: 'عربي', fr: 'français' },
   defaultLanguage: 'en' as Language,
   lineStartsWithinMs: 300,
   workingTickEveryMs: 2000,
