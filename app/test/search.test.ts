@@ -231,3 +231,29 @@ test('stopping drops the search at once', async () => {
     driver.stop();
   }
 });
+
+test('a no, a pause and a new request each retire the search epoch', async () => {
+  resetStorage();
+  const driver = await startListening();
+  try {
+    driver.setUnderstand((input) => {
+      if (input.transcript.includes('Masaad')) {
+        return answer({ intent: 'request_product', product_text: 'Masaad water' });
+      }
+      return answer({ intent: 'confirm_no' });
+    });
+    await driver.heard("I'm looking for Masaad water");
+    const first = driver.context().searchEpoch;
+    assert.ok(first > 0);
+    await driver.heard('No thanks');
+    assert.ok(driver.context().searchEpoch > first);
+    await driver.heard("I'm looking for Masaad water");
+    const second = driver.context().searchEpoch;
+    assert.ok(second > first);
+    driver.send({ type: 'PAUSE' });
+    await driver.flush();
+    assert.ok(driver.context().searchEpoch > second);
+  } finally {
+    driver.stop();
+  }
+});
