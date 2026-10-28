@@ -1,7 +1,16 @@
 {
-  // Custom domain (a subdomain of djazair.dev) is wired at deploy time,
-  // with the founder's explicit approval. No routes until then.
+  // The relay answers on ittro.djazair.dev (workers.dev is unreachable
+  // from Algeria). Secrets never live here: META_API_KEY and
+  // APP_ACCESS_CODE are set with `wrangler secret put`.
   "name": "ittro-relay",
   "main": "src/index.ts",
-  "compatibility_date": "2026-10-27"
+  "compatibility_date": "2026-10-27",
+  "routes": [{ "pattern": "ittro.djazair.dev/*", "zone_name": "djazair.dev" }],
+  "kv_namespaces": [{ "binding": "ITTRO_LIMITS", "id": "7f63a9ce59ad44dca7d465d1a8f61e68" }],
+  "vars": {
+    "META_API_BASE": "https://api.meta.ai/v1",
+    "DAILY_BUDGET_USD": "3",
+    "SPARK_COST_USD": "0.01",
+    "RATE_LIMIT_PER_MINUTE": "30"
+  }
 }
