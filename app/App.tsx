@@ -1,197 +1,141 @@
-// Ittro phase 2: first launch by voice, then the spoken Welcome.
-// No product search yet: this screen is where the next phases begin.
+// Ittro: permissions, then the spoken conversation. One statechart
+// owns listening, understanding, pausing and the silence timers;
+// this screen only shows what it says.
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { requestRecordingPermissionsAsync } from 'expo-audio';
+import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
 import * as Font from 'expo-font';
 import { ReadexPro_400Regular, ReadexPro_500Medium, ReadexPro_600SemiBold, ReadexPro_700Bold } from '@expo-google-fonts/readex-pro';
 import * as SplashScreen from 'expo-splash-screen';
+import { createActor } from 'xstate';
 import * as Localization from 'expo-localization';
-import { initVoice, playSound, say, stopVoice } from './src/speech';
-import { listenOnce } from './src/listen';
-import { loadPrefs, savePrefs } from './src/store';
-import { checkPhoneOnce, preparePhone, restPhone, watchAppState } from './src/phone';
-import { sensorsStatus } from 'ittro-sensors';
-import { buttonsLine, chooseLanguage, lowBattery, micLine, phoneHot, privacyLine, refusedCamera, refusedMic, tourMeaning, tourOffer, welcome, welcomeBack } from './src/lines';
-import { color, font, size, speech } from './src/theme';
+import { initVoice, say, setSpeechRate, stopVoice } from './src/speech';
+import { loadPrefs, loadSnapshot } from './src/store';
+import { relayConfig } from './src/relay';
+import { batteryLow, phoneHot, preparePhone, restPhone, watchAppState } from './src/phone';
+import { conversationMachine } from './src/conversation/machine';
+import { lowBattery, micLine, phoneHot as phoneHotLine, refusedCamera, refusedMic } from './src/lines';
+import { color, font, size } from './src/theme';
 import type { Language } from './src/theme';
 
-const LISTEN_LOCALE: Record<Language, string> = { en: 'en-US', ar: 'ar-SA', fr: 'fr-FR' };
-const YES_WORDS: Record<Language, string[]> = {
-  en: ['yes', 'yeah', 'yep'],
-  ar: ['نعم', 'أيوه', 'ايوه', 'أجل'],
-  fr: ['oui', 'ouais'],
-};
-
 void SplashScreen.preventAutoHideAsync();
+
+type ConversationActor = ReturnType<typeof createActor<typeof conversationMachine>>;
 
 export default function App(): React.JSX.Element {
   const [line, setLine] = useState('…');
   const [chips, setChips] = useState<string[]>([]);
   const [lang, setLang] = useState<Language>('en');
   const [cameraOn, setCameraOn] = useState(false);
-  const [, requestCamera] = useCameraPermissions();
-  const alive = useRef(true);
-  const paused = useRef(false);
-  const flowDone = useRef(false);
-  const resumeWake = useRef<(() => void) | null>(null);
+  const [talkBack, setTalkBack] = useState(false);
+  const [cameraPermission, requestCamera] = useCameraPermissions();
+  const actorRef = useRef<ConversationActor | null>(null);
+  const inLive = useRef(false);
 
   useEffect(() => {
-    alive.current = true;
+    let gone = false;
     void run();
-    const unwatch = watchAppState(onPause, onResume);
-    const checker = setInterval(watchPhone, 60000);
+    const unwatch = watchAppState(
+      () => actorRef.current?.send({ type: 'PAUSE' }),
+      () => actorRef.current?.send({ type: 'RESUME' }),
+    );
+    const talkSub = AccessibilityInfo.addEventListener('screenReaderChanged', setTalkBack);
+    const checker = setInterval(() => void watchPhone(), 60000);
     return () => {
-      alive.current = false;
+      gone = true;
       unwatch();
+      talkSub.remove();
       clearInterval(checker);
       restPhone();
       stopVoice();
+      actorRef.current?.stop();
+      actorRef.current = null;
     };
-  }, []);
 
-  function onPause(): void {
-    paused.current = true;
-    stopVoice();
-    restPhone();
-    setCameraOn(false);
-  }
-
-  function onResume(): void {
-    paused.current = false;
-    void preparePhone();
-    resumeWake.current?.();
-    resumeWake.current = null;
-    if (flowDone.current && alive.current) {
-      setCameraOn(true);
-      void speak(`${welcomeBack[langRef.current]} ${welcome[langRef.current]}`, langRef.current, ['help']);
-    }
-  }
-
-  async function waitWhilePaused(): Promise<boolean> {
-    while (paused.current && alive.current) {
-      await new Promise<void>((resolve) => {
-        resumeWake.current = resolve;
-      });
-    }
-    return alive.current;
-  }
-
-  async function speak(text: string, at: Language, chipsNow: string[] = []): Promise<boolean> {
-    if (!(await waitWhilePaused())) {
-      return false;
-    }
-    setLang(at);
-    setLine(text);
-    setChips(chipsNow);
-    await say(text, at);
-    return alive.current && !paused.current;
-  }
-
-  async function watchPhone(): Promise<void> {
-    if (!alive.current || paused.current) {
-      return;
-    }
-    await checkPhoneOnce(
-      () => {
-        void speak(lowBattery[langRef.current], langRef.current);
-      },
-      () => {
-        void speak(phoneHot[langRef.current], langRef.current);
-      },
-    );
-  }
-
-  const langRef = useRef<Language>('en');
-
-  async function run(): Promise<void> {
-    try {
-      await Font.loadAsync({
-        ReadexPro_400Regular,
-        ReadexPro_500Medium,
-        ReadexPro_600SemiBold,
-        ReadexPro_700Bold,
-      });
-      await initVoice();
-      await preparePhone();
-      await watchPhone();
-      const prefs = await loadPrefs();
-      langRef.current = prefs.language;
-      const locales = Localization.getLocales();
-      const phoneLang = locales[0]?.languageCode?.startsWith('ar')
-        ? 'ar'
-        : locales[0]?.languageCode?.startsWith('fr')
-          ? 'fr'
-          : 'en';
-      await SplashScreen.hideAsync();
-      if (!prefs.firstLaunchDone) {
-        await firstLaunch(phoneLang);
-        if (!alive.current) {
-          return;
-        }
-        await savePrefs({ language: langRef.current, firstLaunchDone: true, brief: false, rate: 1 });
-      }
-      setCameraOn(true);
-      if (__DEV__) console.log('[ittro] sensors.getStatus:', JSON.stringify(sensorsStatus()));
-      await speak(welcome[langRef.current], langRef.current, ['help']);
-      flowDone.current = true;
-    } catch {
-      setLine('Something went wrong starting Ittro. Open it again.');
-    }
-  }
-
-  async function firstLaunch(phoneLang: Language): Promise<void> {
-    await speak(micLine[phoneLang], phoneLang);
-    const mic = await requestRecordingPermissionsAsync();
-    if (!mic.granted) {
-      await speak(refusedMic[langRef.current], langRef.current);
-      return;
-    }
-    const cam = await requestCamera();
-    if (!cam.granted) {
-      await speak(refusedCamera[langRef.current], langRef.current);
-      return;
-    }
-    await speak(chooseLanguage.en, 'en');
-    await speak(chooseLanguage.ar, 'ar');
-    await speak(chooseLanguage.fr, 'fr');
-    playSound('listening');
-    const heard = await listenOnce('en-US', [], speech.firstLaunchListenMs);
-    if (/عربي/.test(heard)) {
-      langRef.current = 'ar';
-    } else if (/fran[çc]ais/i.test(heard)) {
-      langRef.current = 'fr';
-    } else {
-      langRef.current = 'en';
-    }
-    const at = langRef.current;
-    await speak(privacyLine[at], at);
-    await speak(buttonsLine[at], at);
-    await speak(tourOffer[at], at, at === 'en' ? ['yes', 'no'] : []);
-    playSound('listening');
-    const answer = await listenOnce(LISTEN_LOCALE[at], [], speech.firstLaunchListenMs);
-    if (YES_WORDS[at].some((word) => answer.toLowerCase().includes(word.toLowerCase()))) {
-      await soundTour(at);
-    }
-  }
-
-  async function soundTour(at: Language): Promise<void> {
-    const rows: Array<{ sound: 'heard' | 'listening' | 'workingTick' | 'lost' | 'yes' | 'no'; row: number }> = [
-      { sound: 'heard', row: 0 },
-      { sound: 'listening', row: 1 },
-      { sound: 'workingTick', row: 2 },
-      { sound: 'lost', row: 3 },
-      { sound: 'yes', row: 4 },
-      { sound: 'no', row: 5 },
-    ];
-    for (const item of rows) {
-      playSound(item.sound);
-      if (!(await speak(tourMeaning[item.row][at], at))) {
+    async function watchPhone(): Promise<void> {
+      const actor = actorRef.current;
+      if (!actor) {
         return;
       }
+      const at = actor.getSnapshot().context.lang;
+      if (await batteryLow()) {
+        actor.send({ type: 'ALERT', kind: 'battery', text: lowBattery[at] });
+      }
+      if (phoneHot()) {
+        actor.send({ type: 'ALERT', kind: 'heat', text: phoneHotLine[at] });
+      }
     }
-  }
+
+    async function run(): Promise<void> {
+      try {
+        await Font.loadAsync({
+          ReadexPro_400Regular,
+          ReadexPro_500Medium,
+          ReadexPro_600SemiBold,
+          ReadexPro_700Bold,
+        });
+        await initVoice();
+        setTalkBack(await AccessibilityInfo.isScreenReaderEnabled());
+        await preparePhone();
+        const prefs = await loadPrefs();
+        setSpeechRate(prefs.rate);
+        const locales = Localization.getLocales();
+        const phoneLang = locales[0]?.languageCode?.startsWith('ar')
+          ? 'ar'
+          : locales[0]?.languageCode?.startsWith('fr')
+            ? 'fr'
+            : 'en';
+        const micNow = await getRecordingPermissionsAsync();
+        if (!micNow.granted || !cameraPermission?.granted) {
+          setLang(phoneLang);
+          setLine(micLine[phoneLang]);
+          await say(micLine[phoneLang], phoneLang);
+        }
+        const mic = await requestRecordingPermissionsAsync();
+        const cam = cameraPermission?.granted ? { granted: true } : await requestCamera();
+        await SplashScreen.hideAsync();
+        if (gone) {
+          return;
+        }
+        if (!mic.granted) {
+          setLang(prefs.language);
+          setLine(refusedMic[prefs.language]);
+          return;
+        }
+        if (!cam.granted) {
+          setLang(prefs.language);
+          setLine(refusedCamera[prefs.language]);
+          return;
+        }
+        const snapshot = await loadSnapshot();
+        const relay = relayConfig();
+        if (__DEV__) console.log('[ittro] relay:', JSON.stringify({ url: relay.url }));
+        const actor = createActor(conversationMachine, {
+          input: { prefs, snapshot, relayUrl: relay.url, relayCode: relay.accessCode },
+        });
+        actorRef.current = actor;
+        actor.subscribe((state) => {
+          const live = state.value !== 'paused' && state.value !== 'over';
+          setLine(state.context.lastLine || '…');
+          setChips(state.context.lastChips);
+          setLang(state.context.lang);
+          setCameraOn(live);
+          if (live && !inLive.current) {
+            inLive.current = true;
+            void preparePhone();
+          }
+          if (!live && inLive.current) {
+            inLive.current = false;
+            restPhone();
+          }
+        });
+        actor.start();
+      } catch {
+        setLine('Something went wrong starting Ittro. Open it again.');
+      }
+    }
+  }, []);
 
   const rtl = lang === 'ar';
 
@@ -210,7 +154,7 @@ export default function App(): React.JSX.Element {
           style={[styles.line, rtl && styles.lineRtl]}
           accessible
           accessibilityRole="text"
-          accessibilityLiveRegion="polite"
+          accessibilityLiveRegion={talkBack ? 'none' : 'polite'}
         >
           {line}
         </Text>
