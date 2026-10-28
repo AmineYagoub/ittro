@@ -3,7 +3,7 @@
 // moving with the pan, and one shelf pass with stubbed cloud calls.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { boxOverlap, mapBox, moveOutlines } from '../src/shelf/outlines';
+import { boxOverlap, mapBox, mapPoints, moveOutlines } from '../src/shelf/outlines';
 import { decodeBase64, estimatePan, ingestGrey, pickSharpest, sharpness, trackPan } from '../src/shelf/tracker';
 import type { GreyFrame } from '../src/shelf/tracker';
 import { createReadQueue, dropEpoch, enqueueRead, nextRead, queueSize } from '../src/shelf/queue';
@@ -195,6 +195,35 @@ test('the package kind names the shelf aloud in every language', () => {
   assert.equal(aisleFallback('en'), 'the right aisle');
   assert.equal(aisleFallback('ar'), 'القسم المناسب');
   assert.equal(aisleFallback('fr'), 'le bon rayon');
+});
+
+test('masks move with the pan and stay inside the frame', () => {
+  const moved = moveOutlines(
+    [
+      {
+        id: 0,
+        frame: 0,
+        box: { x1: 10, y1: 10, x2: 50, y2: 40, w: 100, h: 100, confidence: null },
+        mask: { points: [10, 10, 95, 10, 95, 40, 10, 40] },
+      },
+    ],
+    { dx: 10, dy: -20, scale: 1 },
+  );
+  assert.deepEqual(moved[0]?.mask, { points: [20, 0, 100, 0, 100, 20, 20, 20] });
+});
+
+test('outlines without masks keep their shape when moved', () => {
+  const moved = moveOutlines(
+    [{ id: 0, frame: 0, box: { x1: 10, y1: 10, x2: 50, y2: 40, w: 100, h: 100, confidence: null } }],
+    { dx: 5, dy: 5, scale: 1 },
+  );
+  assert.equal(moved[0]?.mask, undefined);
+  assert.equal(moved[0]?.box.x1, 15);
+});
+
+test('mask points map onto the view with a cover fit', () => {
+  assert.deepEqual(mapPoints([0, 0, 100, 100], 200, 400, 200, 400), [0, 0, 100, 100]);
+  assert.deepEqual(mapPoints([0, 0, 200, 400], 200, 400, 400, 400), [0, -200, 400, 600]);
 });
 
 test('the outline signature ignores small jitters', () => {

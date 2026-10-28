@@ -1,9 +1,11 @@
 // Shelf outlines: what SAM found, moved with the phone between SAM
-// calls. Boxes live in source pixels; the tracker shifts them by the
-// measured pan so they stay on the products while the phone moves.
-import type { ShelfBox, ShelfOutline } from '../relay';
+// calls. Boxes and mask polygons live in source pixels; the tracker
+// shifts both by the measured pan so they stay on the products while
+// the phone moves. The phone never decodes masks: the relay ships the
+// polygons, and moving them is a few dozen adds.
+import type { ShelfBox, ShelfMask, ShelfOutline } from '../relay';
 
-export type { ShelfBox, ShelfOutline };
+export type { ShelfBox, ShelfMask, ShelfOutline };
 
 export interface PanShift {
   dx: number;
@@ -30,7 +32,25 @@ export function moveBox(box: ShelfBox, shift: PanShift): ShelfBox {
 }
 
 export function moveOutlines(outlines: ShelfOutline[], shift: PanShift): ShelfOutline[] {
-  return outlines.map((outline) => ({ ...outline, box: moveBox(outline.box, shift) }));
+  return outlines.map((outline) => {
+    const box = moveBox(outline.box, shift);
+    if (!outline.mask) {
+      return { ...outline, box };
+    }
+    return { ...outline, box, mask: moveMask(outline.mask, outline.box, shift) };
+  });
+}
+
+function moveMask(mask: ShelfMask, box: ShelfBox, shift: PanShift): ShelfMask {
+  const dx = Math.round(shift.dx * shift.scale);
+  const dy = Math.round(shift.dy * shift.scale);
+  const points: number[] = [];
+  for (let at = 0; at + 1 < mask.points.length; at += 2) {
+    const x = mask.points[at] as number;
+    const y = mask.points[at + 1] as number;
+    points.push(clamp(x + dx, box.w), clamp(y + dy, box.h));
+  }
+  return { points };
 }
 
 export function boxArea(box: ShelfBox): number {
@@ -52,6 +72,17 @@ export interface ViewBox {
   top: number;
   width: number;
   height: number;
+}
+
+export function mapPoints(points: number[], w: number, h: number, viewW: number, viewH: number): number[] {
+  const scale = Math.max(viewW / w, viewH / h);
+  const ox = (viewW - w * scale) / 2;
+  const oy = (viewH - h * scale) / 2;
+  const out: number[] = [];
+  for (let at = 0; at + 1 < points.length; at += 2) {
+    out.push(Math.round(ox + (points[at] as number) * scale), Math.round(oy + (points[at + 1] as number) * scale));
+  }
+  return out;
 }
 
 export function mapBox(box: ShelfBox, viewW: number, viewH: number): ViewBox {

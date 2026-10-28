@@ -34,3 +34,5 @@ You can help without writing code, too: docs, translation, testing, design and a
 ## Licence
 
 [MIT](LICENSE).
+
+Third-party: the relay parses SAM 3.1 output with Meta's `@meta-sam/parser` (0.1.0, zero dependencies), which is licensed under the SAM License; the full text ships at [relay/licenses/SAM-License.txt](relay/licenses/SAM-License.txt).
