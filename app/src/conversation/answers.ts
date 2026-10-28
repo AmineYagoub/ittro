@@ -122,6 +122,7 @@ export const askOffer = assign({
 export const incomingConfirm = assign({
   step: 'confirm',
   pendingQuestion: 'confirm_request',
+  alternative: null,
   pendingRequest: ({ context }) => confirmLines(context.routeAnswer as UnderstandAnswer, context.lang).request,
   pendingItems: ({ context }) => confirmLines(context.routeAnswer as UnderstandAnswer, context.lang).items,
   requestLang: ({ context }) => spokenLang(context.routeAnswer, context.lang),

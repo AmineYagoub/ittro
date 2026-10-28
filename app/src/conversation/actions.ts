@@ -25,6 +25,7 @@ import {
   whatToFind,
 } from '../lines';
 import { confirmList, confirmRequest, stillLooking, welcomeBackLooking } from '../requestLines';
+import { closeMatchLine } from '../shelf/searchLines';
 import { HELP_CHIP, NO_CHIP, YES_CHIP } from '../chips';
 import type { streamClient } from './streamActor';
 import type { ConversationContext, ExpressionEvent, SpokenLine, StreamCommand } from './types';
@@ -153,7 +154,7 @@ export const noteMicComplaint = assign({
 });
 
 export function repromptLines(step: ConversationContext['step'], request: string | null, lang: Language): SpokenLine[] {
-  if (step === 'confirm' || step === 'offer') {
+  if (step === 'confirm' || step === 'offer' || step === 'alternative') {
     return [{ text: askAgain[lang], chips: [YES_CHIP[lang], NO_CHIP[lang]] }];
   }
   if (step === 'tour') {
@@ -205,6 +206,8 @@ export const freshLines = assign({
 
 export const backLines = assign({
   step: 'welcome',
+  searching: ({ context }: ContextArgs) => context.request !== null,
+  cameraOn: ({ context }: ContextArgs) => context.request !== null,
   pendingSay: ({ context }: ContextArgs) => [
     { text: context.request ? welcomeBackLooking(context.request, context.lang) : welcome[context.lang], chips: [] },
   ],
@@ -226,6 +229,9 @@ export function pausedLines(context: ConversationContext): SpokenLine[] {
   }
   if (context.step === 'tour') {
     return [{ text: tourOffer[lang], chips: [YES_CHIP[lang], NO_CHIP[lang]] }];
+  }
+  if (context.step === 'alternative' && context.alternative) {
+    return [{ text: closeMatchLine(context.request ?? '', context.alternative, lang), chips: [YES_CHIP[lang], NO_CHIP[lang]] }];
   }
   if (context.step === 'language') {
     return [

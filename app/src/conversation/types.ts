@@ -4,13 +4,17 @@
 import type { ActorRef, DoneActorEvent, ErrorActorEvent, Snapshot } from 'xstate';
 import type { Language } from '../theme';
 import type { Prefs } from '../store';
-import type { UnderstandAnswer } from '../relay';
+import type { ShelfOutline, UnderstandAnswer } from '../relay';
 
-export type ConversationStep = 'welcome' | 'confirm' | 'offer' | 'sleep' | 'language' | 'tour' | 'translate';
+export type ConversationStep = 'welcome' | 'confirm' | 'offer' | 'sleep' | 'language' | 'tour' | 'translate' | 'alternative';
 
 export interface SpokenLine {
   text: string;
   chips: string[];
+}
+
+export interface SearchAnnouncement extends SpokenLine {
+  kind: 'status' | 'alternative';
 }
 
 export interface MachineSnapshot {
@@ -80,6 +84,12 @@ export interface ConversationContext {
   relayUrl: string;
   relayCode: string;
   cameraOn: boolean;
+  searching: boolean;
+  outlines: ShelfOutline[];
+  checkedCount: number;
+  searchEpoch: number;
+  pendingSearch: SearchAnnouncement[];
+  alternative: string | null;
 }
 
 export type ConversationEvent =
@@ -96,7 +106,19 @@ export type ConversationEvent =
   | { type: 'REPROMPT' }
   | { type: 'HELP' }
   | { type: 'QUESTION_ASKED' }
-  | { type: 'HEARD' };
+  | { type: 'HEARD' }
+  | { type: 'SEARCH_BEGIN' }
+  | { type: 'SEARCH_END' }
+  | { type: 'SHELF_OUTLINED'; outlines: ShelfOutline[]; kind: string }
+  | { type: 'SHELF_SWEPT'; checked: number }
+  | { type: 'WRONG_SHELF'; kind: string; aisle: string }
+  | { type: 'CLOSE_MATCH'; wanted: string; found: string }
+  | { type: 'HAND_HOLD' }
+  | { type: 'SEARCH_FAILED' }
+  | { type: 'SHELF_FOUND'; product: string }
+  | { type: 'NO_SHELF'; floor: boolean }
+  | { type: 'OUTLINES_MOVED'; outlines: ShelfOutline[] }
+  | { type: 'SHELF_TURN'; direction: 'left' | 'right' };
 
 export type ExpressionEvent = ConversationEvent | DoneActorEvent | ErrorActorEvent;
 

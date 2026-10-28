@@ -1,0 +1,220 @@
+// The search side of the conversation: looking starts while Ittro asks
+// "Is that right?", a "no" drops it at once, and a pause stops it.
+// Shelf results queue their lines at the talk level, so nothing heard
+// mid-sentence is lost; listening speaks them when it can.
+import { assignConversation as assign, raiseConversation as raise } from './actors';
+import type { ContextArgs, EventArgs } from './actions';
+import { ASK_CHIP, NO_CHIP, YES_CHIP } from '../chips';
+import { lostInternet } from '../lines';
+import { stillLooking } from '../requestLines';
+import {
+  checkingLine,
+  closeMatchLine,
+  holdPhoneLine,
+  readingLine,
+  searchingLine,
+  searchingStatusLine,
+  shelfFoundLine,
+  shelfSweptLine,
+  wrongShelfLine,
+} from '../shelf/searchLines';
+import type { ConversationContext, SearchAnnouncement } from './types';
+
+export const raiseSearchBegin = raise({ type: 'SEARCH_BEGIN' });
+
+export const raiseSearchEnd = raise({ type: 'SEARCH_END' });
+
+function queueLine(context: ConversationContext, line: SearchAnnouncement): SearchAnnouncement[] {
+  return [...context.pendingSearch, line].slice(-3);
+}
+
+export const beginSearch = assign({
+  searching: true,
+  cameraOn: true,
+  searchEpoch: ({ context }: ContextArgs) => context.searchEpoch + 1,
+});
+
+export const endSearch = assign({
+  searching: false,
+  cameraOn: false,
+  outlines: [],
+  checkedCount: 0,
+  pendingSearch: [],
+  alternative: null,
+  searchEpoch: ({ context }: ContextArgs) => context.searchEpoch + 1,
+});
+
+export const stopSearch = assign({
+  searching: false,
+  cameraOn: false,
+  outlines: [],
+  pendingSearch: [],
+  searchEpoch: ({ context }: ContextArgs) => context.searchEpoch + 1,
+});
+
+export const resumeSearch = assign({
+  searching: ({ context }: ContextArgs) => (context.pendingRequest ?? context.request) !== null,
+  cameraOn: ({ context }: ContextArgs) => (context.pendingRequest ?? context.request) !== null,
+});
+
+export const storeOutlined = assign({
+  outlines: ({ event }: EventArgs) => (event.type === 'SHELF_OUTLINED' ? event.outlines : []),
+  checkedCount: ({ context, event }: EventArgs) =>
+    event.type === 'SHELF_OUTLINED' ? context.checkedCount + event.outlines.length : context.checkedCount,
+  pendingSearch: ({ context, event }: EventArgs) =>
+    event.type === 'SHELF_OUTLINED'
+      ? queueLine(context, { text: readingLine(event.outlines.length, event.kind, context.lang), chips: [], kind: 'status' })
+      : context.pendingSearch,
+});
+
+export const storeSwept = assign({
+  pendingSearch: ({ context, event }: EventArgs) =>
+    event.type === 'SHELF_SWEPT'
+      ? queueLine(context, {
+          text: shelfSweptLine(event.checked, context.pendingRequest ?? context.request ?? '', context.lang),
+          chips: [],
+          kind: 'status',
+        })
+      : context.pendingSearch,
+});
+
+export const storeWrongShelf = assign({
+  pendingSearch: ({ context, event }: EventArgs) =>
+    event.type === 'WRONG_SHELF'
+      ? queueLine(context, { text: wrongShelfLine(event.kind, event.aisle, context.lang), chips: [ASK_CHIP[context.lang]], kind: 'status' })
+      : context.pendingSearch,
+});
+
+export const storeCloseMatch = assign({
+  alternative: ({ event }: EventArgs) => (event.type === 'CLOSE_MATCH' ? event.found : null),
+  pendingSearch: ({ context, event }: EventArgs) =>
+    event.type === 'CLOSE_MATCH'
+      ? queueLine(context, {
+          text: closeMatchLine(event.wanted, event.found, context.lang),
+          chips: [YES_CHIP[context.lang], NO_CHIP[context.lang]],
+          kind: 'alternative',
+        })
+      : context.pendingSearch,
+});
+
+export const storeHandHold = assign({
+  pendingSearch: ({ context }: ContextArgs) =>
+    queueLine(context, { text: checkingLine(context.lang), chips: [], kind: 'status' }),
+});
+
+export const storeSearchFailed = assign({
+  pendingSearch: ({ context }: ContextArgs) =>
+    queueLine(context, { text: lostInternet[context.lang], chips: [], kind: 'status' }),
+});
+
+export const storeFound = assign({
+  pendingSearch: ({ context, event }: EventArgs) =>
+    event.type === 'SHELF_FOUND'
+      ? queueLine(context, { text: shelfFoundLine(event.product, context.lang), chips: [], kind: 'status' })
+      : context.pendingSearch,
+});
+
+export const storeNoShelf = assign({
+  pendingSearch: ({ context, event }: EventArgs) =>
+    event.type === 'NO_SHELF'
+      ? queueLine(context, { text: holdPhoneLine(context.lang, event.floor), chips: [], kind: 'status' })
+      : context.pendingSearch,
+});
+
+export const storeMoved = assign({
+  outlines: ({ event }: EventArgs) => (event.type === 'OUTLINES_MOVED' ? event.outlines : []),
+});
+
+export const storeTurn = assign({
+  pendingSearch: ({ context, event }: EventArgs) =>
+    event.type === 'SHELF_TURN'
+      ? queueLine(context, {
+          text: searchingLine(context.pendingRequest ?? context.request ?? '', event.direction, context.lang),
+          chips: [],
+          kind: 'status',
+        })
+      : context.pendingSearch,
+});
+
+export const sayQueuedAlternative = assign({
+  step: 'alternative',
+  pendingQuestion: 'close_alternative',
+  pendingSay: ({ context }: ContextArgs) => {
+    const [head] = context.pendingSearch;
+    return head ? [{ text: head.text, chips: head.chips }] : [];
+  },
+  pendingSearch: ({ context }: ContextArgs) => context.pendingSearch.slice(1),
+});
+
+export const sayQueuedStatus = assign({
+  pendingSay: ({ context }: ContextArgs) => {
+    const [head] = context.pendingSearch;
+    return head ? [{ text: head.text, chips: head.chips }] : [];
+  },
+  pendingSearch: ({ context }: ContextArgs) => context.pendingSearch.slice(1),
+});
+
+export const hasQueuedSearch = ({ context }: ContextArgs): boolean => context.pendingSearch.length > 0;
+
+export const hasQueuedAlternative = ({ context }: ContextArgs): boolean =>
+  context.pendingSearch[0]?.kind === 'alternative';
+
+export const wantsSearch = ({ context }: ContextArgs): boolean => context.searching;
+
+export const searchStopped = ({ context }: ContextArgs): boolean => !context.searching;
+
+export const searchTalkOn = {
+  SHELF_OUTLINED: { actions: [storeOutlined] },
+  SHELF_SWEPT: { actions: [storeSwept] },
+  WRONG_SHELF: { actions: [storeWrongShelf] },
+  CLOSE_MATCH: { actions: [storeCloseMatch] },
+  HAND_HOLD: { actions: [storeHandHold] },
+  SEARCH_FAILED: { actions: [storeSearchFailed] },
+  SHELF_FOUND: { actions: [storeFound] },
+  NO_SHELF: { actions: [storeNoShelf] },
+  OUTLINES_MOVED: { actions: [storeMoved] },
+  SHELF_TURN: { actions: [storeTurn] },
+};
+
+export const searchRegion = {
+  initial: 'idle',
+  states: {
+    idle: {
+      always: { guard: wantsSearch, target: 'active' },
+      on: { SEARCH_BEGIN: { actions: [beginSearch], target: 'active' } },
+    },
+    active: {
+      always: { guard: searchStopped, target: 'idle' },
+      on: {
+        SEARCH_BEGIN: { actions: [beginSearch] },
+        SEARCH_END: { actions: [endSearch], target: 'idle' },
+      },
+    },
+  },
+};
+
+export const adoptAlternative = assign({
+  request: ({ context }: ContextArgs) => context.alternative ?? context.request,
+  step: 'welcome',
+  pendingQuestion: null,
+  alternative: null,
+  pendingSay: ({ context }: ContextArgs) => [
+    { text: searchingStatusLine(context.alternative ?? context.request ?? '', context.checkedCount, context.lang), chips: [] },
+  ],
+});
+
+export const declineAlternative = assign({
+  step: 'welcome',
+  pendingQuestion: null,
+  alternative: null,
+  pendingSay: ({ context }: ContextArgs) => [{ text: stillLooking(context.request ?? '', context.lang), chips: [] }],
+});
+
+export const saySearchingStatus = assign({
+  pendingSay: ({ context }: ContextArgs) => [
+    {
+      text: searchingStatusLine(context.pendingRequest ?? context.request ?? '', context.checkedCount, context.lang),
+      chips: [],
+    },
+  ],
+});

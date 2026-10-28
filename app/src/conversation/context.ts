@@ -1,0 +1,53 @@
+// The conversation's starting context: preferences and the saved
+// request in, everything else at rest. The search starts idle; the
+// first confirmed request wakes it.
+import type { ConversationContext, MachineInput } from './types';
+
+export function initialContext({ input }: { input: MachineInput }): ConversationContext {
+  return {
+    lang: input.prefs.language,
+    epoch: 0,
+    askedEpoch: 0,
+    step: 'welcome',
+    pendingQuestion: null,
+    pendingRequest: null,
+    pendingItems: null,
+    offerReturn: 'welcome',
+    offerTarget: null,
+    deferred: null,
+    offered: false,
+    misses: 0,
+    specText: null,
+    specAnswer: null,
+    specEpoch: 0,
+    request: input.snapshot.request,
+    requestLang: null,
+    translateSource: null,
+    translateItems: null,
+    translatePending: false,
+    rate: input.prefs.rate,
+    firstLaunchDone: input.prefs.firstLaunchDone,
+    lastLine: '',
+    lastChips: [],
+    pendingSay: [],
+    routeAnswer: null,
+    transcript: '',
+    pausedNote: [],
+    pausedReturn: 'listening',
+    netSaidAt: 0,
+    micSaidAt: 0,
+    warnedBattery: false,
+    warnedHeat: false,
+    streamUp: false,
+    streamRef: null,
+    relayUrl: input.relayUrl,
+    relayCode: input.relayCode,
+    cameraOn: false,
+    searching: false,
+    outlines: [],
+    checkedCount: 0,
+    searchEpoch: 0,
+    pendingSearch: [],
+    alternative: null,
+  };
+}

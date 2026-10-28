@@ -51,10 +51,21 @@ import {
   usePausedNote,
 } from './actions';
 import type { ContextArgs } from './actions';
+import { initialContext } from './context';
 import { chimeWake } from './answers';
 import { applyTranslated } from './translation';
 import { notePartial, partialWorthy, speculatingState } from './speculating';
 import { chainActions, routingTransitions } from './routing';
+import {
+  hasQueuedAlternative,
+  hasQueuedSearch,
+  resumeSearch,
+  sayQueuedAlternative,
+  sayQueuedStatus,
+  searchRegion,
+  searchTalkOn,
+  stopSearch,
+} from './search';
 import type { ConversationContext, ConversationEvent, MachineInput } from './types';
 
 
@@ -83,46 +94,7 @@ export const conversationMachine = setup({
   actors: { speakMany, understandAnswer, ticking, tourSequence, streamClient },
 }).createMachine({
   id: 'conversation',
-  context: ({ input }) => ({
-    lang: input.prefs.language,
-    epoch: 0,
-    askedEpoch: 0,
-    step: 'welcome',
-    pendingQuestion: null,
-    pendingRequest: null,
-    pendingItems: null,
-    offerReturn: 'welcome',
-    offerTarget: null,
-    deferred: null,
-    offered: false,
-    misses: 0,
-    specText: null,
-    specAnswer: null,
-    specEpoch: 0,
-    request: input.snapshot.request,
-    requestLang: null,
-    translateSource: null,
-    translateItems: null,
-    translatePending: false,
-    rate: input.prefs.rate,
-    firstLaunchDone: input.prefs.firstLaunchDone,
-    lastLine: '',
-    lastChips: [],
-    pendingSay: [],
-    routeAnswer: null,
-    transcript: '',
-    pausedNote: [],
-    pausedReturn: 'listening',
-    netSaidAt: 0,
-    micSaidAt: 0,
-    warnedBattery: false,
-    warnedHeat: false,
-    streamUp: false,
-    streamRef: null,
-    relayUrl: input.relayUrl,
-    relayCode: input.relayCode,
-    cameraOn: false,
-  }),
+  context: initialContext,
   initial: 'live',
   states: {
     live: {
@@ -133,6 +105,7 @@ export const conversationMachine = setup({
       states: {
         talk: {
           initial: 'boot',
+          on: searchTalkOn,
           states: {
             boot: {
               entry: [spawnStream, applyInitialRate],
@@ -163,6 +136,10 @@ export const conversationMachine = setup({
             sayingFlTourOffer: sayTo('listening', true),
             listening: {
               entry: [ensureStream, noteSnapshot],
+              always: [
+                { guard: hasQueuedAlternative, actions: [sayQueuedAlternative], target: 'saying' },
+                { guard: hasQueuedSearch, actions: [sayQueuedStatus], target: 'sayingReprompt' },
+              ],
               on: {
                 ...listeningShared,
                 PARTIAL_TEXT: [
@@ -258,7 +235,7 @@ export const conversationMachine = setup({
             },
             resuming: {
               entry: [sendStart],
-              always: { actions: [usePausedNote], target: 'sayingResume' },
+              always: { actions: [usePausedNote, resumeSearch], target: 'sayingResume' },
             },
             resumed: {
               always: [{ guard: returnSleeping, target: 'sleeping' }, { target: 'listening' }],
@@ -286,10 +263,11 @@ export const conversationMachine = setup({
             },
           },
         },
+        search: searchRegion,
       },
     },
     paused: {
-      entry: [sendStop, quietVoice],
+      entry: [sendStop, quietVoice, stopSearch],
       on: { RESUME: 'live.talk.resuming' },
     },
     over: {

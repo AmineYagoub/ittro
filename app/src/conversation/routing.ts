@@ -34,6 +34,13 @@ import {
   welcomeAfterTour,
 } from './answers';
 import { switchCarry } from './translation';
+import {
+  adoptAlternative,
+  declineAlternative,
+  raiseSearchBegin,
+  raiseSearchEnd,
+  saySearchingStatus,
+} from './search';
 
 type Guard = (args: { context: ConversationContext }) => boolean;
 
@@ -141,6 +148,17 @@ const confirmSwitch: Guard = ({ context }) => {
   return context.step === 'confirm' && answer?.intent === 'speak_language' && validTarget(answer.target_language);
 };
 
+const alternativeYes: Guard = ({ context }) =>
+  context.step === 'alternative' && answerOf(context)?.intent === 'confirm_yes' && context.alternative !== null;
+
+const alternativeNo: Guard = ({ context }) =>
+  context.step === 'alternative' && answerOf(context)?.intent === 'confirm_no';
+
+const whereSearching: Guard = ({ context }) => answerOf(context)?.intent === 'where_is_it' && context.searching;
+
+const keepLooking: Guard = ({ context }) =>
+  answerOf(context)?.intent === 'keep_looking' && (context.pendingRequest ?? context.request) !== null;
+
 const switchLangCarry: Guard = ({ context }) => {
   const answer = answerOf(context);
   return (
@@ -192,13 +210,11 @@ const rateIntent: Guard = ({ context }) => {
 const tourIntent: Guard = ({ context }) => answerOf(context)?.intent === 'sounds_tour';
 
 const NOT_BUILT = [
-  'where_is_it',
   'is_this_right',
   'read_detail',
   'got_it',
   'guide_me',
   'read_again',
-  'keep_looking',
   'next',
   'skip',
   'ask_someone',
@@ -222,12 +238,14 @@ export const routingTransitions: Route[] = [
   { guard: offerNo, actions: [declineOffer], target: 'sayingKeep' },
   { guard: offerSwitch, actions: [switchPlain, noteLanguage], target: 'saying' },
   { guard: offerStep, actions: [missLine], target: 'saying' },
-  { guard: incomingRequest, actions: [incomingConfirm], target: 'saying' },
-  { guard: confirmDetail, actions: [incomingConfirm], target: 'saying' },
+  { guard: incomingRequest, actions: [incomingConfirm, raiseSearchBegin], target: 'saying' },
+  { guard: confirmDetail, actions: [incomingConfirm, raiseSearchBegin], target: 'saying' },
   { guard: confirmYes, actions: [confirmRequestLine], target: 'saying' },
-  { guard: confirmNo, actions: [clearAsk], target: 'saying' },
-  { guard: correctConfirmed, actions: [incomingConfirm], target: 'saying' },
-  { guard: declineConfirmed, actions: [declineSearch, noteCleared], target: 'saying' },
+  { guard: confirmNo, actions: [clearAsk, raiseSearchEnd], target: 'saying' },
+  { guard: correctConfirmed, actions: [incomingConfirm, raiseSearchBegin], target: 'saying' },
+  { guard: declineConfirmed, actions: [declineSearch, noteCleared, raiseSearchEnd], target: 'saying' },
+  { guard: alternativeYes, actions: [adoptAlternative, raiseSearchBegin], target: 'saying' },
+  { guard: alternativeNo, actions: [declineAlternative], target: 'saying' },
   { guard: switchLangCarry, actions: [switchCarry, noteLanguage], target: 'translating' },
   { guard: confirmSwitch, actions: [switchKeepConfirm, noteLanguage], target: 'saying' },
   { guard: sleepWake, actions: [chimeWake, wakeLines], target: 'saying' },
@@ -235,8 +253,10 @@ export const routingTransitions: Route[] = [
   { guard: switchLang, actions: [switchPlain, noteLanguage], target: 'saying' },
   { guard: helpIntent, actions: [sayHelp], target: 'saying' },
   { guard: repeatIntent, actions: [sayRepeat], target: 'saying' },
-  { guard: stopIntent, actions: [sayStopping], target: 'sayingSleep' },
-  { guard: freshIntent, actions: [freshAsk, noteCleared], target: 'saying' },
+  { guard: stopIntent, actions: [sayStopping, raiseSearchEnd], target: 'sayingSleep' },
+  { guard: freshIntent, actions: [freshAsk, noteCleared, raiseSearchEnd], target: 'saying' },
+  { guard: whereSearching, actions: [saySearchingStatus], target: 'saying' },
+  { guard: keepLooking, actions: [saySearchingStatus, raiseSearchBegin], target: 'saying' },
   { guard: verboseIntent, actions: [sayVerbose, noteVerbose], target: 'saying' },
   { guard: rateIntent, actions: [changeRate], target: 'saying' },
   { guard: tourIntent, target: 'touring' },
