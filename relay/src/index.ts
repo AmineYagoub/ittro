@@ -2,39 +2,22 @@
 // calls Meta, and only with strict structured output. Every route except
 // /health needs the app access code, is rate-limited per visitor, and
 // stops for the day when the spending limit is reached.
+import { TRANSCRIBE_USD_PER_SECOND, transcribeClip, wavSeconds } from './transcribe.ts';
+import { callSpark } from './spark.ts';
+import { understandUtterance } from './understand.ts';
+import { startRealtimeSession } from './realtime.ts';
+import { wrapSocket } from './streamWire.ts';
+import type { StreamBudget } from './realtime.ts';
+import type { StreamSocket } from './streamWire.ts';
 
-export type Verdict = 'yes' | 'no' | 'cannot_verify';
-
-export interface ConfirmAnswer {
-  verdict: Verdict;
-  spoken_summary: string;
-  label_text: string | null;
-}
-
-interface JsonSchemaFormat {
-  type: 'json_schema';
-  name: string;
-  schema: Record<string, unknown>;
-  strict: true;
-}
-
-export const CONFIRM_SCHEMA = {
-  name: 'confirm_product',
-  schema: {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-      verdict: { type: 'string', enum: ['yes', 'no', 'cannot_verify'] },
-      spoken_summary: { type: 'string' },
-      label_text: { type: ['string', 'null'] },
-    },
-    required: ['verdict', 'spoken_summary', 'label_text'],
-  },
-  strict: true,
-};
-
-const TRANSCRIBE_MODEL = 'muse-voice-transcribe-1.0';
-const TRANSCRIBE_USD_PER_SECOND = 0.18 / 3600;
+export { callSpark } from './spark.ts';
+export type { ConfirmAnswer, Intent, SpokenLanguage, UnderstandAnswer, Verdict } from './spark.ts';
+export { transcribeClip, wavSeconds } from './transcribe.ts';
+export { understandUtterance } from './understand.ts';
+export { processedMsToUsd, startRealtimeSession } from './realtime.ts';
+export type { StreamBudget } from './realtime.ts';
+export { buildMetaHandshake, parseMetaEvent, parsePhoneMessage, wrapSocket } from './streamWire.ts';
+export type { MetaEvent, PhoneMessage, StreamSocket } from './streamWire.ts';
 
 interface Limits {
   get(key: string): Promise<string | null>;
@@ -49,73 +32,6 @@ interface Env {
   SPARK_COST_USD?: string;
   RATE_LIMIT_PER_MINUTE?: string;
   ITTRO_LIMITS?: Limits;
-}
-
-interface SparkCall {
-  fetchImpl: typeof fetch;
-  apiBase: string | undefined;
-  apiKey: string | undefined;
-  input: unknown;
-  effort?: string;
-}
-
-// Every Muse Spark call goes through here. The answer is accepted only
-// when the response completed AND its output parses against the schema
-// shape. Anything else is an error, never an empty default.
-export async function callSpark({ fetchImpl, apiBase, apiKey, input, effort = 'low' }: SparkCall): Promise<ConfirmAnswer> {
-  if (!apiBase) throw new Error('relay not configured: META_API_BASE');
-  if (!apiKey) throw new Error('relay not configured: META_API_KEY');
-
-  const res = await fetchImpl(`${apiBase}/responses`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'muse-spark-1.3',
-      reasoning: { effort },
-      input,
-      text: { format: { type: 'json_schema', ...CONFIRM_SCHEMA } as JsonSchemaFormat },
-    }),
-  });
-
-  if (!res.ok) {
-    throw new Error(`spark http ${res.status}`);
-  }
-  const body = (await res.json()) as {
-    status?: string;
-    output_text?: unknown;
-    output?: Array<{ content?: Array<{ text?: unknown }> }>;
-  };
-
-  if (body.status !== 'completed') {
-    throw new Error(`spark not completed: ${body.status ?? 'unknown'}`);
-  }
-  const text: unknown = body.output_text ?? body.output?.[0]?.content?.[0]?.text;
-  if (typeof text !== 'string') {
-    throw new Error('spark answer has no text output');
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new Error('spark answer is not valid JSON');
-  }
-  if (!isConfirmAnswer(parsed)) {
-    throw new Error('spark answer fails schema gate');
-  }
-  return parsed;
-}
-
-function isConfirmAnswer(value: unknown): value is ConfirmAnswer {
-  if (!value || typeof value !== 'object') return false;
-  const v = value as Record<string, unknown>;
-  return (
-    (v['verdict'] === 'yes' || v['verdict'] === 'no' || v['verdict'] === 'cannot_verify') &&
-    typeof v['spoken_summary'] === 'string' &&
-    (typeof v['label_text'] === 'string' || v['label_text'] === null)
-  );
 }
 
 function codesEqual(a: string, b: string): boolean {
@@ -133,7 +49,24 @@ function clientIp(request: Request): string {
   return request.headers.get('cf-connecting-ip') ?? 'unknown';
 }
 
-async function overRateLimit(env: Env, ip: string): Promise<boolean> {
+interface PairedSocket {
+  send(data: string | ArrayBuffer): void;
+  close(code?: number, reason?: string): void;
+  accept(): void;
+  onmessage: ((event: { data: unknown }) => void) | null;
+  onclose: (() => void) | null;
+  onerror: (() => void) | null;
+}
+
+function newWebSocketPair(): [PairedSocket, PairedSocket] | null {
+  const global = globalThis as unknown as { WebSocketPair?: new () => [PairedSocket, PairedSocket] };
+  if (typeof global.WebSocketPair !== 'function') {
+    return null;
+  }
+  return new global.WebSocketPair();
+}
+
+export async function overRateLimit(env: Env, ip: string): Promise<boolean> {
   if (!env.ITTRO_LIMITS) {
     return false;
   }
@@ -148,7 +81,7 @@ async function overRateLimit(env: Env, ip: string): Promise<boolean> {
   return false;
 }
 
-async function spendTodayUsd(env: Env): Promise<number> {
+export async function spendTodayUsd(env: Env): Promise<number> {
   if (!env.ITTRO_LIMITS) {
     return 0;
   }
@@ -156,7 +89,7 @@ async function spendTodayUsd(env: Env): Promise<number> {
   return Number((await env.ITTRO_LIMITS.get(`spend:${day}`)) ?? '0');
 }
 
-async function addSpendUsd(env: Env, amount: number): Promise<void> {
+export async function addSpendUsd(env: Env, amount: number): Promise<void> {
   if (!env.ITTRO_LIMITS) {
     return;
   }
@@ -181,51 +114,8 @@ async function gate(request: Request, env: Env, costUsd: number): Promise<Respon
   return null;
 }
 
-export async function transcribeClip(
-  fetchImpl: typeof fetch,
-  apiBase: string,
-  apiKey: string,
-  wav: ArrayBuffer,
-  language: string,
-  keywords: string[],
-): Promise<string> {
-  const requestPart: Record<string, unknown> = {
-    model: TRANSCRIBE_MODEL,
-    mode: 'PUSH_TO_TALK',
-    language,
-  };
-  if (keywords.length > 0) {
-    requestPart['keywords'] = keywords;
-  }
-  const form = new FormData();
-  form.append('request', JSON.stringify(requestPart));
-  form.append('audio', new Blob([wav], { type: 'audio/mp4' }), 'clip.m4a');
-  const res = await fetchImpl(`${apiBase}/asr/transcribe`, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${apiKey}` },
-    body: form,
-  });
-  if (!res.ok) {
-    throw new Error(`transcribe http ${res.status}`);
-  }
-  const body = (await res.json()) as {
-    turns?: Array<{ text?: unknown }>;
-    text?: unknown;
-  };
-  if (Array.isArray(body.turns)) {
-    const text = body.turns
-      .map((turn) => (typeof turn.text === 'string' ? turn.text : ''))
-      .join(' ')
-      .trim();
-    if (!text) {
-      throw new Error('transcribe answer has no transcript');
-    }
-    return text;
-  }
-  if (typeof body.text === 'string') {
-    return body.text.trim();
-  }
-  throw new Error('transcribe answer has no transcript');
+async function sparkCostUsd(env: Env): Promise<void> {
+  await addSpendUsd(env, Number(env.SPARK_COST_USD ?? '0.01'));
 }
 
 export default {
@@ -248,7 +138,7 @@ export default {
           input,
           effort,
         });
-        await addSpendUsd(env, Number(env.SPARK_COST_USD ?? '0.01'));
+        await sparkCostUsd(env);
         return Response.json({ ok: true, answer });
       } catch (err) {
         return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
@@ -256,18 +146,16 @@ export default {
     }
     if (request.method === 'POST' && url.pathname === '/transcribe') {
       try {
-        const { audio, language, keywords, seconds } = (await request.json()) as {
+        const { audio, language, keywords } = (await request.json()) as {
           audio?: string;
           language?: string;
           keywords?: string[];
-          seconds?: number;
         };
         if (typeof audio !== 'string' || audio.length === 0) {
           return Response.json({ ok: false, error: 'missing audio' }, { status: 400 });
         }
         const bytes = Uint8Array.from(atob(audio), (c) => c.charCodeAt(0));
-        const clipSeconds = typeof seconds === 'number' && seconds > 0 ? seconds : 5;
-        const cost = clipSeconds * TRANSCRIBE_USD_PER_SECOND;
+        const cost = wavSeconds(bytes.buffer) * TRANSCRIBE_USD_PER_SECOND;
         const blocked = await gate(request, env, cost);
         if (blocked) {
           return blocked;
@@ -285,6 +173,66 @@ export default {
       } catch (err) {
         return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
       }
+    }
+    if (request.method === 'POST' && url.pathname === '/understand') {
+      const blocked = await gate(request, env, Number(env.SPARK_COST_USD ?? '0.01'));
+      if (blocked) {
+        return blocked;
+      }
+      try {
+        const context = (await request.json()) as {
+          transcript?: unknown;
+          language?: unknown;
+          step?: unknown;
+          pending_question?: unknown;
+          pending_request?: unknown;
+          last_line?: unknown;
+          effort?: unknown;
+        };
+        if (typeof context.transcript !== 'string' || context.transcript.trim().length === 0) {
+          return Response.json({ ok: false, error: 'missing transcript' }, { status: 400 });
+        }
+        const answer = await understandUtterance(fetch, env.META_API_BASE, env.META_API_KEY, {
+          transcript: context.transcript,
+          language: typeof context.language === 'string' ? context.language : 'en',
+          step: typeof context.step === 'string' ? context.step : 'welcome',
+          pending_question: typeof context.pending_question === 'string' ? context.pending_question : null,
+          pending_request: typeof context.pending_request === 'string' ? context.pending_request : null,
+          last_line: typeof context.last_line === 'string' ? context.last_line : null,
+          effort: typeof context.effort === 'string' ? context.effort : undefined,
+        });
+        await sparkCostUsd(env);
+        return Response.json({ ok: true, answer });
+      } catch (err) {
+        return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
+      }
+    }
+    if (url.pathname === '/realtime') {
+      const code = url.searchParams.get('code') ?? '';
+      if (!env.APP_ACCESS_CODE || !codesEqual(code, env.APP_ACCESS_CODE)) {
+        return Response.json({ ok: false, error: 'unknown app' }, { status: 401 });
+      }
+      if (await overRateLimit(env, clientIp(request))) {
+        return Response.json({ ok: false, error: 'too many requests, slow down' }, { status: 429 });
+      }
+      if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
+        return Response.json({ ok: false, error: 'websocket required' }, { status: 400 });
+      }
+      const pair = newWebSocketPair();
+      if (!pair) {
+        return Response.json({ ok: false, error: 'streaming unavailable here' }, { status: 501 });
+      }
+      const [client, relaySide] = pair;
+      relaySide.accept();
+      const budget: StreamBudget = {
+        spendToday: () => spendTodayUsd(env),
+        addSpend: (usd) => addSpendUsd(env, usd),
+        budget: () => Number(env.DAILY_BUDGET_USD ?? '3'),
+      };
+      const openMeta = (metaUrl: string): StreamSocket =>
+        wrapSocket(new WebSocket(metaUrl) as unknown as Parameters<typeof wrapSocket>[0]);
+      startRealtimeSession(wrapSocket(relaySide), openMeta, `${env.META_API_BASE ?? ''}/asr/realtime`, env.META_API_KEY ?? '', budget);
+      return new Response(null, { status: 101, webSocket: client } as unknown as ResponseInit);
     }
     return new Response('not found', { status: 404 });
   },
