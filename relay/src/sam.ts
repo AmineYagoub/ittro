@@ -1,8 +1,11 @@
 // SAM 3.1 outlines through the Meta Model API: one noun phrase plus
-// one shelf photo in, one box per matching product out. The stream is
-// special-token text; the relay parses it strictly and returns only
-// the boxes. Mask payloads stay on the wire: their codec is published
-// only inside Meta's client libraries, and boxes locate every product.
+// one shelf photo in, one shape-following mask per matching product
+// out. Meta's parser reads the stream strictly; the relay decodes each
+// mask to a small polygon on the server, so the phone never pays the
+// JavaScript decode that froze the test project's screen.
+import { parseImageStream, recordsOfKind, ResponsesStreamError } from '@meta-sam/parser';
+import { traceMaskOutline } from './masks.ts';
+
 export interface SamBox {
   x1: number;
   y1: number;
@@ -13,94 +16,39 @@ export interface SamBox {
   confidence: number | null;
 }
 
+export interface SamMask {
+  points: number[];
+}
+
 export interface SamOutline {
   id: number;
   frame: number;
   box: SamBox;
+  mask?: SamMask;
 }
 
 export interface OutlineResult {
   outlines: SamOutline[];
   samMs: number;
+  maskMs: number;
 }
 
 export interface OutlineArgs {
   image: string;
   mime: string;
   phrase: string;
-}
-
-interface BoxFields {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
   w: number;
   h: number;
-  confidence: number | null;
-}
-
-function parseBox(token: string): BoxFields {
-  const fields = new Map<string, string>();
-  for (const part of token.split(';')) {
-    const at = part.indexOf('=');
-    if (at > 0) {
-      fields.set(part.slice(0, at), part.slice(at + 1));
-    }
-  }
-  const need = ['x1', 'y1', 'x2', 'y2', 'w', 'h'].map((key) => Number(fields.get(key)));
-  if (need.some((value) => !Number.isInteger(value) || value < 0)) {
-    throw new Error('sam line fails to parse: bad box');
-  }
-  const [x1, y1, x2, y2, w, h] = need as [number, number, number, number, number, number];
-  if (x2 < x1 || y2 < y1 || w === 0 || h === 0 || x2 > w || y2 > h) {
-    throw new Error('sam line fails to parse: box outside image');
-  }
-  const raw = fields.get('c');
-  const confidence = raw === undefined ? null : Number(raw);
-  if (confidence !== null && (!Number.isFinite(confidence) || confidence < 0 || confidence > 1)) {
-    throw new Error('sam line fails to parse: bad confidence');
-  }
-  return { x1, y1, x2, y2, w, h, confidence };
-}
-
-function parseRecord(piece: string, frame: number): SamOutline {
-  const head = piece.match(/^(\d+)<\|box;([^|]*)\|><\|mask;/);
-  if (!head) {
-    throw new Error('sam line fails to parse: bad record');
-  }
-  const afterMask = piece.slice(head[0].length);
-  const data = afterMask.match(/data=(\d+),(\d+),[~!]/);
-  if (!data || !afterMask.endsWith('|>')) {
-    throw new Error('sam line fails to parse: bad mask');
-  }
-  return { id: Number(head[1]), frame, box: parseBox(head[2] ?? '') };
-}
-
-function parseLine(line: string): SamOutline[] {
-  const marker = line.match(/^<(\d+)f>/);
-  if (!marker) {
-    throw new Error('sam line fails to parse: no frame marker');
-  }
-  const frame = Number(marker[1]);
-  const rest = line.slice(marker[0].length);
-  if (rest.length === 0) {
-    throw new Error('sam line fails to parse: no records');
-  }
-  return rest.split(/,(?=\d+<\|box;)/).map((piece) => parseRecord(piece, frame));
-}
-
-export function parseSamText(text: string): SamOutline[] {
-  const outlines: SamOutline[] = [];
-  for (const line of text.split('\n').map((part) => part.trim()).filter((part) => part.length > 0)) {
-    outlines.push(...parseLine(line));
-  }
-  return outlines;
 }
 
 interface SseEvent {
   name: string;
   data: string[];
+}
+
+interface WireEvent {
+  type: string;
+  [key: string]: unknown;
 }
 
 function splitEvents(body: string): SseEvent[] {
@@ -122,6 +70,68 @@ function splitEvents(body: string): SseEvent[] {
   return events;
 }
 
+function laneIds(record: Record<string, unknown>): { item_id: string; output_index: number; content_index: number } {
+  return {
+    item_id: typeof record['item_id'] === 'string' ? record['item_id'] : 'msg-1',
+    output_index: typeof record['output_index'] === 'number' ? record['output_index'] : 0,
+    content_index: typeof record['content_index'] === 'number' ? record['content_index'] : 0,
+  };
+}
+
+function toWireEvents(body: string): { events: WireEvent[]; text: string; finalized: boolean } {
+  const events: WireEvent[] = [];
+  let text = '';
+  let finalized = false;
+  for (const event of splitEvents(body)) {
+    for (const chunk of event.data) {
+      if (chunk === '[DONE]') {
+        continue;
+      }
+      let parsed: unknown = null;
+      try {
+        parsed = JSON.parse(chunk);
+      } catch {
+        throw new Error('sam stream fails to parse');
+      }
+      const record = (parsed ?? {}) as Record<string, unknown>;
+      if (event.name === 'response.output_text.delta' && typeof record['delta'] === 'string') {
+        text += record['delta'];
+        events.push({ ...laneIds(record), type: event.name, delta: record['delta'] });
+      } else if (event.name === 'response.output_text.done' && typeof record['text'] === 'string') {
+        finalized = true;
+        events.push({ ...laneIds(record), type: event.name, text: record['text'] });
+      } else if (event.name === 'response.content_part.done') {
+        finalized = true;
+        events.push({ ...record, type: event.name });
+      } else if (event.name === 'response.completed') {
+        const status = (record['response'] as { status?: unknown } | undefined)?.status;
+        if (status !== undefined && status !== 'completed') {
+          throw new Error(`sam not completed: ${String(status)}`);
+        }
+        events.push({ type: event.name });
+      } else if (event.name === 'response.failed' || event.name === 'response.incomplete' || event.name === 'error') {
+        events.push({ ...record, type: event.name });
+      } else if (event.name === 'response.refusal.delta' || event.name === 'response.refusal.done') {
+        events.push({ ...laneIds(record), ...record, type: event.name });
+      }
+    }
+  }
+  return { events, text, finalized };
+}
+
+function samError(error: unknown): Error {
+  if (error instanceof ResponsesStreamError) {
+    if (error.code === 'response_refusal') {
+      return new Error('sam refused the request');
+    }
+    if (error.code === 'response_failed' || error.code === 'response_error') {
+      return new Error(`sam failed: ${error.message}`);
+    }
+    return new Error('sam stream fails to parse');
+  }
+  return error as Error;
+}
+
 export async function outlineProducts(
   fetchImpl: typeof fetch,
   apiBase: string | undefined,
@@ -133,6 +143,9 @@ export async function outlineProducts(
   const phrase = args.phrase.trim();
   if (phrase.length === 0) {
     throw new Error('outline needs a phrase');
+  }
+  if (!Number.isInteger(args.w) || args.w <= 0 || !Number.isInteger(args.h) || args.h <= 0) {
+    throw new Error('outline needs the photo size');
   }
   const started = Date.now();
   const res = await fetchImpl(`${apiBase}/responses`, {
@@ -161,30 +174,81 @@ export async function outlineProducts(
   if (!res.ok) {
     throw new Error(`sam http ${res.status}`);
   }
-  let text = '';
-  let status: string | null = null;
-  for (const event of splitEvents(await res.text())) {
-    for (const chunk of event.data) {
-      if (chunk === '[DONE]') {
-        continue;
-      }
-      let parsed: unknown = null;
-      try {
-        parsed = JSON.parse(chunk);
-      } catch {
-        throw new Error('sam stream fails to parse');
-      }
-      const record = parsed as { delta?: unknown; response?: { status?: unknown } };
-      if (event.name === 'response.output_text.delta' && typeof record.delta === 'string') {
-        text += record.delta;
-      }
-      if (event.name === 'response.completed') {
-        status = typeof record.response?.status === 'string' ? record.response.status : 'unknown';
-      }
+  const { events, text, finalized } = toWireEvents(await res.text());
+  if (!finalized) {
+    const done = { item_id: 'msg-1', output_index: 0, content_index: 0, type: 'response.output_text.done', text };
+    const terminal = events.findIndex((event) => event.type === 'response.completed');
+    if (terminal >= 0) {
+      events.splice(terminal, 0, done);
+    } else {
+      events.push(done);
     }
   }
-  if (status !== 'completed') {
-    throw new Error(`sam not completed: ${status ?? 'unknown'}`);
+  async function* source(): AsyncIterable<WireEvent> {
+    for (const event of events) {
+      yield event;
+    }
   }
-  return { outlines: parseSamText(text), samMs: Date.now() - started };
+  let result;
+  try {
+    result = await parseImageStream(source()).finalResult;
+  } catch (error) {
+    throw samError(error);
+  }
+  if (result.outcome.status !== 'completed') {
+    const detail = result.outcome.reason === 'response' ? (result.outcome.detail ?? 'response') : 'eof';
+    throw new Error(`sam not completed: ${detail}`);
+  }
+  const boxRecords = recordsOfKind(result.records, 'box');
+  const maskRecords = recordsOfKind(result.records, 'mask');
+  if (boxRecords.length === 0 && result.rawOutput.trim().length > 0) {
+    const first = result.diagnostics.find((item) => item.severity === 'error');
+    throw new Error(`sam line fails to parse: ${first?.message ?? 'no outlines'}`);
+  }
+  const masksByObject = new Map<string, (typeof maskRecords)[number]>();
+  for (const mask of maskRecords) {
+    if (!masksByObject.has(mask.objectId)) {
+      masksByObject.set(mask.objectId, mask);
+    }
+  }
+  const outlines: SamOutline[] = [];
+  let maskMs = 0;
+  for (const box of boxRecords) {
+    const id = Number(box.objectId);
+    const outline: SamBox = {
+      x1: box.left,
+      y1: box.top,
+      x2: box.right - 1,
+      y2: box.bottom - 1,
+      w: args.w,
+      h: args.h,
+      confidence: box.confidence ?? null,
+    };
+    if (
+      !Number.isInteger(id) ||
+      id < 0 ||
+      !Number.isInteger(outline.x1) ||
+      !Number.isInteger(outline.y1) ||
+      outline.x2 < outline.x1 ||
+      outline.y2 < outline.y1 ||
+      outline.x1 < 0 ||
+      outline.y1 < 0 ||
+      outline.x2 >= args.w ||
+      outline.y2 >= args.h
+    ) {
+      throw new Error('sam line fails to parse: box outside image');
+    }
+    const entry: SamOutline = { id, frame: 0, box: outline };
+    const mask = masksByObject.get(box.objectId);
+    if (mask) {
+      const decodeStart = Date.now();
+      const points = traceMaskOutline(mask.mask, mask.bounds);
+      maskMs += Date.now() - decodeStart;
+      if (points) {
+        entry.mask = { points };
+      }
+    }
+    outlines.push(entry);
+  }
+  return { outlines, samMs: Date.now() - started, maskMs };
 }
