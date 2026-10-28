@@ -5,9 +5,6 @@ import type { Language } from '../theme';
 import type { UnderstandAnswer } from '../relay';
 import { BACK_CHIP, HELP_CHIP, NO_CHIP, REPEAT_CHIP, STOP_CHIP, SWITCH_CHIP, YES_CHIP } from '../chips';
 import {
-  askChange,
-  confirmList,
-  confirmRequest,
   didntCatch,
   didntCatchHelp,
   doneLine,
@@ -28,10 +25,11 @@ import {
   tourOffer,
   welcome,
   welcomeBack,
-  welcomeBackLooking,
   whatToFind,
 } from '../lines';
+import { confirmList, confirmRequest, declinedRequest, welcomeBackLooking } from '../requestLines';
 import { applyRate, persistSnapshot, storeBrief, storeFirstLaunchDone, storeLanguage } from './actors';
+import { spokenLang, switchedLines } from './translation';
 import { playSound } from '../speech';
 import type { ConversationContext } from './types';
 
@@ -126,6 +124,7 @@ export const incomingConfirm = assign({
   pendingQuestion: 'confirm_request',
   pendingRequest: ({ context }) => confirmLines(context.routeAnswer as UnderstandAnswer, context.lang).request,
   pendingItems: ({ context }) => confirmLines(context.routeAnswer as UnderstandAnswer, context.lang).items,
+  requestLang: ({ context }) => spokenLang(context.routeAnswer, context.lang),
   pendingSay: ({ context }) => [
     { text: confirmLines(context.routeAnswer as UnderstandAnswer, context.lang).text, chips: [YES_CHIP[context.lang], NO_CHIP[context.lang]] },
   ],
@@ -148,12 +147,19 @@ export const clearAsk = assign({
   pendingItems: null,
   step: 'welcome',
   pendingQuestion: null,
-  pendingSay: ({ context }) => [{ text: askChange[context.lang], chips: [] }],
+  pendingSay: ({ context }) => [{ text: declinedRequest(context.request, context.lang), chips: [] }],
 });
 
-export function switchedLines(target: Language, previous: Language): { text: string; chips: string[] } {
-  return { text: switchedTo(target, previous), chips: [BACK_CHIP[previous]] };
-}
+export const declineSearch = assign({
+  request: null,
+  requestLang: null,
+  pendingRequest: null,
+  pendingItems: null,
+  step: 'welcome',
+  pendingQuestion: null,
+  pendingSay: ({ context }) => [{ text: declinedRequest(null, context.lang), chips: [] }],
+});
+
 
 export const switchKeepConfirm = assign({
   lang: ({ context }) => context.routeAnswer?.target_language as Language,
@@ -177,6 +183,7 @@ export const switchPlain = assign({
     return [switchedLines(target, context.lang)];
   },
 });
+
 
 export const sayHelp = assign({
   pendingSay: ({ context }) => {
@@ -205,6 +212,7 @@ export const sayStopping = assign({
 
 export const freshAsk = assign({
   request: null,
+  requestLang: null,
   pendingRequest: null,
   pendingItems: null,
   step: 'welcome',

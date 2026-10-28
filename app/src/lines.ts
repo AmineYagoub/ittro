@@ -65,12 +65,6 @@ export const phoneHot: Trilingual = {
   fr: 'Le téléphone chauffe. Je vais ralentir un peu.',
 };
 
-export const askChange: Trilingual = {
-  en: 'Okay. What should I change?',
-  ar: 'حسنًا. ما الذي يجب أن أغيّره؟',
-  fr: 'D’accord. Que dois-je changer ?',
-};
-
 export const searchNext: Trilingual = {
   en: 'Yes. Searching the shelf comes next.',
   ar: 'نعم. البحث في الرف هو الخطوة التالية.',
@@ -209,49 +203,6 @@ export function offerLanguage(target: Language): string {
     return 'Voulez-vous que je parle français ? Dites oui ou non.';
   }
   return 'Do you want me to speak English? Say yes or no.';
-}
-
-export function confirmRequest(product: string, lang: Language): string {
-  if (lang === 'ar') {
-    return `طلبت ${product}. هل هذا صحيح؟ قل نعم أو لا.`;
-  }
-  if (lang === 'fr') {
-    return `Vous avez demandé ${product}. C’est bien ça ? Dites oui ou non.`;
-  }
-  return `You asked for ${product}. Is that right? Say yes or no.`;
-}
-
-const COUNT_WORDS = ['one', 'two', 'three', 'four', 'five'];
-
-export function confirmList(items: string[], lang: Language): string {
-  if (lang === 'ar') {
-    return `طلبت ${items.length} أشياء: ${items.join('، ثم ')}. هل هذا صحيح؟ قل نعم أو لا.`;
-  }
-  if (lang === 'fr') {
-    return `Vous avez demandé ${items.length} choses : ${items.join(', puis ')}. C’est bien ça ? Dites oui ou non.`;
-  }
-  const count = COUNT_WORDS[items.length - 1] ?? String(items.length);
-  return `You asked for ${count} things: ${items.join(', then ')}. Is that right? Say yes or no.`;
-}
-
-export function stillLooking(product: string, lang: Language): string {
-  if (lang === 'ar') {
-    return `ما زلت أبحث عن ${product}. قل ابحث عن غيره لتغييره.`;
-  }
-  if (lang === 'fr') {
-    return `Je cherche toujours ${product}. Dites chercher un autre pour changer.`;
-  }
-  return `Still looking for ${product}. Say find another to change it.`;
-}
-
-export function welcomeBackLooking(product: string, lang: Language): string {
-  if (lang === 'ar') {
-    return `مرحبًا بعودتك. ما زلت تبحث عن ${product}.`;
-  }
-  if (lang === 'fr') {
-    return `Bon retour. Vous cherchez toujours ${product}.`;
-  }
-  return `Welcome back. Still looking for ${product}.`;
 }
 
 export const tourMeaning: Trilingual[] = [

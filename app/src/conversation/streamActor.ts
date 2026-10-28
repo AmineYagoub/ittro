@@ -18,6 +18,7 @@ interface RelayMessage {
   type?: string;
   kind?: string;
   transcript?: string;
+  final?: boolean;
   message?: string;
 }
 
@@ -192,6 +193,10 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
         }
         if (message.kind === 'speechComplete' && message.transcript) {
           sendBack({ type: 'FINAL_TEXT', text: message.transcript });
+          return;
+        }
+        if (message.kind === 'transcript' && !message.final && message.transcript) {
+          sendBack({ type: 'PARTIAL_TEXT', text: message.transcript });
         }
       };
       const closed = (): void => {

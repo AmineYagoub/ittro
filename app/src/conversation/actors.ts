@@ -17,6 +17,7 @@ import { stamp } from '../stamp';
 import { speech } from '../theme';
 import type { Language } from '../theme';
 import { understandUtterance } from '../relay';
+import type { UnderstandAnswer } from '../relay';
 import type { ConversationContext, ConversationEvent, ExpressionEvent, SpeakInput, TourInput, UnderstandInput } from './types';
 
 export const assignConversation = rawAssign<ConversationContext, ExpressionEvent, undefined, ConversationEvent, never>;
@@ -44,7 +45,37 @@ export const speakMany = fromPromise<void, SpeakInput>(async ({ input }) => {
   }
 });
 
+const understandCache = new Map<string, UnderstandAnswer>();
+
+function fullCacheKey(input: UnderstandInput): string {
+  return `full:${JSON.stringify(input)}`;
+}
+
+function shortCacheKey(input: UnderstandInput): string {
+  return `short:${JSON.stringify([input.transcript, input.lang, input.step, input.pendingQuestion])}`;
+}
+
+function cacheableWithoutContext(answer: UnderstandAnswer): boolean {
+  return answer.product_text === null && answer.items === null && answer.detail === null;
+}
+
+function cacheStore(key: string, value: UnderstandAnswer): void {
+  understandCache.delete(key);
+  understandCache.set(key, value);
+  if (understandCache.size > 100) {
+    const oldest = understandCache.keys().next().value;
+    if (oldest !== undefined) {
+      understandCache.delete(oldest);
+    }
+  }
+}
+
 export const understandAnswer = fromPromise(async ({ input }: { input: UnderstandInput }) => {
+  const cached = understandCache.get(fullCacheKey(input)) ?? understandCache.get(shortCacheKey(input));
+  if (cached) {
+    if (__DEV__) console.log(`[ittro] ${stamp()} understand cached: ${JSON.stringify(input.transcript)}`);
+    return cached;
+  }
   if (__DEV__) console.log(`[ittro] ${stamp()} understand sent: ${JSON.stringify(input.transcript)}`);
   const answer = await understandUtterance({
     transcript: input.transcript,
@@ -56,6 +87,10 @@ export const understandAnswer = fromPromise(async ({ input }: { input: Understan
     effort: 'minimal',
   });
   if (__DEV__) console.log(`[ittro] ${stamp()} intent: ${JSON.stringify(answer)}`);
+  cacheStore(fullCacheKey(input), answer);
+  if (cacheableWithoutContext(answer)) {
+    cacheStore(shortCacheKey(input), answer);
+  }
   return answer;
 });
 

@@ -14,6 +14,7 @@ import {
   clearAsk,
   confirmRequestLine,
   declineOffer,
+  declineSearch,
   freshAsk,
   incomingConfirm,
   missLine,
@@ -32,6 +33,7 @@ import {
   wakeLines,
   welcomeAfterTour,
 } from './answers';
+import { switchCarry } from './translation';
 
 type Guard = (args: { context: ConversationContext }) => boolean;
 
@@ -110,6 +112,18 @@ const confirmYes: Guard = ({ context }) =>
 const confirmNo: Guard = ({ context }) =>
   context.step === 'confirm' && answerOf(context)?.intent === 'confirm_no';
 
+const declineConfirmed: Guard = ({ context }) => {
+  const answer = answerOf(context);
+  return (
+    context.step === 'welcome' &&
+    context.pendingRequest === null &&
+    context.request !== null &&
+    answer?.intent === 'confirm_no' &&
+    !!answer &&
+    !hasDetail(answer)
+  );
+};
+
 const correctConfirmed: Guard = ({ context }) => {
   const answer = answerOf(context);
   return (
@@ -125,6 +139,17 @@ const correctConfirmed: Guard = ({ context }) => {
 const confirmSwitch: Guard = ({ context }) => {
   const answer = answerOf(context);
   return context.step === 'confirm' && answer?.intent === 'speak_language' && validTarget(answer.target_language);
+};
+
+const switchLangCarry: Guard = ({ context }) => {
+  const answer = answerOf(context);
+  return (
+    answer?.intent === 'speak_language' &&
+    !!answer &&
+    validTarget(answer.target_language) &&
+    (context.pendingRequest ?? context.request) !== null &&
+    context.requestLang !== answer.target_language
+  );
 };
 
 const sleepWake: Guard = ({ context }) =>
@@ -202,6 +227,8 @@ export const routingTransitions: Route[] = [
   { guard: confirmYes, actions: [confirmRequestLine], target: 'saying' },
   { guard: confirmNo, actions: [clearAsk], target: 'saying' },
   { guard: correctConfirmed, actions: [incomingConfirm], target: 'saying' },
+  { guard: declineConfirmed, actions: [declineSearch, noteCleared], target: 'saying' },
+  { guard: switchLangCarry, actions: [switchCarry, noteLanguage], target: 'translating' },
   { guard: confirmSwitch, actions: [switchKeepConfirm, noteLanguage], target: 'saying' },
   { guard: sleepWake, actions: [chimeWake, wakeLines], target: 'saying' },
   { guard: sleepStep, target: 'sleeping' },
