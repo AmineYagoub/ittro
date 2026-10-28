@@ -104,6 +104,18 @@ test('unknown effort falls back to low', async () => {
   assert.equal((sent['reasoning'] as Record<string, unknown>)['effort'], 'low');
 });
 
+test('product names keep one script and translate on request', async () => {
+  let sent: Record<string, unknown> = {};
+  const capture = (async (_url: string, init: { body: string }) => {
+    sent = JSON.parse(init.body) as Record<string, unknown>;
+    return { ok: true, json: async () => completed(answer) };
+  }) as unknown as typeof fetch;
+  await understandUtterance(capture, 'https://example.invalid', 'key', context);
+  const input = JSON.stringify(sent['input']);
+  assert.match(input, /Never mix scripts within a name/);
+  assert.match(input, /In step translate, restate/);
+});
+
 test('correction rule pins confirm_no with the combined text', async () => {
   let sent: Record<string, unknown> = {};
   const capture = (async (_url: string, init: { body: string }) => {
