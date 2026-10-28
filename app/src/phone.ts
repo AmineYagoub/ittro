@@ -15,14 +15,11 @@ function buzz(pattern: readonly number[]): void {
 }
 
 export async function preparePhone(): Promise<void> {
-  // TEMP-DEBUG: removed before commit.
-  console.log(`[ittro-debug] sensors ${JSON.stringify(sensorsStatus())}`);
+  if (__DEV__) console.log(`[ittro-debug] sensors ${JSON.stringify(sensorsStatus())}`);
   const state = mediaVolume();
-  // TEMP-DEBUG: removed before commit.
-  console.log(`[ittro-debug] volume ${JSON.stringify(state)}`);
+  if (__DEV__) console.log(`[ittro-debug] volume ${JSON.stringify(state)}`);
   if (state && state.volume / state.max < speech.lowVolumeThreshold) {
-    // TEMP-DEBUG: removed before commit.
-    console.log(`[ittro-debug] raising to ${speech.raisedVolume}: ${setMediaVolumeFraction(speech.raisedVolume)}`);
+    if (__DEV__) console.log(`[ittro-debug] raising to ${speech.raisedVolume}`);
     if (setMediaVolumeFraction(speech.raisedVolume)) {
       buzz(haptics.startVolumeBuzz);
     }
