@@ -11,6 +11,7 @@
     "META_API_BASE": "https://api.meta.ai/v1",
     "DAILY_BUDGET_USD": "3",
     "SPARK_COST_USD": "0.01",
+    "SAM_COST_USD": "0.0025",
     "RATE_LIMIT_PER_MINUTE": "30"
   }
 }

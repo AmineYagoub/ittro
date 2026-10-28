@@ -5,8 +5,12 @@
 import { TRANSCRIBE_USD_PER_SECOND, transcribeClip, wavSeconds } from './transcribe.ts';
 import { callSpark } from './spark.ts';
 import { understandUtterance } from './understand.ts';
+import { outlineProducts } from './sam.ts';
+import { classifyScene, pickPackagePhrase, readShelfLabels } from './shelf.ts';
 import { startRealtimeSession } from './realtime.ts';
 import { wrapSocket } from './streamWire.ts';
+import { addSpendUsd, clientIp, codesEqual, gate, overRateLimit, recordSamCost, recordSparkCost, spendTodayUsd } from './gate.ts';
+import type { Env } from './gate.ts';
 import type { StreamBudget } from './realtime.ts';
 import type { StreamSocket } from './streamWire.ts';
 
@@ -14,40 +18,15 @@ export { callSpark } from './spark.ts';
 export type { ConfirmAnswer, Intent, SpokenLanguage, UnderstandAnswer, Verdict } from './spark.ts';
 export { transcribeClip, wavSeconds } from './transcribe.ts';
 export { understandUtterance } from './understand.ts';
+export { outlineProducts } from './sam.ts';
+export type { OutlineArgs, OutlineResult, SamBox, SamOutline } from './sam.ts';
+export { classifyScene, pickPackagePhrase, readShelfLabels } from './shelf.ts';
+export type { ClassifyArgs, ReadArgs, SceneKind, SceneResult, ShelfCrop, ShelfRead, ShelfResult, ShelfVerdict } from './shelf.ts';
 export { processedMsToUsd, startRealtimeSession } from './realtime.ts';
 export type { StreamBudget } from './realtime.ts';
 export { buildMetaHandshake, parseMetaEvent, parsePhoneMessage, wrapSocket } from './streamWire.ts';
 export type { MetaEvent, PhoneMessage, StreamSocket } from './streamWire.ts';
-
-interface Limits {
-  get(key: string): Promise<string | null>;
-  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
-}
-
-interface Env {
-  META_API_BASE?: string;
-  META_API_KEY?: string;
-  APP_ACCESS_CODE?: string;
-  DAILY_BUDGET_USD?: string;
-  SPARK_COST_USD?: string;
-  RATE_LIMIT_PER_MINUTE?: string;
-  ITTRO_LIMITS?: Limits;
-}
-
-function codesEqual(a: string, b: string): boolean {
-  if (a.length !== b.length || a.length === 0) {
-    return false;
-  }
-  let diff = 0;
-  for (let i = 0; i < a.length; i += 1) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return diff === 0;
-}
-
-function clientIp(request: Request): string {
-  return request.headers.get('cf-connecting-ip') ?? 'unknown';
-}
+export { addSpendUsd, overRateLimit, spendTodayUsd } from './gate.ts';
 
 interface PairedSocket {
   send(data: string | ArrayBuffer): void;
@@ -66,56 +45,29 @@ function newWebSocketPair(): [PairedSocket, PairedSocket] | null {
   return new global.WebSocketPair();
 }
 
-export async function overRateLimit(env: Env, ip: string): Promise<boolean> {
-  if (!env.ITTRO_LIMITS) {
-    return false;
-  }
-  const perMinute = Number(env.RATE_LIMIT_PER_MINUTE ?? '30');
-  const minute = Math.floor(Date.now() / 60000);
-  const key = `rl:${ip}:${minute}`;
-  const current = Number((await env.ITTRO_LIMITS.get(key)) ?? '0');
-  if (current >= perMinute) {
-    return true;
-  }
-  await env.ITTRO_LIMITS.put(key, String(current + 1), { expirationTtl: 120 });
-  return false;
+interface OutlineBody {
+  image?: unknown;
+  mime?: unknown;
+  phrase?: unknown;
 }
 
-export async function spendTodayUsd(env: Env): Promise<number> {
-  if (!env.ITTRO_LIMITS) {
-    return 0;
-  }
-  const day = new Date().toISOString().slice(0, 10);
-  return Number((await env.ITTRO_LIMITS.get(`spend:${day}`)) ?? '0');
+interface PhraseBody {
+  request?: unknown;
+  image?: unknown;
+  mime?: unknown;
 }
 
-export async function addSpendUsd(env: Env, amount: number): Promise<void> {
-  if (!env.ITTRO_LIMITS) {
-    return;
-  }
-  const day = new Date().toISOString().slice(0, 10);
-  const key = `spend:${day}`;
-  const current = Number((await env.ITTRO_LIMITS.get(key)) ?? '0');
-  await env.ITTRO_LIMITS.put(key, String(current + amount), { expirationTtl: 172800 });
+interface ReadBody {
+  request?: unknown;
+  crops?: unknown;
 }
 
-async function gate(request: Request, env: Env, costUsd: number): Promise<Response | null> {
-  const presented = (request.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
-  if (!env.APP_ACCESS_CODE || !codesEqual(presented, env.APP_ACCESS_CODE)) {
-    return Response.json({ ok: false, error: 'unknown app' }, { status: 401 });
-  }
-  if (await overRateLimit(env, clientIp(request))) {
-    return Response.json({ ok: false, error: 'too many requests, slow down' }, { status: 429 });
-  }
-  const budget = Number(env.DAILY_BUDGET_USD ?? '3');
-  if ((await spendTodayUsd(env)) + costUsd > budget) {
-    return Response.json({ ok: false, error: 'daily budget reached, back tomorrow' }, { status: 402 });
-  }
-  return null;
+function textField(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
-async function sparkCostUsd(env: Env): Promise<void> {
-  await addSpendUsd(env, Number(env.SPARK_COST_USD ?? '0.01'));
+function mimeField(value: unknown): string {
+  return value === 'image/png' ? 'image/png' : 'image/jpeg';
 }
 
 export default {
@@ -138,7 +90,7 @@ export default {
           input,
           effort,
         });
-        await sparkCostUsd(env);
+        await recordSparkCost(env);
         return Response.json({ ok: true, answer });
       } catch (err) {
         return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
@@ -201,8 +153,109 @@ export default {
           last_line: typeof context.last_line === 'string' ? context.last_line : null,
           effort: typeof context.effort === 'string' ? context.effort : undefined,
         });
-        await sparkCostUsd(env);
+        await recordSparkCost(env);
         return Response.json({ ok: true, answer });
+      } catch (err) {
+        return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
+      }
+    }
+    if (request.method === 'POST' && url.pathname === '/outline') {
+      const blocked = await gate(request, env, Number(env.SAM_COST_USD ?? '0.0025'));
+      if (blocked) {
+        return blocked;
+      }
+      try {
+        const body = (await request.json()) as OutlineBody;
+        const image = textField(body.image);
+        const phrase = textField(body.phrase);
+        if (!image || !phrase) {
+          return Response.json({ ok: false, error: 'missing image or phrase' }, { status: 400 });
+        }
+        const result = await outlineProducts(fetch, env.META_API_BASE, env.META_API_KEY, {
+          image,
+          mime: mimeField(body.mime),
+          phrase,
+        });
+        await recordSamCost(env);
+        return Response.json({ ok: true, outlines: result.outlines, samMs: result.samMs });
+      } catch (err) {
+        return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
+      }
+    }
+    if (request.method === 'POST' && url.pathname === '/package-phrase') {
+      const blocked = await gate(request, env, Number(env.SPARK_COST_USD ?? '0.01'));
+      if (blocked) {
+        return blocked;
+      }
+      try {
+        const body = (await request.json()) as PhraseBody;
+        const wanted = textField(body.request);
+        const image = textField(body.image);
+        if (!wanted || !image) {
+          return Response.json({ ok: false, error: 'missing request or image' }, { status: 400 });
+        }
+        const phrase = await pickPackagePhrase(fetch, env.META_API_BASE, env.META_API_KEY, {
+          request: wanted,
+          image,
+          mime: mimeField(body.mime),
+        });
+        await recordSparkCost(env);
+        return Response.json({ ok: true, phrase });
+      } catch (err) {
+        return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
+      }
+    }
+    if (request.method === 'POST' && url.pathname === '/read-shelf') {
+      const blocked = await gate(request, env, Number(env.SPARK_COST_USD ?? '0.01'));
+      if (blocked) {
+        return blocked;
+      }
+      try {
+        const body = (await request.json()) as ReadBody;
+        const wanted = textField(body.request);
+        const crops = Array.isArray(body.crops) ? body.crops : null;
+        if (!wanted || !crops) {
+          return Response.json({ ok: false, error: 'missing request or crops' }, { status: 400 });
+        }
+        const checked = crops.map((crop) => {
+          const record = crop as { id?: unknown; image?: unknown; mime?: unknown };
+          const id = textField(record.id);
+          const image = textField(record.image);
+          if (!id || !image) {
+            throw new Error('each crop needs an id and an image');
+          }
+          return { id, image, mime: mimeField(record.mime) };
+        });
+        const result = await readShelfLabels(fetch, env.META_API_BASE, env.META_API_KEY, {
+          request: wanted,
+          crops: checked,
+        });
+        await recordSparkCost(env);
+        return Response.json({ ok: true, reads: result.reads, readMs: result.readMs });
+      } catch (err) {
+        const status = (err as Error).message.includes('crop') && !(err as Error).message.includes('crop ids') ? 400 : 502;
+        return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status });
+      }
+    }
+    if (request.method === 'POST' && url.pathname === '/classify-scene') {
+      const blocked = await gate(request, env, Number(env.SPARK_COST_USD ?? '0.01'));
+      if (blocked) {
+        return blocked;
+      }
+      try {
+        const body = (await request.json()) as PhraseBody;
+        const wanted = textField(body.request);
+        const image = textField(body.image);
+        if (!wanted || !image) {
+          return Response.json({ ok: false, error: 'missing request or image' }, { status: 400 });
+        }
+        const scene = await classifyScene(fetch, env.META_API_BASE, env.META_API_KEY, {
+          request: wanted,
+          image,
+          mime: mimeField(body.mime),
+        });
+        await recordSparkCost(env);
+        return Response.json({ ok: true, scene });
       } catch (err) {
         return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
       }
