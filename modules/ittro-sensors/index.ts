@@ -1,6 +1,6 @@
-// JS side of the ittro-sensors native module. The module is not wired
-// into the app build yet, so this file reports that honestly instead of
-// crashing in Expo Go.
+// JS side of the ittro-sensors native module. When the module is not
+// linked yet (Expo Go, or before prebuild), every call reports
+// unavailable instead of crashing.
 
 interface SensorsStatus {
   available: boolean;
@@ -8,21 +8,85 @@ interface SensorsStatus {
   module?: string;
 }
 
+interface VolumeState {
+  volume: number;
+  max: number;
+}
+
 interface SensorsNative {
   getStatus: () => SensorsStatus;
+  getMediaVolume: () => VolumeState;
+  setMediaVolume: (fraction: number) => boolean;
+  getThermalStatus: () => number;
+  startAudioCapture: () => boolean;
+  stopAudioCapture: () => string | null;
 }
 
-let native: SensorsNative | null = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- optional native module, absent until the dev-client build wires it
-  native = require('./native') as SensorsNative;
-} catch {
-  native = null;
+function loadNative(): SensorsNative | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- optional native module, absent until prebuild links it
+    const modules = require('expo-modules-core') as {
+      requireOptionalNativeModule: (name: string) => SensorsNative | null;
+    };
+    return modules.requireOptionalNativeModule('IttroSensors');
+  } catch {
+    return null;
+  }
 }
+
+const native: SensorsNative | null = loadNative();
 
 export function sensorsStatus(): SensorsStatus {
-  if (native && typeof native.getStatus === 'function') {
+  if (native) {
     return native.getStatus();
   }
   return { available: false, reason: 'native module not wired yet' };
+}
+
+export function mediaVolume(): VolumeState | null {
+  if (!native) {
+    return null;
+  }
+  const state = native.getMediaVolume();
+  if (state.volume < 0 || state.max <= 0) {
+    return null;
+  }
+  return state;
+}
+
+export function setMediaVolumeFraction(fraction: number): boolean {
+  if (!native) {
+    return false;
+  }
+  return native.setMediaVolume(fraction);
+}
+
+export function thermalStatus(): number | null {
+  if (!native) {
+    return null;
+  }
+  const status = native.getThermalStatus();
+  return status < 0 ? null : status;
+}
+
+export function startAudioCapture(): boolean {
+  if (!native) {
+    return false;
+  }
+  try {
+    return native.startAudioCapture();
+  } catch {
+    return false;
+  }
+}
+
+export function stopAudioCapture(): string | null {
+  if (!native) {
+    return null;
+  }
+  try {
+    return native.stopAudioCapture();
+  } catch {
+    return null;
+  }
 }

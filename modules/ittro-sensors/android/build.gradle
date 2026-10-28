@@ -3,4 +3,12 @@ apply plugin: 'expo-module-gradle-plugin'
 
 android {
   namespace 'dev.ittro.sensors'
+
+  defaultConfig {
+    // Ships the keep rule below to the app; see consumer-rules.pro.
+    consumerProguardFiles 'consumer-rules.pro'
+  }
 }
+
+// Required by expo-autolinking; keep in sync with package.json.
+version = '0.1.0'
