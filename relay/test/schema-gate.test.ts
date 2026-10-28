@@ -52,6 +52,28 @@ test('rejects refusal-shaped answers instead of mapping to unsure', async () => 
   );
 });
 
+test('reads the message item when reasoning comes first', async () => {
+  const parsed = await callSpark({
+    fetchImpl: okFetch({
+      status: 'completed',
+      output: [
+        { type: 'reasoning', status: 'completed' },
+        {
+          type: 'message',
+          role: 'assistant',
+          content: [
+            { type: 'output_text', text: JSON.stringify({ verdict: 'yes', spoken_summary: 'Found it.', label_text: null }) },
+          ],
+        },
+      ],
+    }),
+    apiBase: 'https://example.invalid',
+    apiKey: 'key',
+    input: { transcript: 'yes' },
+  });
+  assert.equal(parsed.verdict, 'yes');
+});
+
 test('rejects schema violations (bad verdict)', async () => {
   await assert.rejects(
     callSpark({
