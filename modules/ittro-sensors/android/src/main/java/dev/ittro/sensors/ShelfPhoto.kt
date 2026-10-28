@@ -11,8 +11,10 @@ import java.io.ByteArrayOutputStream
 
 // Shelf photos for Ittro. One still becomes the 1280 px photo SAM and
 // Spark read plus the 160 px grey the tracker follows; each outline is
-// then cut back out at up to 1024 px for its label read. Everything
-// runs off the JavaScript thread, so the screen never freezes.
+// then cut back out at up to 1024 px for its label read. Track frames
+// skip straight to the 160 px grey. Everything runs off the JavaScript
+// thread, so the screen never freezes, and each still is deleted once
+// decoded, so no picture outlives its answer.
 fun decodeSampled(context: Context, uri: String, maxWidth: Int): Bitmap? {
   val parsed = Uri.parse(uri) ?: return null
   val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -33,6 +35,29 @@ fun decodeSampled(context: Context, uri: String, maxWidth: Int): Bitmap? {
     context.contentResolver.openInputStream(parsed)?.use { BitmapFactory.decodeStream(it, null, options) }
   } catch (e: Exception) {
     null
+  }
+}
+
+fun fullWidth(context: Context, uri: String): Int {
+  val parsed = Uri.parse(uri) ?: return 0
+  val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+  return try {
+    context.contentResolver.openInputStream(parsed)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+    bounds.outWidth
+  } catch (e: Exception) {
+    0
+  }
+}
+
+fun deleteStill(context: Context, uri: String) {
+  try {
+    val parsed = Uri.parse(uri) ?: return
+    if (parsed.scheme == "file") {
+      parsed.path?.let { java.io.File(it).delete() }
+    } else {
+      context.contentResolver.delete(parsed, null, null)
+    }
+  } catch (e: Exception) {
   }
 }
 
@@ -82,7 +107,11 @@ fun jpegOf(bitmap: Bitmap): ByteArray {
 }
 
 fun shotPhoto(context: Context, uri: String): Map<String, Any>? {
-  val decoded = decodeSampled(context, uri, PHOTO_LONG_SIDE) ?: return null
+  val decoded = decodeSampled(context, uri, PHOTO_LONG_SIDE)
+  if (decoded == null) {
+    deleteStill(context, uri)
+    return null
+  }
   val bitmap = upright(context, decoded, uri)
   val longest = maxOf(bitmap.width, bitmap.height)
   val photo = if (longest > PHOTO_LONG_SIDE) {
@@ -106,6 +135,29 @@ fun shotPhoto(context: Context, uri: String): Map<String, Any>? {
   )
   small.recycle()
   photo.recycle()
+  deleteStill(context, uri)
+  return answer
+}
+
+fun shotTrack(context: Context, uri: String): Map<String, Any>? {
+  val width = fullWidth(context, uri)
+  val decoded = if (width > 0) decodeSampled(context, uri, TRACK_WIDTH) else null
+  if (width <= 0 || decoded == null) {
+    deleteStill(context, uri)
+    return null
+  }
+  val greyWidth = TRACK_WIDTH
+  val greyHeight = maxOf(1, (decoded.height * greyWidth) / decoded.width)
+  val small = Bitmap.createScaledBitmap(decoded, greyWidth, greyHeight, true)
+  decoded.recycle()
+  val answer = mapOf(
+    "grey" to Base64.encodeToString(greyOf(small), Base64.NO_WRAP),
+    "gw" to greyWidth,
+    "gh" to greyHeight,
+    "pw" to width,
+  )
+  small.recycle()
+  deleteStill(context, uri)
   return answer
 }
 
@@ -148,3 +200,5 @@ fun shotCrop(photo: String, x1: Int, y1: Int, x2: Int, y2: Int): Map<String, Any
 const val PHOTO_LONG_SIDE = 1280
 
 const val CROP_LONG_SIDE = 1024
+
+const val TRACK_WIDTH = 160

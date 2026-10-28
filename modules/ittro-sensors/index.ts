@@ -22,6 +22,7 @@ interface SensorsNative {
   stopAudioStream: () => boolean;
   prepareShelfPhoto: (uri: string) => Promise<ShelfPhoto | null>;
   cropShelfPhoto: (photo: string, x1: number, y1: number, x2: number, y2: number) => Promise<ShelfCrop | null>;
+  prepareTrackGrey: (uri: string) => Promise<TrackGrey | null>;
 }
 
 export interface ShelfPhoto {
@@ -36,6 +37,13 @@ export interface ShelfPhoto {
 export interface ShelfCrop {
   image: string;
   mime: string;
+}
+
+export interface TrackGrey {
+  grey: string;
+  gw: number;
+  gh: number;
+  pw: number;
 }
 
 export interface AudioChunk {
@@ -135,6 +143,17 @@ export async function cropShelfPhoto(
   }
   try {
     return await native.cropShelfPhoto(photo, x1, y1, x2, y2);
+  } catch {
+    return null;
+  }
+}
+
+export async function prepareTrackGrey(uri: string): Promise<TrackGrey | null> {
+  if (!native) {
+    return null;
+  }
+  try {
+    return await native.prepareTrackGrey(uri);
   } catch {
     return null;
   }

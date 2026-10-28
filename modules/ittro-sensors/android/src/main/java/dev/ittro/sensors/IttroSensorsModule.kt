@@ -158,6 +158,11 @@ class IttroSensorsModule : Module() {
     AsyncFunction("cropShelfPhoto") { photo: String, x1: Int, y1: Int, x2: Int, y2: Int ->
       shotCrop(photo, x1, y1, x2, y2)
     }
+
+    AsyncFunction("prepareTrackGrey") { uri: String ->
+      val context = appContext.reactContext ?: return@AsyncFunction null
+      shotTrack(context, uri)
+    }
   }
 }
 
