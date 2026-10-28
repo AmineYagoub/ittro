@@ -29,7 +29,7 @@ export default function App(): React.JSX.Element {
   const [lang, setLang] = useState<Language>('en');
   const [cameraOn, setCameraOn] = useState(false);
   const [talkBack, setTalkBack] = useState(false);
-  const [cameraPermission, requestCamera] = useCameraPermissions();
+  const [, requestCamera, getCameraPermission] = useCameraPermissions();
   const actorRef = useRef<ConversationActor | null>(null);
   const inLive = useRef(false);
 
@@ -87,14 +87,18 @@ export default function App(): React.JSX.Element {
             ? 'fr'
             : 'en';
         const micNow = await getRecordingPermissionsAsync();
-        if (!micNow.granted || !cameraPermission?.granted) {
+        const camNow = await getCameraPermission();
+        await SplashScreen.hideAsync();
+        if (gone) {
+          return;
+        }
+        if (!micNow.granted || !camNow.granted) {
           setLang(phoneLang);
           setLine(micLine[phoneLang]);
-          await say(micLine[phoneLang], phoneLang);
+          void say(micLine[phoneLang], phoneLang);
         }
         const mic = await requestRecordingPermissionsAsync();
-        const cam = cameraPermission?.granted ? { granted: true } : await requestCamera();
-        await SplashScreen.hideAsync();
+        const cam = camNow.granted ? { granted: true } : await requestCamera();
         if (gone) {
           return;
         }
@@ -120,7 +124,7 @@ export default function App(): React.JSX.Element {
           setLine(state.context.lastLine || '…');
           setChips(state.context.lastChips);
           setLang(state.context.lang);
-          setCameraOn(live);
+          setCameraOn(live && state.context.cameraOn);
           if (live && !inLive.current) {
             inLive.current = true;
             void preparePhone();

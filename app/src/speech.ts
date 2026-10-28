@@ -9,8 +9,11 @@ import type { Language, SoundName } from './theme';
 import { soundFile } from './theme';
 import { cueClip, cueText } from './voiceClips';
 import { soundAsset } from './soundBank';
+import { stamp } from './stamp';
 
 const SPEECH_LOCALE: Record<Language, string> = { en: 'en-US', ar: 'ar-SA', fr: 'fr-FR' };
+
+const CLIP_TIMEOUT_MS = 8000;
 
 let generation = 0;
 let talkBack = false;
@@ -48,9 +51,13 @@ function alive(g: number): boolean {
   return g === generation;
 }
 
-function waitEstimate(text: string, g: number): Promise<void> {
+function speechBudgetMs(text: string): number {
   const words = text.split(/\s+/).length;
-  const budgetMs = 600 + (words / 2.5) * 1000;
+  return 600 + (words / 2.5) * 1000;
+}
+
+function waitEstimate(text: string, g: number): Promise<void> {
+  const budgetMs = speechBudgetMs(text);
   const started = Date.now();
   return new Promise((resolve) => {
     const tick = (): void => {
@@ -73,16 +80,35 @@ export function say(text: string, lang: Language): Promise<void> {
     return waitEstimate(text, g);
   }
   return new Promise((resolve) => {
+    let done = false;
+    const finish = (): void => {
+      if (!done) {
+        done = true;
+        resolve();
+      }
+    };
+    const timer = setTimeout(() => {
+      if (__DEV__) console.log(`[ittro] ${stamp()} say timed out, carrying on`);
+      void Speech.stop();
+      finish();
+    }, speechBudgetMs(text));
     Speech.speak(text, {
       language: SPEECH_LOCALE[lang],
       rate: speechRate,
       onDone: () => {
+        clearTimeout(timer);
         if (alive(g)) {
-          resolve();
+          finish();
         }
       },
-      onStopped: () => resolve(),
-      onError: () => resolve(),
+      onStopped: () => {
+        clearTimeout(timer);
+        finish();
+      },
+      onError: () => {
+        clearTimeout(timer);
+        finish();
+      },
     });
   });
 }
@@ -123,14 +149,27 @@ function playFile(source: unknown, rate: number): Promise<void> {
     return Promise.resolve();
   }
   return new Promise((resolve) => {
+    let done = false;
+    const finish = (): void => {
+      if (done) {
+        return;
+      }
+      done = true;
+      subscription.remove();
+      if (activePlayer === player) {
+        activePlayer = null;
+      }
+      player.remove();
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      if (__DEV__) console.log(`[ittro] ${stamp()} clip timed out, carrying on`);
+      finish();
+    }, CLIP_TIMEOUT_MS);
     const subscription = player.addListener('playbackStatusUpdate', (status) => {
       if (status.didJustFinish || !alive(g)) {
-        subscription.remove();
-        if (activePlayer === player) {
-          activePlayer = null;
-        }
-        player.remove();
-        resolve();
+        clearTimeout(timer);
+        finish();
       }
     });
   });
