@@ -7,8 +7,8 @@ import { boxOverlap, mapBox, moveOutlines } from '../src/shelf/outlines';
 import { decodeBase64, estimatePan, ingestGrey, pickSharpest, sharpness, trackPan } from '../src/shelf/tracker';
 import type { GreyFrame } from '../src/shelf/tracker';
 import { createReadQueue, dropEpoch, enqueueRead, nextRead, queueSize } from '../src/shelf/queue';
-import { runShelfPass } from '../src/shelf/runner';
-import type { PassDeps } from '../src/shelf/runner';
+import { biggestFirst, needsRead, reconcileTracks } from '../src/shelf/shelfTracks';
+import type { Tracked } from '../src/shelf/shelfTracks';
 import { aisleFallback, findCloseMatch, outlineSignature, packageKind } from '../src/shelf/match';
 
 function patternFrame(w: number, h: number, paint: (x: number, y: number) => number): GreyFrame {
@@ -138,110 +138,44 @@ test('base64 grey bytes decode without a library', () => {
   assert.throws(() => decodeBase64('***'), /base64/);
 });
 
-test('a shelf pass reads the hand before the shelf and logs timings', async () => {
-  const calls: string[] = [];
-  const logs: string[] = [];
-  const deps: PassDeps = {
-    outline: async () => ({
-      outlines: [
-        { id: 0, frame: 0, box: { x1: 0, y1: 0, x2: 4, y2: 4, w: 12, h: 12, confidence: null } },
-        { id: 1, frame: 0, box: { x1: 6, y1: 6, x2: 10, y2: 10, w: 12, h: 12, confidence: null } },
-      ],
-      samMs: 1900,
-    }),
-    fetchPhrase: async () => {
-      calls.push('phrase');
-      return 'bag';
-    },
-    read: async (_request, crops) => {
-      calls.push(`read:${crops.map((crop) => crop.id).join('+')}`);
-      return {
-        reads: crops.map((crop) => ({
-          id: crop.id,
-          brand_text: 'Taaounia',
-          size_text: null,
-          verdict: 'yes' as const,
-          spoken: 'rice',
-        })),
-        readMs: 2100,
-      };
-    },
-    cutCrops: async (_image, outlines) => outlines.map((outline) => ({ id: `shelf-${outline.id}`, image: 'crop', mime: 'image/jpeg' })),
-    log: (line) => {
-      logs.push(line);
-    },
-  };
-  const crisp = patternFrame(12, 12, (x, y) => ((x * 31 + y * 17) % 256 + 256) % 256);
-  const blurred = patternFrame(12, 12, () => 100);
-  const pass = await runShelfPass(deps, {
-    request: 'rice',
-    frames: [
-      { image: 'blurred', mime: 'image/jpeg', grey: blurred },
-      { image: 'crisp', mime: 'image/jpeg', grey: crisp },
-    ],
-    hand: { id: 'hand-0', image: 'hand', mime: 'image/jpeg' },
-    epoch: 1,
-    phrases: new Map(),
+test('a matching outline keeps its track and its reading', () => {
+  const prev: Tracked[] = [
+    { track: 't1', outline: { id: 0, frame: 0, box: { x1: 8, y1: 8, x2: 40, y2: 40, w: 112, h: 96, confidence: null } }, read: null },
+  ];
+  prev[0]!.read = { id: 'shelf-t1', brand_text: 'Taaounia', size_text: null, verdict: 'yes', spoken: 'rice' };
+  const fresh = [{ id: 3, frame: 0, box: { x1: 10, y1: 9, x2: 42, y2: 41, w: 112, h: 96, confidence: null } }];
+  let ids = 1;
+  const next = reconcileTracks(prev, fresh, () => {
+    ids += 1;
+    return `t${ids}`;
   });
-  assert.deepEqual(calls, ['phrase', 'read:hand-0', 'read:shelf-0+shelf-1']);
-  assert.equal(pass.outlines.length, 2);
-  assert.equal(pass.handRead?.id, 'hand-0');
-  assert.equal(pass.shelfReads.length, 2);
-  assert.equal(pass.timings.samMs, 1900);
-  assert.match(logs.join('\n'), /sam 1900ms outlines 2 sharpness/);
+  assert.equal(next.length, 1);
+  assert.equal(next[0]?.track, 't1');
+  assert.equal(next[0]?.read?.verdict, 'yes');
+  assert.equal(next[0]?.outline.box.x1, 10);
 });
 
-test('an empty outline retries with the shorter phrase', async () => {
-  const seen: string[] = [];
-  const crisp = patternFrame(12, 12, (x, y) => ((x * 31 + y * 17) % 256 + 256) % 256);
-  const box = { x1: 0, y1: 0, x2: 4, y2: 4, w: 12, h: 12, confidence: null };
-  const deps: PassDeps = {
-    outline: async (_image, _mime, phrase) => {
-      seen.push(phrase);
-      return phrase.includes(' ') ? { outlines: [], samMs: 5 } : { outlines: [{ id: 0, frame: 0, box }], samMs: 6 };
-    },
-    fetchPhrase: async () => 'rice bag',
-    read: async (_request, crops) => ({
-      reads: crops.map((crop) => ({ id: crop.id, brand_text: null, size_text: null, verdict: 'unsure' as const, spoken: '' })),
-      readMs: 0,
-    }),
-    cutCrops: async (_image, outlines) => outlines.map((outline) => ({ id: `shelf-${outline.id}`, image: 'c', mime: 'image/jpeg' })),
-    log: () => undefined,
-  };
-  const pass = await runShelfPass(deps, {
-    request: 'rice',
-    frames: [{ image: 'a', mime: 'image/jpeg', grey: crisp }],
-    hand: null,
-    epoch: 1,
-    phrases: new Map(),
-  });
-  assert.deepEqual(seen, ['rice bag', 'bag']);
-  assert.equal(pass.outlines.length, 1);
+test('a new outline gets a new track and a vanished one drops', () => {
+  const prev: Tracked[] = [
+    { track: 't1', outline: { id: 0, frame: 0, box: { x1: 8, y1: 8, x2: 40, y2: 40, w: 112, h: 96, confidence: null } }, read: null },
+  ];
+  const fresh = [{ id: 0, frame: 0, box: { x1: 60, y1: 60, x2: 90, y2: 90, w: 112, h: 96, confidence: null } }];
+  const next = reconcileTracks(prev, fresh, () => 't2');
+  assert.equal(next.length, 1);
+  assert.equal(next[0]?.track, 't2');
+  assert.equal(next[0]?.read, null);
 });
 
-test('a shelf pass reuses the phrase it already picked', async () => {
-  let phrases = 0;
-  const crisp = patternFrame(12, 12, (x, y) => ((x * 31 + y * 17) % 256 + 256) % 256);
-  const deps: PassDeps = {
-    outline: async () => ({ outlines: [], samMs: 5 }),
-    fetchPhrase: async () => {
-      phrases += 1;
-      return 'bag';
-    },
-    read: async () => ({ reads: [], readMs: 0 }),
-    cutCrops: async () => [],
-    log: () => undefined,
-  };
-  const input = {
-    request: 'rice',
-    frames: [{ image: 'a', mime: 'image/jpeg', grey: crisp }],
-    hand: null,
-    epoch: 1,
-    phrases: new Map<string, string>(),
-  };
-  await runShelfPass(deps, input);
-  await runShelfPass(deps, input);
-  assert.equal(phrases, 1);
+test('only new and unsure tracks need a read, biggest first', () => {
+  const tracks: Tracked[] = [
+    { track: 't1', outline: { id: 0, frame: 0, box: { x1: 0, y1: 0, x2: 8, y2: 8, w: 112, h: 96, confidence: null } }, read: { id: 'shelf-t1', brand_text: null, size_text: null, verdict: 'yes', spoken: '' } },
+    { track: 't2', outline: { id: 1, frame: 0, box: { x1: 0, y1: 0, x2: 40, y2: 40, w: 112, h: 96, confidence: null } }, read: null },
+    { track: 't3', outline: { id: 2, frame: 0, box: { x1: 0, y1: 0, x2: 20, y2: 20, w: 112, h: 96, confidence: null } }, read: { id: 'shelf-t3', brand_text: null, size_text: null, verdict: 'unsure', spoken: '' } },
+  ];
+  assert.deepEqual(
+    biggestFirst(needsRead(tracks)).map((entry) => entry.track),
+    ['t2', 't3'],
+  );
 });
 
 test('a close match shares a real word, never just a size', () => {
@@ -270,18 +204,4 @@ test('the outline signature ignores small jitters', () => {
   const one = [{ id: 0, frame: 0, box }];
   assert.equal(outlineSignature(one), outlineSignature([{ id: 0, frame: 0, box: boxJitter }]));
   assert.notEqual(outlineSignature(one), outlineSignature([{ id: 0, frame: 0, box: boxMoved }]));
-});
-
-test('a shelf pass needs at least one frame', async () => {
-  const deps: PassDeps = {
-    outline: async () => ({ outlines: [], samMs: 0 }),
-    fetchPhrase: async () => 'bag',
-    read: async () => ({ reads: [], readMs: 0 }),
-    cutCrops: async () => [],
-    log: () => undefined,
-  };
-  await assert.rejects(
-    runShelfPass(deps, { request: 'rice', frames: [], hand: null, epoch: 1, phrases: new Map() }),
-    /at least one frame/,
-  );
 });

@@ -37,6 +37,10 @@ export async function cropShelfPhoto() {
   return null;
 }
 
+export async function prepareTrackGrey() {
+  return null;
+}
+
 export const AccessibilityInfo = {
   isScreenReaderEnabled: async () => false,
   addEventListener: () => ({ remove() {} }),
