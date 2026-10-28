@@ -18,90 +18,121 @@ function completed(): string {
   return `event: response.completed\ndata: ${JSON.stringify({ response: { status: 'completed' } })}\n\n`;
 }
 
-const LINE =
-  '<0f>0<|box;x1=10;y1=20;x2=30;y2=40;w=100;h=200|><|mask;x=0;y=0;data=21,21,!abc|>' +
-  ',2<|box;x1=50;y1=60;x2=70;y2=80;w=100;h=200|><|mask;x=0;y=0;data=21,21,!def|>';
+const PHOTO = { image: 'aGk=', mime: 'image/jpeg', phrase: 'button', w: 320, h: 334 };
+
+const FIRST =
+  '0<|box;x1=211;y1=228;x2=270;y2=254;w=320;h=334|>' +
+  "<|mask;x=0;y=0;data=27,60,~!!!!M!0c[0o91w?q1!pIH4pPRVp2B3'7`e.ioeAf6-k/#Xd8%dX9x(|>";
+
+const SECOND =
+  '1<|box;x1=155;y1=228;x2=202;y2=254;w=320;h=334|>' +
+  '<|mask;x=0;y=0;data=27,48,~!!!!J!0c[q=Pj_zs=*4C4(/./x#:/`S_GnD`=o3?X{emCgO$y@|>';
+
+const LINE = `<0f>${FIRST},${SECOND}`;
+
+function insideBox(points: number[], box: { x1: number; y1: number; x2: number; y2: number }): boolean {
+  for (let at = 0; at + 1 < points.length; at += 2) {
+    const x = points[at] as number;
+    const y = points[at + 1] as number;
+    if (x < box.x1 || x > box.x2 + 1 || y < box.y1 || y > box.y2 + 1) {
+      return false;
+    }
+  }
+  return true;
+}
 
 test('parses boxes with sparse object ids', async () => {
-  const result = await outlineProducts(
-    sseFetch([delta(LINE), completed()]),
-    'https://example.invalid',
-    'key',
-    { image: 'aGk=', mime: 'image/jpeg', phrase: 'bag' },
-  );
+  const sparse = `<0f>${FIRST},${SECOND.replace(/^1<\|box/, '2<|box')}`;
+  const result = await outlineProducts(sseFetch([delta(sparse), completed()]), 'https://example.invalid', 'key', PHOTO);
   assert.equal(result.outlines.length, 2);
-  assert.deepEqual(result.outlines[0], {
-    id: 0,
-    frame: 0,
-    box: { x1: 10, y1: 20, x2: 30, y2: 40, w: 100, h: 200, confidence: null },
+  assert.deepEqual(result.outlines[0]?.box, {
+    x1: 211,
+    y1: 228,
+    x2: 270,
+    y2: 254,
+    w: 320,
+    h: 334,
+    confidence: null,
   });
   assert.equal(result.outlines[1]?.id, 2);
   assert.ok(result.samMs >= 0);
+  assert.ok(result.maskMs >= 0);
+});
+
+test('each outline carries a small polygon inside its box', async () => {
+  const result = await outlineProducts(sseFetch([delta(LINE), completed()]), 'https://example.invalid', 'key', PHOTO);
+  for (const outline of result.outlines) {
+    const points = outline.mask?.points ?? [];
+    assert.ok(points.length >= 6);
+    assert.equal(points.length % 2, 0);
+    assert.ok(points.length / 2 <= 48);
+    assert.ok(insideBox(points, outline.box));
+  }
 });
 
 test('zero matches is an empty outline list, not an error', async () => {
-  const result = await outlineProducts(sseFetch([completed()]), 'https://example.invalid', 'key', {
-    image: 'aGk=',
-    mime: 'image/jpeg',
-    phrase: 'bottle',
-  });
+  const result = await outlineProducts(sseFetch([completed()]), 'https://example.invalid', 'key', PHOTO);
   assert.deepEqual(result.outlines, []);
 });
 
 test('reads confidence when the record carries it', async () => {
-  const line =
-    '<0f>1<|box;x1=1;y1=2;x2=3;y2=4;w=10;h=10;c=0.5|><|mask;x=0;y=0;c=0.5;data=3,3,!x|>';
-  const result = await outlineProducts(
-    sseFetch([delta(line), completed()]),
-    'https://example.invalid',
-    'key',
-    { image: 'aGk=', mime: 'image/jpeg', phrase: 'bag' },
-  );
+  const confident = `<0f>${FIRST.replace('w=320;h=334|>', 'w=320;h=334;c=0.5|>')}`;
+  const result = await outlineProducts(sseFetch([delta(confident), completed()]), 'https://example.invalid', 'key', PHOTO);
   assert.equal(result.outlines[0]?.box.confidence, 0.5);
 });
 
 test('rejects a stream that never completes', async () => {
   await assert.rejects(
-    outlineProducts(sseFetch([delta(LINE)]), 'https://example.invalid', 'key', {
-      image: 'aGk=',
-      mime: 'image/jpeg',
-      phrase: 'bag',
-    }),
+    outlineProducts(sseFetch([delta(LINE)]), 'https://example.invalid', 'key', PHOTO),
     /not completed/,
   );
 });
 
 test('rejects a failed status instead of returning boxes', async () => {
-  const failed =
-    'event: response.completed\ndata: {"response":{"status":"failed"}}\n\n';
+  const failed = 'event: response.completed\ndata: {"response":{"status":"failed"}}\n\n';
   await assert.rejects(
-    outlineProducts(sseFetch([delta(LINE), failed]), 'https://example.invalid', 'key', {
-      image: 'aGk=',
-      mime: 'image/jpeg',
-      phrase: 'bag',
-    }),
+    outlineProducts(sseFetch([delta(LINE), failed]), 'https://example.invalid', 'key', PHOTO),
     /not completed/,
+  );
+});
+
+test('rejects a refusal instead of returning boxes', async () => {
+  const refused = 'event: response.refusal.done\ndata: {"refusal":"no"}\n\n';
+  await assert.rejects(
+    outlineProducts(sseFetch([refused]), 'https://example.invalid', 'key', PHOTO),
+    /refused/,
   );
 });
 
 test('rejects a malformed line instead of guessing', async () => {
   await assert.rejects(
-    outlineProducts(sseFetch([delta('<0f>oops'), completed()]), 'https://example.invalid', 'key', {
-      image: 'aGk=',
-      mime: 'image/jpeg',
-      phrase: 'bag',
-    }),
+    outlineProducts(sseFetch([delta('<0f>oops'), completed()]), 'https://example.invalid', 'key', PHOTO),
     /parse/,
   );
 });
 
-test('rejects an http error without retrying', async () => {
+test('rejects chatter without outlines instead of calling it empty', async () => {
   await assert.rejects(
-    outlineProducts(sseFetch(['busy'], 429), 'https://example.invalid', 'key', {
-      image: 'aGk=',
-      mime: 'image/jpeg',
-      phrase: 'bag',
-    }),
-    /sam http 429/,
+    outlineProducts(sseFetch([delta('here are your products'), completed()]), 'https://example.invalid', 'key', PHOTO),
+    /parse/,
   );
+});
+
+test('rejects a box outside the photo instead of clamping it', async () => {
+  const outside = `<0f>${FIRST.replace('x1=211', 'x1=319').replace('x2=270', 'x2=400')}`;
+  await assert.rejects(
+    outlineProducts(sseFetch([delta(outside), completed()]), 'https://example.invalid', 'key', PHOTO),
+    /parse/,
+  );
+});
+
+test('rejects a missing photo size instead of guessing it', async () => {
+  await assert.rejects(
+    outlineProducts(sseFetch([completed()]), 'https://example.invalid', 'key', { ...PHOTO, w: 0 }),
+    /photo size/,
+  );
+});
+
+test('rejects an http error without retrying', async () => {
+  await assert.rejects(outlineProducts(sseFetch(['busy'], 429), 'https://example.invalid', 'key', PHOTO), /sam http 429/);
 });

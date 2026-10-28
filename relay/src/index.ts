@@ -19,7 +19,7 @@ export type { ConfirmAnswer, Intent, SpokenLanguage, UnderstandAnswer, Verdict }
 export { transcribeClip, wavSeconds } from './transcribe.ts';
 export { understandUtterance } from './understand.ts';
 export { outlineProducts } from './sam.ts';
-export type { OutlineArgs, OutlineResult, SamBox, SamOutline } from './sam.ts';
+export type { OutlineArgs, OutlineResult, SamBox, SamMask, SamOutline } from './sam.ts';
 export { classifyScene, pickPackagePhrase, readShelfLabels } from './shelf.ts';
 export type { ClassifyArgs, ReadArgs, SceneKind, SceneResult, ShelfCrop, ShelfRead, ShelfResult, ShelfVerdict } from './shelf.ts';
 export { processedMsToUsd, startRealtimeSession } from './realtime.ts';
@@ -49,6 +49,8 @@ interface OutlineBody {
   image?: unknown;
   mime?: unknown;
   phrase?: unknown;
+  w?: unknown;
+  h?: unknown;
 }
 
 interface PhraseBody {
@@ -168,16 +170,20 @@ export default {
         const body = (await request.json()) as OutlineBody;
         const image = textField(body.image);
         const phrase = textField(body.phrase);
-        if (!image || !phrase) {
-          return Response.json({ ok: false, error: 'missing image or phrase' }, { status: 400 });
+        const w = typeof body.w === 'number' ? body.w : 0;
+        const h = typeof body.h === 'number' ? body.h : 0;
+        if (!image || !phrase || !Number.isInteger(w) || w <= 0 || !Number.isInteger(h) || h <= 0) {
+          return Response.json({ ok: false, error: 'missing image, phrase or photo size' }, { status: 400 });
         }
         const result = await outlineProducts(fetch, env.META_API_BASE, env.META_API_KEY, {
           image,
           mime: mimeField(body.mime),
           phrase,
+          w,
+          h,
         });
         await recordSamCost(env);
-        return Response.json({ ok: true, outlines: result.outlines, samMs: result.samMs });
+        return Response.json({ ok: true, outlines: result.outlines, samMs: result.samMs, maskMs: result.maskMs });
       } catch (err) {
         return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
       }
