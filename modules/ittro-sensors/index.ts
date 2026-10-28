@@ -20,6 +20,22 @@ interface SensorsNative {
   getThermalStatus: () => number;
   startAudioStream: () => boolean;
   stopAudioStream: () => boolean;
+  prepareShelfPhoto: (uri: string) => Promise<ShelfPhoto | null>;
+  cropShelfPhoto: (photo: string, x1: number, y1: number, x2: number, y2: number) => Promise<ShelfCrop | null>;
+}
+
+export interface ShelfPhoto {
+  photo: string;
+  w: number;
+  h: number;
+  grey: string;
+  gw: number;
+  gh: number;
+}
+
+export interface ShelfCrop {
+  image: string;
+  mime: string;
 }
 
 export interface AudioChunk {
@@ -93,6 +109,34 @@ export function stopAudioStream(): boolean {
     return native.stopAudioStream();
   } catch {
     return false;
+  }
+}
+
+export async function prepareShelfPhoto(uri: string): Promise<ShelfPhoto | null> {
+  if (!native) {
+    return null;
+  }
+  try {
+    return await native.prepareShelfPhoto(uri);
+  } catch {
+    return null;
+  }
+}
+
+export async function cropShelfPhoto(
+  photo: string,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): Promise<ShelfCrop | null> {
+  if (!native) {
+    return null;
+  }
+  try {
+    return await native.cropShelfPhoto(photo, x1, y1, x2, y2);
+  } catch {
+    return null;
   }
 }
 

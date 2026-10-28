@@ -149,6 +149,15 @@ class IttroSensorsModule : Module() {
     Function("stopAudioStream") {
       stopStream()
     }
+
+    AsyncFunction("prepareShelfPhoto") { uri: String ->
+      val context = appContext.reactContext ?: return@AsyncFunction null
+      shotPhoto(context, uri)
+    }
+
+    AsyncFunction("cropShelfPhoto") { photo: String, x1: Int, y1: Int, x2: Int, y2: Int ->
+      shotCrop(photo, x1, y1, x2, y2)
+    }
   }
 }
 
