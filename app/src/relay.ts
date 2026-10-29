@@ -1,4 +1,4 @@
-import Constants from 'expo-constants';
+import { RelayError, getMeta, postMeta, relayEndpoint } from './metaCall';
 
 export interface RelayConfig {
   url: string;
@@ -6,13 +6,7 @@ export interface RelayConfig {
 }
 
 export function relayConfig(): RelayConfig {
-  const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, unknown>;
-  const url = process.env['EXPO_PUBLIC_RELAY_URL'] ?? extra['relayUrl'];
-  const accessCode = process.env['EXPO_PUBLIC_ACCESS_CODE'] ?? extra['accessCode'];
-  return {
-    url: typeof url === 'string' ? url : 'https://ittro.djazair.dev',
-    accessCode: typeof accessCode === 'string' ? accessCode : '',
-  };
+  return relayEndpoint();
 }
 
 export interface UnderstandContext {
@@ -35,25 +29,10 @@ export interface UnderstandAnswer {
   helper_name: string | null;
 }
 
-interface UnderstandResponse {
-  ok: boolean;
-  answer?: UnderstandAnswer;
-  error?: string;
-}
-
 export async function understandUtterance(context: UnderstandContext): Promise<UnderstandAnswer> {
-  const { url, accessCode } = relayConfig();
-  const res = await fetch(`${url}/understand`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${accessCode}`,
-    },
-    body: JSON.stringify(context),
-  });
-  const body = (await res.json()) as UnderstandResponse;
-  if (!res.ok || !body.ok || !body.answer) {
-    throw new Error(body.error ?? `understand http ${res.status}`);
+  const body = await postMeta<{ answer?: UnderstandAnswer }>('understand', '/understand', context);
+  if (!body.answer) {
+    throw new RelayError('broken', null, 'understand answer is missing');
   }
   return body.answer;
 }
@@ -130,23 +109,6 @@ export interface DetailRead {
   reason: DetailReason | null;
 }
 
-async function postShelf<T>(path: string, payload: unknown): Promise<T> {
-  const { url, accessCode } = relayConfig();
-  const res = await fetch(`${url}${path}`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${accessCode}`,
-    },
-    body: JSON.stringify(payload),
-  });
-  const body = (await res.json()) as { ok: boolean; error?: string } & Partial<T>;
-  if (!res.ok || !body.ok) {
-    throw new Error(body.error ?? `shelf http ${res.status}`);
-  }
-  return body as T;
-}
-
 export async function outlineShelf(
   image: string,
   mime: string,
@@ -154,11 +116,11 @@ export async function outlineShelf(
   w: number,
   h: number,
 ): Promise<{ outlines: ShelfOutline[]; samMs: number; maskMs: number }> {
-  return postShelf('/outline', { image, mime, phrase, w, h });
+  return postMeta('outline', '/outline', { image, mime, phrase, w, h });
 }
 
 export async function fetchPackagePhrase(request: string, image: string, mime: string): Promise<string> {
-  const body = await postShelf<{ phrase: string }>('/package-phrase', { request, image, mime });
+  const body = await postMeta<{ phrase: string }>('package-phrase', '/package-phrase', { request, image, mime });
   return body.phrase;
 }
 
@@ -166,11 +128,11 @@ export async function readShelfCrops(
   request: string,
   crops: ShelfCrop[],
 ): Promise<{ reads: ShelfRead[]; readMs: number }> {
-  return postShelf('/read-shelf', { request, crops });
+  return postMeta('read-shelf', '/read-shelf', { request, crops });
 }
 
 export async function classifySceneView(request: string, image: string, mime: string): Promise<SceneView> {
-  const body = await postShelf<{ scene: SceneView }>('/classify-scene', { request, image, mime });
+  const body = await postMeta<{ scene: SceneView }>('classify-scene', '/classify-scene', { request, image, mime });
   return body.scene;
 }
 
@@ -179,7 +141,7 @@ export async function confirmInHand(
   image: string,
   mime: string,
 ): Promise<{ read: ConfirmRead; readMs: number }> {
-  return postShelf('/confirm-hand', { request, image, mime });
+  return postMeta('confirm-hand', '/confirm-hand', { request, image, mime });
 }
 
 export async function readLabelDetail(
@@ -187,7 +149,7 @@ export async function readLabelDetail(
   image: string,
   mime: string,
 ): Promise<{ read: DetailRead; readMs: number }> {
-  return postShelf('/read-detail', { detail, image, mime });
+  return postMeta('read-detail', '/read-detail', { detail, image, mime });
 }
 
 export interface HelperPairing {
@@ -218,24 +180,12 @@ export interface HelperStatus {
   answer: HelperAnswer | null;
 }
 
-async function getShelf<T>(path: string): Promise<T> {
-  const { url, accessCode } = relayConfig();
-  const res = await fetch(`${url}${path}`, {
-    headers: { authorization: `Bearer ${accessCode}` },
-  });
-  const body = (await res.json()) as { ok: boolean; error?: string } & Partial<T>;
-  if (!res.ok || !body.ok) {
-    throw new Error(body.error ?? `helper http ${res.status}`);
-  }
-  return body as T;
-}
-
 export async function pairHelper(name: string): Promise<HelperPairing> {
-  return postShelf('/helper-pair', { name });
+  return postMeta('helper-pair', '/helper-pair', { name });
 }
 
 export async function pairStatus(code: string): Promise<HelperPairStatus> {
-  return getShelf(`/helper-pair?code=${encodeURIComponent(code)}`);
+  return getMeta('helper-pair', `/helper-pair?code=${encodeURIComponent(code)}`);
 }
 
 export interface HelperAsk {
@@ -248,15 +198,15 @@ export interface HelperAsk {
 }
 
 export async function askHelper(args: HelperAsk): Promise<HelperAsked> {
-  return postShelf('/helper-ask', args);
+  return postMeta('helper-ask', '/helper-ask', args);
 }
 
 export async function helperStatus(id: string): Promise<HelperStatus> {
-  return getShelf(`/helper-status?id=${encodeURIComponent(id)}`);
+  return getMeta('helper-status', `/helper-status?id=${encodeURIComponent(id)}`);
 }
 
 export async function cancelHelper(id: string): Promise<void> {
-  await postShelf('/helper-cancel', { id });
+  await postMeta('helper-cancel', '/helper-cancel', { id });
 }
 
 
