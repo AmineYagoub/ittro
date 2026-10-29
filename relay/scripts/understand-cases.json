@@ -1,0 +1,357 @@
+{
+  "note": "Fixed live check for /understand: lone product names are answered, commands survive, background stays ignore. Rerun with: npm run check:understand. Calls stay under the relay rate limit (pauseMs keeps starts under 30/min).",
+  "pauseMs": 2500,
+  "effort": "minimal",
+  "cases": [
+    {
+      "id": "en-welcome-guedila",
+      "transcript": "Guedila",
+      "language": "en",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": null,
+      "last_line": "Hi, I'm Ittro. Tell me what you're looking for, or say help.",
+      "expect": ["request_product"]
+    },
+    {
+      "id": "en-welcome-masaad",
+      "transcript": "Masaad",
+      "language": "en",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": null,
+      "last_line": "Hi, I'm Ittro. Tell me what you're looking for, or say help.",
+      "expect": ["request_product"]
+    },
+    {
+      "id": "en-welcome-water",
+      "transcript": "Water",
+      "language": "en",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": null,
+      "last_line": "Hi, I'm Ittro. Tell me what you're looking for, or say help.",
+      "expect": ["request_product"]
+    },
+    {
+      "id": "ar-welcome-masaad",
+      "transcript": "مسعد",
+      "language": "ar",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": null,
+      "last_line": "مرحبًا، أنا إيترو. أخبرني عما تبحث عنه، أو قل مساعدة.",
+      "expect": ["request_product"]
+    },
+    {
+      "id": "ar-welcome-water",
+      "transcript": "ماء",
+      "language": "ar",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": null,
+      "last_line": "مرحبًا، أنا إيترو. أخبرني عما تبحث عنه، أو قل مساعدة.",
+      "expect": ["request_product"]
+    },
+    {
+      "id": "fr-welcome-guedila",
+      "transcript": "Guedila",
+      "language": "fr",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": null,
+      "last_line": "Bonjour, je suis Ittro. Dites-moi ce que vous cherchez, ou dites aide.",
+      "expect": ["request_product"]
+    },
+    {
+      "id": "fr-welcome-eau",
+      "transcript": "eau",
+      "language": "fr",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": null,
+      "last_line": "Bonjour, je suis Ittro. Dites-moi ce que vous cherchez, ou dites aide.",
+      "expect": ["request_product"]
+    },
+    {
+      "id": "en-confirm-guedila",
+      "transcript": "Guedila",
+      "language": "en",
+      "step": "confirm",
+      "pending_question": "confirm_request",
+      "pending_request": "Masaad water",
+      "last_line": "You asked for Masaad water. Is that right? Say yes or no.",
+      "expect": ["request_product", "confirm_no", "confirm_yes"]
+    },
+    {
+      "id": "en-confirm-masaad",
+      "transcript": "Masaad",
+      "language": "en",
+      "step": "confirm",
+      "pending_question": "confirm_request",
+      "pending_request": "Masaad water",
+      "last_line": "You asked for Masaad water. Is that right? Say yes or no.",
+      "expect": ["request_product", "confirm_no", "confirm_yes"]
+    },
+    {
+      "id": "en-confirm-water",
+      "transcript": "Water",
+      "language": "en",
+      "step": "confirm",
+      "pending_question": "confirm_request",
+      "pending_request": "Masaad water",
+      "last_line": "You asked for Masaad water. Is that right? Say yes or no.",
+      "expect": ["request_product", "confirm_no", "confirm_yes"]
+    },
+    {
+      "id": "ar-confirm-guedila",
+      "transcript": "قوديلا",
+      "language": "ar",
+      "step": "confirm",
+      "pending_question": "confirm_request",
+      "pending_request": "ماء مسعد",
+      "last_line": "طلبت ماء مسعد. هل هذا صحيح؟ قل نعم أو لا.",
+      "expect": ["request_product", "confirm_no", "confirm_yes"]
+    },
+    {
+      "id": "ar-confirm-masaad",
+      "transcript": "مسعد",
+      "language": "ar",
+      "step": "confirm",
+      "pending_question": "confirm_request",
+      "pending_request": "ماء مسعد",
+      "last_line": "طلبت ماء مسعد. هل هذا صحيح؟ قل نعم أو لا.",
+      "expect": ["request_product", "confirm_no", "confirm_yes"]
+    },
+    {
+      "id": "ar-confirm-water",
+      "transcript": "ماء",
+      "language": "ar",
+      "step": "confirm",
+      "pending_question": "confirm_request",
+      "pending_request": "ماء مسعد",
+      "last_line": "طلبت ماء مسعد. هل هذا صحيح؟ قل نعم أو لا.",
+      "expect": ["request_product", "confirm_no", "confirm_yes"]
+    },
+    {
+      "id": "fr-confirm-guedila",
+      "transcript": "Guedila",
+      "language": "fr",
+      "step": "confirm",
+      "pending_question": "confirm_request",
+      "pending_request": "eau Masaad",
+      "last_line": "Vous avez demandé eau Masaad. C’est bien ça ? Dites oui ou non.",
+      "expect": ["request_product", "confirm_no", "confirm_yes"]
+    },
+    {
+      "id": "fr-confirm-masaad",
+      "transcript": "Masaad",
+      "language": "fr",
+      "step": "confirm",
+      "pending_question": "confirm_request",
+      "pending_request": "eau Masaad",
+      "last_line": "Vous avez demandé eau Masaad. C’est bien ça ? Dites oui ou non.",
+      "expect": ["request_product", "confirm_no", "confirm_yes"]
+    },
+    {
+      "id": "fr-confirm-eau",
+      "transcript": "eau",
+      "language": "fr",
+      "step": "confirm",
+      "pending_question": "confirm_request",
+      "pending_request": "eau Masaad",
+      "last_line": "Vous avez demandé eau Masaad. C’est bien ça ? Dites oui ou non.",
+      "expect": ["request_product", "confirm_no", "confirm_yes"]
+    },
+    {
+      "id": "en-cmd-stop",
+      "transcript": "Stop",
+      "language": "en",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": "Masaad water",
+      "last_line": "I'm searching the shelf for Masaad water. 0 products checked so far.",
+      "expect": ["stop"]
+    },
+    {
+      "id": "en-cmd-help",
+      "transcript": "Help",
+      "language": "en",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": "Masaad water",
+      "last_line": "I'm searching the shelf for Masaad water. 0 products checked so far.",
+      "expect": ["help"]
+    },
+    {
+      "id": "en-cmd-repeat",
+      "transcript": "Repeat",
+      "language": "en",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": "Masaad water",
+      "last_line": "I'm searching the shelf for Masaad water. 0 products checked so far.",
+      "expect": ["repeat"]
+    },
+    {
+      "id": "en-cmd-yes",
+      "transcript": "Yes",
+      "language": "en",
+      "step": "confirm",
+      "pending_question": "confirm_request",
+      "pending_request": "Masaad water",
+      "last_line": "You asked for Masaad water. Is that right? Say yes or no.",
+      "expect": ["confirm_yes"]
+    },
+    {
+      "id": "en-cmd-no",
+      "transcript": "No",
+      "language": "en",
+      "step": "confirm",
+      "pending_question": "confirm_request",
+      "pending_request": "Masaad water",
+      "last_line": "You asked for Masaad water. Is that right? Say yes or no.",
+      "expect": ["confirm_no"]
+    },
+    {
+      "id": "ar-cmd-stop",
+      "transcript": "توقف",
+      "language": "ar",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": "ماء مسعد",
+      "last_line": "أبحث في الرف عن ماء مسعد. فحصت 0 حتى الآن.",
+      "expect": ["stop"]
+    },
+    {
+      "id": "ar-cmd-help",
+      "transcript": "مساعدة",
+      "language": "ar",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": "ماء مسعد",
+      "last_line": "أبحث في الرف عن ماء مسعد. فحصت 0 حتى الآن.",
+      "expect": ["help"]
+    },
+    {
+      "id": "ar-cmd-repeat",
+      "transcript": "أعد",
+      "language": "ar",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": "ماء مسعد",
+      "last_line": "أبحث في الرف عن ماء مسعد. فحصت 0 حتى الآن.",
+      "expect": ["repeat"]
+    },
+    {
+      "id": "ar-cmd-yes",
+      "transcript": "نعم",
+      "language": "ar",
+      "step": "confirm",
+      "pending_question": "confirm_request",
+      "pending_request": "ماء مسعد",
+      "last_line": "طلبت ماء مسعد. هل هذا صحيح؟ قل نعم أو لا.",
+      "expect": ["confirm_yes"]
+    },
+    {
+      "id": "ar-cmd-no",
+      "transcript": "لا",
+      "language": "ar",
+      "step": "confirm",
+      "pending_question": "confirm_request",
+      "pending_request": "ماء مسعد",
+      "last_line": "طلبت ماء مسعد. هل هذا صحيح؟ قل نعم أو لا.",
+      "expect": ["confirm_no"]
+    },
+    {
+      "id": "fr-cmd-stop",
+      "transcript": "Stop",
+      "language": "fr",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": "eau Masaad",
+      "last_line": "Je cherche eau Masaad dans le rayon. 0 vérifiés pour l’instant.",
+      "expect": ["stop"]
+    },
+    {
+      "id": "fr-cmd-help",
+      "transcript": "Aide",
+      "language": "fr",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": "eau Masaad",
+      "last_line": "Je cherche eau Masaad dans le rayon. 0 vérifiés pour l’instant.",
+      "expect": ["help"]
+    },
+    {
+      "id": "fr-cmd-repeat",
+      "transcript": "Répète",
+      "language": "fr",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": "eau Masaad",
+      "last_line": "Je cherche eau Masaad dans le rayon. 0 vérifiés pour l’instant.",
+      "expect": ["repeat"]
+    },
+    {
+      "id": "fr-cmd-yes",
+      "transcript": "Oui",
+      "language": "fr",
+      "step": "confirm",
+      "pending_question": "confirm_request",
+      "pending_request": "eau Masaad",
+      "last_line": "Vous avez demandé eau Masaad. C’est bien ça ? Dites oui ou non.",
+      "expect": ["confirm_yes"]
+    },
+    {
+      "id": "fr-cmd-no",
+      "transcript": "Non",
+      "language": "fr",
+      "step": "confirm",
+      "pending_question": "confirm_request",
+      "pending_request": "eau Masaad",
+      "last_line": "Vous avez demandé eau Masaad. C’est bien ça ? Dites oui ou non.",
+      "expect": ["confirm_no"]
+    },
+    {
+      "id": "ar-bg-darija",
+      "transcript": "هادو وين نديرو هادو",
+      "language": "en",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": "Masaad water",
+      "last_line": "I'm searching the shelf for Masaad water. 0 products checked so far.",
+      "expect": ["ignore"]
+    },
+    {
+      "id": "ar-bg-fragment",
+      "transcript": "هادو",
+      "language": "en",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": "Masaad water",
+      "last_line": "I'm searching the shelf for Masaad water. 0 products checked so far.",
+      "expect": ["ignore"]
+    },
+    {
+      "id": "en-bg-bags",
+      "transcript": "where did you put those bags",
+      "language": "en",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": "Masaad water",
+      "last_line": "I'm searching the shelf for Masaad water. 0 products checked so far.",
+      "expect": ["ignore"]
+    },
+    {
+      "id": "fr-bg-bags",
+      "transcript": "tu as vu les sacs là-bas",
+      "language": "en",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": "Masaad water",
+      "last_line": "I'm searching the shelf for Masaad water. 0 products checked so far.",
+      "expect": ["ignore"]
+    }
+  ]
+}
