@@ -8,6 +8,9 @@ import { understandUtterance } from './understand.ts';
 import { outlineProducts } from './sam.ts';
 import { classifyScene, pickPackagePhrase, readShelfLabels } from './shelf.ts';
 import { startRealtimeSession } from './realtime.ts';
+import { confirmRoute, detailRoute } from './confirm.ts';
+import { mimeField, textField } from './bodies.ts';
+import type { OutlineBody, PhraseBody, ReadBody } from './bodies.ts';
 import { wrapSocket } from './streamWire.ts';
 import { addSpendUsd, clientIp, codesEqual, gate, overRateLimit, recordSamCost, recordSparkCost, spendTodayUsd } from './gate.ts';
 import type { Env } from './gate.ts';
@@ -22,6 +25,8 @@ export { outlineProducts } from './sam.ts';
 export type { OutlineArgs, OutlineResult, SamBox, SamMask, SamOutline } from './sam.ts';
 export { classifyScene, pickPackagePhrase, readShelfLabels } from './shelf.ts';
 export type { ClassifyArgs, ReadArgs, SceneKind, SceneResult, ShelfCrop, ShelfRead, ShelfResult, ShelfVerdict } from './shelf.ts';
+export { confirmInHand, confirmRoute, detailRoute, readLabelDetail } from './confirm.ts';
+export type { ConfirmArgs, ConfirmAttr, ConfirmAttrs, ConfirmRead, ConfirmResult, ConfirmVerdict, DetailArgs, DetailKind, DetailRead, DetailReason, DetailResult, PictureProblem } from './confirm.ts';
 export { processedMsToUsd, startRealtimeSession } from './realtime.ts';
 export type { StreamBudget } from './realtime.ts';
 export { buildMetaHandshake, parseMetaEvent, parsePhoneMessage, wrapSocket } from './streamWire.ts';
@@ -43,33 +48,6 @@ function newWebSocketPair(): [PairedSocket, PairedSocket] | null {
     return null;
   }
   return new global.WebSocketPair();
-}
-
-interface OutlineBody {
-  image?: unknown;
-  mime?: unknown;
-  phrase?: unknown;
-  w?: unknown;
-  h?: unknown;
-}
-
-interface PhraseBody {
-  request?: unknown;
-  image?: unknown;
-  mime?: unknown;
-}
-
-interface ReadBody {
-  request?: unknown;
-  crops?: unknown;
-}
-
-function textField(value: unknown): string | null {
-  return typeof value === 'string' && value.length > 0 ? value : null;
-}
-
-function mimeField(value: unknown): string {
-  return value === 'image/png' ? 'image/png' : 'image/jpeg';
 }
 
 export default {
@@ -265,6 +243,20 @@ export default {
       } catch (err) {
         return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
       }
+    }
+    if (request.method === 'POST' && url.pathname === '/confirm-hand') {
+      const blocked = await gate(request, env, Number(env.SPARK_COST_USD ?? '0.01'));
+      if (blocked) {
+        return blocked;
+      }
+      return confirmRoute(await request.json(), env);
+    }
+    if (request.method === 'POST' && url.pathname === '/read-detail') {
+      const blocked = await gate(request, env, Number(env.SPARK_COST_USD ?? '0.01'));
+      if (blocked) {
+        return blocked;
+      }
+      return detailRoute(await request.json(), env);
     }
     if (url.pathname === '/realtime') {
       const code = url.searchParams.get('code') ?? '';
