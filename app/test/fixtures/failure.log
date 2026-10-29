@@ -1,0 +1,18 @@
+ LOG  [ittro] +2.00s state {"live":{"talk":"listening","silence":"waiting","search":"active","guide":"idle","confirm":"idle","helper":"idle","link":"ok"}}
+ LOG  [ittro] +10.10s search begin "Guedila water" epoch 2
+ LOG  [ittro] +10.20s meta outline sent
+ LOG  [ittro] +10.60s meta outline failed down 400ms
+ LOG  [ittro] +10.61s state {"live":{"talk":"listening","silence":"waiting","search":"active","guide":"idle","confirm":"idle","helper":"idle","link":"down"}}
+ LOG  [ittro] +10.62s say: "I've lost the internet. Check the phone has signal; I'll keep trying."
+ LOG  [ittro] +15.10s said 4480ms
+ LOG  [ittro] +16.20s meta outline sent
+ LOG  [ittro] +16.70s meta outline failed down 500ms
+ LOG  [ittro] +30.00s meta outline sent
+ LOG  [ittro] +32.50s meta outline ok 2500ms
+ LOG  [ittro] +32.51s state {"live":{"talk":"listening","silence":"waiting","search":"active","guide":"idle","confirm":"idle","helper":"idle","link":"ok"}}
+ LOG  [ittro] +40.00s meta understand sent
+ LOG  [ittro] +40.90s meta understand failed limited 900ms
+ LOG  [ittro] +40.91s state {"live":{"talk":"listening","silence":"waiting","search":"active","guide":"idle","confirm":"idle","helper":"idle","link":"limited"}}
+ LOG  [ittro] +40.92s say: "I've reached my asking limit. Give me a minute; I'll keep trying."
+ LOG  [ittro] +44.30s said 3380ms
+ LOG  [ittro] +62.00s session battery 70% thermal 2 mem 500/8192MB uptime 1m

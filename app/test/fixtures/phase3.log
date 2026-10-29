@@ -1,0 +1,6 @@
+ LOG  [ittro] relay: {"url":"http://localhost:8787"}
+ LOG  [ittro] +11.31s say: "Welcome back. Still looking for water."
+ LOG  [ittro] +38.63s heard: "I'm looking for water."
+ LOG  [ittro] +38.64s understand sent: "I'm looking for water."
+ LOG  [ittro] +41.30s intent: {"intent":"request_product","product_text":"water"}
+ LOG  [ittro] +41.31s say: "You asked for water. Is that right? Say yes or no."

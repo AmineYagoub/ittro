@@ -1,0 +1,37 @@
+ LOG  [ittro] relay: {"url":"https://ittro.djazair.dev"}
+ LOG  [ittro] +2.10s say: "Hi, I'm Ittro. Tell me what you're looking for, or say help."
+ LOG  [ittro] +5.40s said 3300ms
+ LOG  [ittro] +12.02s state {"live":{"talk":"listening","silence":"waiting","search":"idle","guide":"idle","confirm":"idle","helper":"idle","link":"ok"}}
+ LOG  [ittro] +20.15s heard: "I'm looking for Masaad water."
+ LOG  [ittro] +20.16s understand sent: "I'm looking for Masaad water."
+ LOG  [ittro] +20.17s meta understand sent
+ LOG  [ittro] +22.30s meta understand ok 2130ms
+ LOG  [ittro] +22.31s intent: {"intent":"request_product","product_text":"Masaad water"}
+ LOG  [ittro] +22.32s search begin "Masaad water" epoch 1
+ LOG  [ittro] +22.33s say: "You asked for Masaad water. Is that right? Say yes or no."
+ LOG  [ittro] +25.90s said 3570ms
+ LOG  [ittro] +26.10s meta package-phrase sent
+ LOG  [ittro] +29.40s meta package-phrase ok 3300ms
+ LOG  [ittro] +29.41s meta outline sent
+ LOG  [ittro] +31.80s meta outline ok 2390ms
+ LOG  [ittro] +31.82s search outlined epoch 1 count 4
+ LOG  [ittro] +31.83s meta read-shelf sent
+10-29 19:02:11.204 D/ittro( 1234): [ittro] +36.02s meta read-shelf ok 4190ms
+ LOG  [ittro] +36.10s say: "I found Masaad water."
+ LOG  [ittro] +37.60s said 1500ms
+ LOG  [ittro] +40.00s heard: "Yes,"
+ LOG  [ittro] +40.01s understand sent: "Yes,"
+ LOG  [ittro] +40.02s meta understand sent
+ LOG  [ittro] +41.50s meta understand ok 1480ms
+ LOG  [ittro] +41.51s intent: {"intent":"confirm_yes"}
+ LOG  [ittro] +41.52s search request confirmed "Masaad water"
+ LOG  [ittro] +41.53s say: "Yes. Searching the shelf comes next."
+ LOG  [ittro] +43.00s said 1470ms
+ LOG  [ittro] +47.20s clip: move_left
+ LOG  [ittro] +52.90s guide hand on product epoch 1
+ LOG  [ittro] +54.10s meta confirm-hand sent
+ LOG  [ittro] +58.60s meta confirm-hand ok 4500ms
+ LOG  [ittro] +58.62s confirm verdict yes epoch 1 label "Masaad water, 1.5 litres"
+ LOG  [ittro] +58.63s state {"live":{"talk":"listening","silence":"quiet","search":"idle","guide":"idle","confirm":"yes","helper":"idle","link":"ok"}}
+ LOG  [ittro] +62.10s session battery 82% thermal 1 mem 412/8192MB uptime 1m
+ LOG  [ittro] +122.20s session battery 81% thermal 1 mem 415/8192MB uptime 2m

@@ -1,5 +1,6 @@
 package dev.ittro.sensors
 
+import android.app.ActivityManager
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioRecord
@@ -151,6 +152,18 @@ class IttroSensorsModule : Module() {
         power.currentThermalStatus
       } catch (e: Exception) {
         -1
+      }
+    }
+
+    Function("getMemoryStatus") {
+      try {
+        val context = appContext.reactContext ?: return@Function mapOf("availMb" to -1, "totalMb" to -1)
+        val manager = context.getSystemService(ActivityManager::class.java) ?: return@Function mapOf("availMb" to -1, "totalMb" to -1)
+        val info = ActivityManager.MemoryInfo()
+        manager.getMemoryInfo(info)
+        mapOf("availMb" to (info.availMem / 1048576).toInt(), "totalMb" to (info.totalMem / 1048576).toInt())
+      } catch (e: Exception) {
+        mapOf("availMb" to -1, "totalMb" to -1)
       }
     }
 
