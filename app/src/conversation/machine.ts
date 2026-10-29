@@ -2,7 +2,7 @@
 // pausing and the silence timers. Speech mutes the mic; a pause bumps
 // the epoch so nothing heard before it is acted on after.
 import { setup } from 'xstate';
-import { speakMany, ticking, tourSequence, understandAnswer } from './actors';
+import { speakMany, speakParts, ticking, tourSequence, understandAnswer } from './actors';
 import { streamClient } from './streamActor';
 import { speech } from '../theme';
 import {
@@ -20,6 +20,8 @@ import {
   logHeard,
   logHelp,
   logReprompt,
+  markTalkBusy,
+  markTalkQuiet,
   micDue,
   muteMic,
   needsFirstLaunch,
@@ -42,6 +44,7 @@ import {
   raiseHeard,
   raiseHelp,
   raiseQuestion,
+  raiseTalkIdle,
   raiseReprompt,
   returnSleeping,
   sendStart,
@@ -56,6 +59,8 @@ import { chimeWake } from './answers';
 import { applyTranslated } from './translation';
 import { notePartial, partialWorthy, speculatingState } from './speculating';
 import { chainActions, routingTransitions } from './routing';
+import { guideRegion } from '../guide/guide';
+import { stopGuide } from '../guide/guideSay';
 import {
   hasQueuedAlternative,
   hasQueuedSearch,
@@ -72,14 +77,14 @@ import type { ConversationContext, ConversationEvent, MachineInput } from './typ
 function sayTo(target: 'listening' | 'sleeping' | 'over' | 'resumed' | 'routing', raiseClock: boolean) {
   const resolved = target === 'over' ? '#conversation.over' : target;
   return {
-    entry: muteMic,
+    entry: [muteMic, markTalkBusy],
     invoke: {
       src: 'speakMany' as const,
       input: ({ context }: ContextArgs) => ({ lines: context.pendingSay, lang: context.lang }),
       onDone: { actions: raiseClock ? [noteSaid, raiseQuestion] : [noteSaid], target: resolved },
       onError: { actions: [noteSaid], target: resolved },
     },
-    exit: unmuteMic,
+    exit: [unmuteMic, markTalkQuiet],
   };
 }
 
@@ -91,7 +96,7 @@ const listeningShared = {
 
 export const conversationMachine = setup({
   types: { context: {} as ConversationContext, events: {} as ConversationEvent, input: {} as MachineInput },
-  actors: { speakMany, understandAnswer, ticking, tourSequence, streamClient },
+  actors: { speakMany, speakParts, understandAnswer, ticking, tourSequence, streamClient },
 }).createMachine({
   id: 'conversation',
   context: initialContext,
@@ -124,18 +129,18 @@ export const conversationMachine = setup({
             sayingResume: sayTo('resumed', true),
             sayingFlLang: sayTo('listening', true),
             sayingFlPrivacy: {
-              entry: muteMic,
+              entry: [muteMic, markTalkBusy],
               invoke: {
                 src: 'speakMany',
                 input: ({ context }: ContextArgs) => ({ lines: context.pendingSay, lang: context.lang }),
                 onDone: { actions: [noteSaid, chainActions.tourOfferLines], target: 'sayingFlTourOffer' },
                 onError: { actions: [noteSaid, chainActions.tourOfferLines], target: 'sayingFlTourOffer' },
               },
-              exit: unmuteMic,
+              exit: [unmuteMic, markTalkQuiet],
             },
             sayingFlTourOffer: sayTo('listening', true),
             listening: {
-              entry: [ensureStream, noteSnapshot],
+              entry: [ensureStream, noteSnapshot, raiseTalkIdle],
               always: [
                 { guard: hasQueuedAlternative, actions: [sayQueuedAlternative], target: 'saying' },
                 { guard: hasQueuedSearch, actions: [sayQueuedStatus], target: 'sayingReprompt' },
@@ -158,6 +163,8 @@ export const conversationMachine = setup({
               },
             },
             translating: {
+              entry: [markTalkBusy],
+              exit: [markTalkQuiet],
               invoke: {
                 src: 'understandAnswer',
                 input: ({ context }: ContextArgs) => ({
@@ -172,8 +179,10 @@ export const conversationMachine = setup({
                 onError: { target: 'saying' },
               },
             },
-            speculating: speculatingState,
+            speculating: { ...speculatingState, entry: [markTalkBusy], exit: [markTalkQuiet] },
             understanding: {
+              entry: [markTalkBusy],
+              exit: [markTalkQuiet],
               invoke: [
                 {
                   src: 'understandAnswer',
@@ -198,7 +207,7 @@ export const conversationMachine = setup({
               always: routingTransitions,
             },
             sleeping: {
-              entry: [ensureStream, noteSnapshot],
+              entry: [ensureStream, noteSnapshot, raiseTalkIdle],
               after: {
                 [speech.idlePauseAfterMs]: { actions: [chimePausing, pausingLines], target: 'sayingOver' },
               },
@@ -214,24 +223,24 @@ export const conversationMachine = setup({
               },
             },
             touring: {
-              entry: muteMic,
+              entry: [muteMic, markTalkBusy],
               invoke: {
                 src: 'tourSequence',
                 input: ({ context }: ContextArgs) => ({ lang: context.lang }),
                 onDone: { actions: [raiseQuestion], target: 'listening' },
                 onError: { actions: [raiseQuestion], target: 'listening' },
               },
-              exit: unmuteMic,
+              exit: [unmuteMic, markTalkQuiet],
             },
             touringFl: {
-              entry: muteMic,
+              entry: [muteMic, markTalkBusy],
               invoke: {
                 src: 'tourSequence',
                 input: ({ context }: ContextArgs) => ({ lang: context.lang }),
                 onDone: { actions: [chainActions.welcomeAfterTour, chainActions.noteTourDone], target: 'saying' },
                 onError: { actions: [chainActions.welcomeAfterTour, chainActions.noteTourDone], target: 'saying' },
               },
-              exit: unmuteMic,
+              exit: [unmuteMic, markTalkQuiet],
             },
             resuming: {
               entry: [sendStart],
@@ -264,14 +273,15 @@ export const conversationMachine = setup({
           },
         },
         search: searchRegion,
+        guide: guideRegion,
       },
     },
     paused: {
-      entry: [sendStop, quietVoice, stopSearch],
+      entry: [sendStop, quietVoice, stopSearch, stopGuide],
       on: { RESUME: 'live.talk.resuming' },
     },
     over: {
-      entry: [sendStop, noteOver],
+      entry: [sendStop, noteOver, stopGuide],
       on: { RESUME: { target: 'live.talk.resuming', actions: [chimeWake] } },
     },
   },

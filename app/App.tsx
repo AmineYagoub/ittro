@@ -18,7 +18,11 @@ import { batteryLow, phoneHot, preparePhone, restPhone, watchAppState } from './
 import { conversationMachine } from './src/conversation/machine';
 import { OutlineOverlay } from './src/shelf/OutlineOverlay';
 import { useShelfSearch } from './src/shelf/useShelfSearch';
+import { GuideOverlay } from './src/guide/GuideOverlay';
+import { useGuide } from './src/guide/useGuide';
+import { boxOverlap } from './src/shelf/outlines';
 import type { ShelfOutline } from './src/relay';
+import type { GuideHand } from './src/conversation/types';
 import { lowBattery, micLine, phoneHot as phoneHotLine, refusedCamera, refusedMic } from './src/lines';
 import { color, font, size } from './src/theme';
 import type { Language } from './src/theme';
@@ -36,6 +40,12 @@ export default function App(): React.JSX.Element {
   const [outlines, setOutlines] = useState<ShelfOutline[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchRequest, setSearchRequest] = useState<string | null>(null);
+  const [guiding, setGuiding] = useState(false);
+  const [guideTarget, setGuideTarget] = useState<ShelfOutline | null>(null);
+  const [guideHand, setGuideHand] = useState<GuideHand | null>(null);
+  const [guideProximity, setGuideProximity] = useState(0);
+  const [guideCue, setGuideCue] = useState<string | null>(null);
+  const [guideLabel, setGuideLabel] = useState('');
   const [viewSize, setViewSize] = useState({ width: 0, height: 0 });
   const [, requestCamera, getCameraPermission] = useCameraPermissions();
   const actorRef = useRef<ConversationActor | null>(null);
@@ -43,7 +53,8 @@ export default function App(): React.JSX.Element {
   const cameraReady = useRef(false);
   const inLive = useRef(false);
 
-  useShelfSearch(cameraRef, actorRef, searching, searchRequest, cameraReady);
+  const shots = useGuide(actorRef, cameraOn);
+  useShelfSearch(cameraRef, actorRef, searching, searchRequest, cameraReady, shots);
 
   useEffect(() => {
     let gone = false;
@@ -140,6 +151,12 @@ export default function App(): React.JSX.Element {
           setOutlines(live ? state.context.outlines : []);
           setSearching(live && state.context.searching);
           setSearchRequest(state.context.pendingRequest ?? state.context.request);
+          setGuiding(live && state.context.guiding);
+          setGuideTarget(live ? state.context.guideTarget : null);
+          setGuideHand(live ? state.context.guideHand : null);
+          setGuideProximity(state.context.guideProximity);
+          setGuideCue(state.context.guideCue);
+          setGuideLabel(state.context.guideLabel);
           if (live && !inLive.current) {
             inLive.current = true;
             void preparePhone();
@@ -183,7 +200,22 @@ export default function App(): React.JSX.Element {
         />
       ) : null}
       {cameraOn && outlines.length > 0 && viewSize.width > 0 ? (
-        <OutlineOverlay outlines={outlines} width={viewSize.width} height={viewSize.height} />
+        <OutlineOverlay
+          outlines={guideTarget ? outlines.filter((outline) => boxOverlap(outline.box, guideTarget.box) < 0.5) : outlines}
+          width={viewSize.width}
+          height={viewSize.height}
+        />
+      ) : null}
+      {cameraOn && guiding && guideTarget && viewSize.width > 0 ? (
+        <GuideOverlay
+          target={guideTarget}
+          hand={guideHand}
+          proximity={guideProximity}
+          cue={guideCue}
+          label={guideLabel}
+          width={viewSize.width}
+          height={viewSize.height}
+        />
       ) : null}
       <View style={cameraOn ? styles.overlay : styles.plain}>
         <Text

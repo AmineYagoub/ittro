@@ -1,6 +1,14 @@
 // In-memory stand-ins for every native module the app imports, served
 // by the test loader. Speech and the audio player are controllable so
 // tests can hang them; storage is a map cleared between tests.
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const designClips = JSON.parse(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'docs', 'design', 'voice', 'clips.json'), 'utf8'),
+).clips;
+
 export function sensorsStatus() {
   return { available: false, reason: 'test stub', module: 'IttroSensors' };
 }
@@ -40,6 +48,18 @@ export async function cropShelfPhoto() {
 export async function prepareTrackGrey() {
   return null;
 }
+
+export function setHandDelegate() {
+  return true;
+}
+
+export async function findHand() {
+  return null;
+}
+
+export const Vibration = {
+  vibrate() {},
+};
 
 export const AccessibilityInfo = {
   isScreenReaderEnabled: async () => false,
@@ -113,6 +133,7 @@ export default AsyncStorage;
 
 export const cueText = {
   testcue: { en: 'test line', ar: 'سطر اختبار', fr: 'ligne de test' },
+  ...Object.fromEntries(designClips.map((cue) => [cue.id, { en: cue.en, ar: cue.ar, fr: cue.fr }])),
 };
 
 export const cueClip = {

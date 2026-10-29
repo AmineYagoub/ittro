@@ -7,6 +7,8 @@ import type {
   ConversationContext,
   ConversationEvent,
   SpeakInput,
+  SpeakPartsInput,
+  SpeechPart,
   StreamCommand,
   StreamEmitted,
   StreamInput,
@@ -39,6 +41,7 @@ export interface StartOptions {
 
 export interface Driver {
   spoken: string[];
+  parts: SpeechPart[][];
   start: () => Promise<void>;
   setUnderstand: (script: UnderstandScript) => void;
   send: (event: ConversationEvent) => void;
@@ -48,6 +51,7 @@ export interface Driver {
   advance: (ms: number) => Promise<void>;
   talk: () => string;
   search: () => string;
+  guide: () => string;
   context: () => ConversationContext;
   stop: () => void;
 }
@@ -56,6 +60,7 @@ const FLUSH_ROUNDS = 40;
 
 export function startConversation(options?: StartOptions): Driver {
   const spoken: string[] = [];
+  const parts: SpeechPart[][] = [];
   let script: UnderstandScript = () => answer({ intent: 'not_understood' });
   const provided = conversationMachine.provide({
     actors: {
@@ -63,6 +68,9 @@ export function startConversation(options?: StartOptions): Driver {
         for (const line of input.lines) {
           spoken.push(line.text);
         }
+      }),
+      speakParts: fromPromise<void, SpeakPartsInput>(async ({ input }) => {
+        parts.push(input.parts);
       }),
       understandAnswer:
         options?.understandLogic ??
@@ -96,6 +104,7 @@ export function startConversation(options?: StartOptions): Driver {
 
   return {
     spoken,
+    parts,
     async start(): Promise<void> {
       actor.start();
       await flush();
@@ -132,6 +141,13 @@ export function startConversation(options?: StartOptions): Driver {
         return value;
       }
       return (value as { live: { search: string } }).live.search;
+    },
+    guide(): string {
+      const value = actor.getSnapshot().value;
+      if (typeof value === 'string') {
+        return value;
+      }
+      return (value as { live: { guide: string } }).live.guide;
     },
     context(): ConversationContext {
       return actor.getSnapshot().context;

@@ -11,14 +11,22 @@ import {
 } from 'xstate';
 import type { AnyActorRef } from 'xstate';
 import { loadPrefs, savePrefs, saveSnapshot } from '../store';
-import { playSound, say, setSpeechRate, stopVoice } from '../speech';
+import { playSound, say, sayClip, setSpeechRate, stopVoice } from '../speech';
 import { tourMeaning } from '../lines';
 import { stamp } from '../stamp';
 import { speech } from '../theme';
 import type { Language } from '../theme';
 import { understandUtterance } from '../relay';
 import type { UnderstandAnswer } from '../relay';
-import type { ConversationContext, ConversationEvent, ExpressionEvent, SpeakInput, TourInput, UnderstandInput } from './types';
+import type {
+  ConversationContext,
+  ConversationEvent,
+  ExpressionEvent,
+  SpeakInput,
+  SpeakPartsInput,
+  TourInput,
+  UnderstandInput,
+} from './types';
 
 export const assignConversation = rawAssign<ConversationContext, ExpressionEvent, undefined, ConversationEvent, never>;
 
@@ -42,6 +50,18 @@ export const speakMany = fromPromise<void, SpeakInput>(async ({ input }) => {
   for (const line of input.lines) {
     if (__DEV__) console.log(`[ittro] ${stamp()} say: ${JSON.stringify(line.text)}`);
     await say(line.text, input.lang);
+  }
+});
+
+export const speakParts = fromPromise<void, SpeakPartsInput>(async ({ input }) => {
+  for (const part of input.parts) {
+    if ('clip' in part) {
+      if (__DEV__) console.log(`[ittro] ${stamp()} clip: ${part.clip}`);
+      await sayClip(part.clip, input.lang);
+    } else {
+      if (__DEV__) console.log(`[ittro] ${stamp()} say: ${JSON.stringify(part.text)}`);
+      await say(part.text, input.lang);
+    }
   }
 });
 

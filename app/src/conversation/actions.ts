@@ -33,6 +33,10 @@ import { stamp } from '../stamp';
 
 export type ContextArgs = { context: ConversationContext };
 
+export const markTalkBusy = assign({ talkBusy: true });
+
+export const markTalkQuiet = assign({ talkBusy: false });
+
 export type EventArgs = { context: ConversationContext; event: ExpressionEvent };
 
 export function wsUrl(relayUrl: string): string {
@@ -61,6 +65,8 @@ export const ensureStream = enqueue(({ enqueue: collect, context }) => {
 });
 
 export const raiseQuestion = raise({ type: 'QUESTION_ASKED' });
+
+export const raiseTalkIdle = raise({ type: 'TALK_IDLE' });
 
 export const raiseHeard = raise({ type: 'HEARD' });
 
