@@ -13,11 +13,17 @@ interface VolumeState {
   max: number;
 }
 
+export { addAudioChunkListener, addButtonListener, addEarbudListener, validButtonPress } from './events';
+export type { AudioChunk, ButtonGesture, ButtonPress, EarbudState, ListenerHandle } from './events';
+import type { EarbudState } from './events';
+
 interface SensorsNative {
   getStatus: () => SensorsStatus;
   getMediaVolume: () => VolumeState;
   setMediaVolume: (fraction: number) => boolean;
   getThermalStatus: () => number;
+  setButtonsActive: (active: boolean) => boolean;
+  getEarbudState: () => EarbudState;
   startAudioStream: () => boolean;
   stopAudioStream: () => boolean;
   prepareShelfPhoto: (uri: string) => Promise<ShelfPhoto | null>;
@@ -79,11 +85,6 @@ export interface ShelfCrop {
   mime: string;
 }
 
-export interface AudioChunk {
-  chunk: string;
-  sequence: number;
-}
-
 function loadNative(): SensorsNative | null {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports -- optional native module, absent until prebuild links it
@@ -129,6 +130,29 @@ export function thermalStatus(): number | null {
   }
   const status = native.getThermalStatus();
   return status < 0 ? null : status;
+}
+
+export function setButtonsActive(active: boolean): boolean {
+  if (!native) {
+    return false;
+  }
+  try {
+    return native.setButtonsActive(active);
+  } catch {
+    return false;
+  }
+}
+
+export function earbudState(): EarbudState | null {
+  if (!native) {
+    return null;
+  }
+  try {
+    const state = native.getEarbudState();
+    return typeof state.connected === 'boolean' ? state : null;
+  } catch {
+    return null;
+  }
 }
 
 export function startAudioStream(): boolean {
@@ -240,17 +264,4 @@ export function validTrackPan(pan: TrackPan): boolean {
   );
 }
 
-export function addAudioChunkListener(listener: (chunk: AudioChunk) => void): { remove: () => void } | null {
-  if (!native) {
-    return null;
-  }
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- optional native module, absent until prebuild links it
-    const core = require('expo-modules-core') as {
-      EventEmitter: new (module: object) => { addListener: (event: string, listener: (chunk: AudioChunk) => void) => { remove: () => void } };
-    };
-    return new core.EventEmitter(native).addListener('onAudioChunk', listener);
-  } catch {
-    return null;
-  }
-}
+
