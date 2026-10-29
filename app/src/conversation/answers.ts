@@ -10,6 +10,7 @@ import {
   doneLine,
   fasterAck,
   helpConfirm,
+  helpEarbuds,
   helpSearching,
   helpWelcome,
   keepSpeaking,
@@ -23,6 +24,7 @@ import {
   stopped,
   switchedTo,
   tourOffer,
+  volumeLine,
   welcome,
   welcomeBack,
   whatToFind,
@@ -68,6 +70,10 @@ export const wakeLines = assign({
   pendingSay: ({ context }) => [
     { text: context.request ? welcomeBackLooking(context.request, context.lang) : welcomeBack[context.lang], chips: [] },
   ],
+});
+
+export const buttonsLines = assign({
+  pendingSay: ({ context }) => [{ text: volumeLine[context.lang], chips: [] }],
 });
 
 export const tourOfferLines = assign({
@@ -189,13 +195,14 @@ export const switchPlain = assign({
 export const sayHelp = assign({
   pendingSay: ({ context }) => {
     const lang = context.lang;
+    const suffix = context.earbuds ? ` ${helpEarbuds[lang]}` : '';
     if (context.step === 'confirm' || context.step === 'offer') {
-      return [{ text: helpConfirm[lang], chips: [YES_CHIP[lang], NO_CHIP[lang], REPEAT_CHIP[lang], STOP_CHIP[lang]] }];
+      return [{ text: `${helpConfirm[lang]}${suffix}`, chips: [YES_CHIP[lang], NO_CHIP[lang], REPEAT_CHIP[lang], STOP_CHIP[lang]] }];
     }
     if (context.request) {
-      return [{ text: helpSearching[lang], chips: [REPEAT_CHIP[lang], SWITCH_CHIP[lang], STOP_CHIP[lang]] }];
+      return [{ text: `${helpSearching[lang]}${suffix}`, chips: [REPEAT_CHIP[lang], SWITCH_CHIP[lang], STOP_CHIP[lang]] }];
     }
-    return [{ text: helpWelcome[lang], chips: [REPEAT_CHIP[lang], SWITCH_CHIP[lang], STOP_CHIP[lang]] }];
+    return [{ text: `${helpWelcome[lang]}${suffix}`, chips: [REPEAT_CHIP[lang], SWITCH_CHIP[lang], STOP_CHIP[lang]] }];
   },
 });
 

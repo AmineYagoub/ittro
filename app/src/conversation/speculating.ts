@@ -19,8 +19,8 @@ import {
   noteStreamOpen,
   playHeard,
   raiseHeard,
-  sendStart,
 } from './actions';
+import { sendStart } from './streamCtl';
 import { stamp } from '../stamp';
 import type { UnderstandAnswer } from '../relay';
 import type { ConversationContext, ExpressionEvent } from './types';

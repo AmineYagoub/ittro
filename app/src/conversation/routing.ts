@@ -45,6 +45,9 @@ import {
 import { raiseGuideEnd, raiseGuideGotIt, raiseGuideRestart } from '../guide/guideSay';
 import { raiseConfirmEnd } from '../confirm/confirmSay';
 import { confirmRoutes } from '../confirm/routing';
+import { raiseHelperEnd } from '../helper/helper';
+import { fireCancel } from '../helper/helperSay';
+import { helperRoutes } from '../helper/routing';
 
 type Guard = (args: { context: ConversationContext }) => boolean;
 
@@ -115,7 +118,7 @@ const offerStep: Guard = ({ context }) => context.step === 'offer';
 
 const incomingRequest: Guard = ({ context }) => {
   const answer = answerOf(context);
-  return answer?.intent === 'request_product' && !!answer && hasDetail(answer);
+  return answer?.intent === 'request_product' && !!answer && hasDetail(answer) && context.step !== 'helperName';
 };
 
 const confirmDetail: Guard = ({ context }) => {
@@ -229,7 +232,7 @@ const rateIntent: Guard = ({ context }) => {
 
 const tourIntent: Guard = ({ context }) => answerOf(context)?.intent === 'sounds_tour';
 
-const NOT_BUILT = ['next', 'skip', 'ask_someone', 'add_helper', 'cancel'];
+const NOT_BUILT = ['next', 'skip'];
 
 const notBuiltIntent: Guard = ({ context }) => NOT_BUILT.includes(answerOf(context)?.intent ?? '');
 
@@ -249,12 +252,12 @@ export const routingTransitions: Route[] = [
   { guard: offerNo, actions: [declineOffer], target: 'sayingKeep' },
   { guard: offerSwitch, actions: [switchPlain, noteLanguage], target: 'saying' },
   { guard: offerStep, actions: [missLine], target: 'saying' },
-  { guard: incomingRequest, actions: [incomingConfirm, raiseSearchBegin, raiseGuideEnd, raiseConfirmEnd], target: 'saying' },
-  { guard: confirmDetail, actions: [incomingConfirm, raiseSearchBegin, raiseGuideEnd, raiseConfirmEnd], target: 'saying' },
+  { guard: incomingRequest, actions: [incomingConfirm, raiseSearchBegin, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'saying' },
+  { guard: confirmDetail, actions: [incomingConfirm, raiseSearchBegin, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'saying' },
   { guard: confirmYes, actions: [confirmRequestLine], target: 'saying' },
-  { guard: confirmNo, actions: [clearAsk, raiseSearchEnd, raiseGuideEnd, raiseConfirmEnd], target: 'saying' },
-  { guard: correctConfirmed, actions: [incomingConfirm, raiseSearchBegin, raiseGuideEnd, raiseConfirmEnd], target: 'saying' },
-  { guard: declineConfirmed, actions: [declineSearch, noteCleared, raiseSearchEnd, raiseGuideEnd, raiseConfirmEnd], target: 'saying' },
+  { guard: confirmNo, actions: [clearAsk, raiseSearchEnd, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'saying' },
+  { guard: correctConfirmed, actions: [incomingConfirm, raiseSearchBegin, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'saying' },
+  { guard: declineConfirmed, actions: [declineSearch, noteCleared, raiseSearchEnd, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'saying' },
   { guard: alternativeYes, actions: [adoptAlternative, raiseSearchBegin], target: 'saying' },
   { guard: alternativeNo, actions: [declineAlternative], target: 'saying' },
   { guard: switchLangCarry, actions: [switchCarry, noteLanguage], target: 'translating' },
@@ -264,8 +267,8 @@ export const routingTransitions: Route[] = [
   { guard: switchLang, actions: [switchPlain, noteLanguage], target: 'saying' },
   { guard: helpIntent, actions: [sayHelp], target: 'saying' },
   { guard: repeatIntent, actions: [sayRepeat], target: 'saying' },
-  { guard: stopIntent, actions: [sayStopping, raiseSearchEnd, raiseGuideEnd, raiseConfirmEnd], target: 'sayingSleep' },
-  { guard: freshIntent, actions: [freshAsk, noteCleared, raiseSearchEnd, raiseGuideEnd, raiseConfirmEnd], target: 'saying' },
+  { guard: stopIntent, actions: [sayStopping, raiseSearchEnd, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'sayingSleep' },
+  { guard: freshIntent, actions: [freshAsk, noteCleared, raiseSearchEnd, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'saying' },
   { guard: whereSearching, actions: [saySearchingStatus], target: 'saying' },
   { guard: keepLooking, actions: [saySearchingStatus, raiseSearchBegin], target: 'saying' },
   { guard: gotItGuide, actions: [raiseGuideGotIt, raiseQuestion], target: 'listening' },
@@ -277,6 +280,7 @@ export const routingTransitions: Route[] = [
   { guard: rateIntent, actions: [changeRate], target: 'saying' },
   { guard: tourIntent, target: 'touring' },
   ...confirmRoutes,
+  ...helperRoutes,
   { guard: notBuiltIntent, actions: [sayNotBuilt], target: 'saying' },
   { actions: [missLine], target: 'saying' },
 ];
