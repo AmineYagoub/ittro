@@ -7,7 +7,7 @@ type Direction = 'left' | 'right';
 
 const COUNT_WORDS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 
-function countWord(count: number, lang: Language): string {
+export function countWord(count: number, lang: Language): string {
   if (lang === 'en' && count >= 1 && count <= COUNT_WORDS.length) {
     return COUNT_WORDS[count - 1] as string;
   }

@@ -114,7 +114,7 @@ test('a yes read on the shelf says it is found', async () => {
     );
     await driver.heard("I'm looking for Masaad water");
     await driver.heard('Yes');
-    driver.send({ type: 'SHELF_FOUND', product: 'Masaad water' });
+    driver.send({ type: 'SHELF_FOUND', product: 'Masaad water', outline: null, matches: 1, kind: 'bottles', position: 'middle' });
     await driver.flush();
     assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /I found Masaad water on the shelf/);
   } finally {

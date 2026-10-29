@@ -7,7 +7,9 @@
 // picture; a failed capture retries silently while only a failed
 // cloud pass tells the shopper. Every fortieth track tick logs its
 // rate and cost, so the phone check reads frames per second, skipped
-// ticks and heat straight from the log.
+// ticks and heat straight from the log. Optional shot listeners hear
+// each still: the hand tracker runs on the track still before it is
+// deleted, and the guide loop caches the cloud photo for its crops.
 import { useEffect, useRef } from 'react';
 import { cropShelfPhoto, prepareShelfPhoto, prepareTrackGrey, thermalStatus } from 'ittro-sensors';
 import { classifySceneView, outlineShelf, fetchPackagePhrase, readShelfCrops } from '../relay';
@@ -27,6 +29,11 @@ export interface SearchCamera {
 export interface SearchActor {
   send: (event: ConversationEvent) => void;
   getSnapshot: () => { context: ConversationContext };
+}
+
+export interface ShotListeners {
+  trackShot?: (uri: string) => Promise<void>;
+  cloudShot?: (photo: { image: string; mime: string; w: number; h: number }) => void;
 }
 
 const TRACK_EVERY_MS = 250;
@@ -49,8 +56,11 @@ export function useShelfSearch(
   active: boolean,
   request: string | null,
   ready: { current: boolean },
+  shots?: ShotListeners,
 ): void {
   const held = useRef<{ loop: ShelfLoop | null; ring: LoopPhoto[] }>({ loop: null, ring: [] });
+  const shotsRef = useRef<ShotListeners | undefined>(shots);
+  shotsRef.current = shots;
 
   useEffect(() => {
     if (!active || !request) {
@@ -151,6 +161,7 @@ export function useShelfSearch(
         syncTarget();
         const shotStart = Date.now();
         const picture = await eye.takePictureAsync({ ...SILENT_SHOT });
+        await shotsRef.current?.trackShot?.(picture.uri).catch(() => undefined);
         const track = await prepareTrackGrey(picture.uri);
         const shotMs = Date.now() - shotStart;
         if (stopped || !track) {
@@ -191,6 +202,7 @@ export function useShelfSearch(
           return;
         }
         note(`shelf capture ${Date.now() - shotStart}ms photo ${prepared.w}x${prepared.h}`);
+        shotsRef.current?.cloudShot?.({ image: prepared.photo, mime: 'image/jpeg', w: prepared.w, h: prepared.h });
         let grey: GreyFrame = { data: new Uint8Array(0), w: 0, h: 0 };
         try {
           grey = ingestGrey(decodeBase64(prepared.grey), prepared.gw, prepared.gh);

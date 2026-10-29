@@ -18,3 +18,7 @@ export const SWITCH_CHIP: Record<Language, string> = { en: 'speak Arabic', ar: '
 export const BACK_CHIP: Record<Language, string> = { en: 'English', ar: 'عربي', fr: 'français' };
 
 export const ASK_CHIP: Record<Language, string> = { en: 'ask someone', ar: 'اسأل شخصًا', fr: 'demandez à quelqu’un' };
+
+export const GUIDE_CHIP: Record<Language, string> = { en: 'guide me', ar: 'أرشدني', fr: 'guidez-moi' };
+
+export const READ_AGAIN_CHIP: Record<Language, string> = { en: 'read again', ar: 'اقرأ مجددًا', fr: 'relisez' };

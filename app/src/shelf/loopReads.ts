@@ -3,9 +3,10 @@
 // verdicts, the swept shelf, and the empty-shelf scenes.
 import { aisleFallback, findCloseMatch, packageKind } from './match';
 import { createReadQueue, dropEpoch, enqueueRead, nextRead } from './queue';
-import type { ShelfRead } from '../relay';
+import type { ShelfOutline, ShelfRead } from '../relay';
 import type { LoopDeps, LoopState } from './loopTypes';
 import type { Tracked } from './shelfTracks';
+import { positionFor } from '../guide/steer';
 
 export const QUIET_MS = 8000;
 
@@ -60,14 +61,37 @@ export async function readBatch(
   return answer.reads;
 }
 
+function nearestOutline(state: LoopState, reads: ShelfRead[]): ShelfOutline | null {
+  const yes = new Set(reads.filter((read) => read.verdict === 'yes').map((read) => read.id.replace(/^shelf-/, '')));
+  if (yes.size === 0) {
+    return null;
+  }
+  const outlines = state.tracks.filter((entry) => yes.has(entry.track)).map((entry) => entry.outline);
+  const area = (outline: ShelfOutline): number => Math.max(0, outline.box.x2 - outline.box.x1) * Math.max(0, outline.box.y2 - outline.box.y1);
+  const central = (outline: ShelfOutline): number =>
+    outline.box.w > 0 ? Math.abs((outline.box.x1 + outline.box.x2) / 2 / outline.box.w - 0.5) : 1;
+  return (
+    [...outlines].sort((a, b) => area(b) - area(a) || central(a) - central(b))[0] ?? null
+  );
+}
+
 export function reportVerdicts(ctx: ReadsContext, request: string, reads: ShelfRead[], epoch: number): void {
   const { deps, state } = ctx;
-  if (reads.some((read) => read.verdict === 'yes')) {
+  const target = nearestOutline(state, reads);
+  if (target) {
     state.fruitlessPasses = 0;
     const key = `${epoch}:${request}`;
     if (state.foundKey !== key) {
       state.foundKey = key;
-      deps.send({ type: 'SHELF_FOUND', product: request });
+      const phrase = state.phrases.get(request) ?? request;
+      deps.send({
+        type: 'SHELF_FOUND',
+        product: request,
+        outline: target,
+        matches: reads.filter((read) => read.verdict === 'yes').length,
+        kind: packageKind(phrase, deps.readContext().lang),
+        position: positionFor(target.box, target.box.w),
+      });
     }
     return;
   }

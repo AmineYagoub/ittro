@@ -13,6 +13,15 @@ export interface SpokenLine {
   chips: string[];
 }
 
+export type SpeechPart = { clip: string } | { text: string };
+
+export type GuidePosition = 'left' | 'middle' | 'right';
+
+export interface GuideHand {
+  x: number;
+  y: number;
+}
+
 export interface SearchAnnouncement extends SpokenLine {
   kind: 'status' | 'alternative';
 }
@@ -90,6 +99,20 @@ export interface ConversationContext {
   searchEpoch: number;
   pendingSearch: SearchAnnouncement[];
   alternative: string | null;
+  guiding: boolean;
+  guideTarget: ShelfOutline | null;
+  guideLabel: string;
+  guideKind: string;
+  guideMatches: number;
+  guidePosition: GuidePosition;
+  guideHand: GuideHand | null;
+  guideProximity: number;
+  guideCue: string | null;
+  guideFresh: boolean;
+  guideWrong: string | null;
+  guideResume: boolean;
+  guideParts: SpeechPart[];
+  talkBusy: boolean;
 }
 
 export type ConversationEvent =
@@ -106,6 +129,7 @@ export type ConversationEvent =
   | { type: 'REPROMPT' }
   | { type: 'HELP' }
   | { type: 'QUESTION_ASKED' }
+  | { type: 'TALK_IDLE' }
   | { type: 'HEARD' }
   | { type: 'SEARCH_BEGIN' }
   | { type: 'SEARCH_END' }
@@ -115,7 +139,18 @@ export type ConversationEvent =
   | { type: 'CLOSE_MATCH'; wanted: string; found: string }
   | { type: 'HAND_HOLD' }
   | { type: 'SEARCH_FAILED' }
-  | { type: 'SHELF_FOUND'; product: string }
+  | { type: 'SHELF_FOUND'; product: string; outline: ShelfOutline | null; matches: number; kind: string; position: GuidePosition }
+  | { type: 'GUIDE_CUE'; cue: string; proximity: number; hand: GuideHand }
+  | { type: 'GUIDE_ALIGNED'; proximity: number; hand: GuideHand }
+  | { type: 'GUIDE_COVERING'; proximity: number; hand: GuideHand }
+  | { type: 'GUIDE_NOHAND' }
+  | { type: 'GUIDE_LOST' }
+  | { type: 'GUIDE_GOT_IT' }
+  | { type: 'GUIDE_CONTACT' }
+  | { type: 'GUIDE_WRONG'; label: string; cue: string }
+  | { type: 'GUIDE_TARGET_LOST'; cue: string }
+  | { type: 'GUIDE_RESTART' }
+  | { type: 'GUIDE_END' }
   | { type: 'NO_SHELF'; floor: boolean }
   | { type: 'OUTLINES_MOVED'; outlines: ShelfOutline[] }
   | { type: 'SHELF_TURN'; direction: 'left' | 'right' };
@@ -130,6 +165,11 @@ export interface StreamInput {
 
 export interface SpeakInput {
   lines: SpokenLine[];
+  lang: Language;
+}
+
+export interface SpeakPartsInput {
+  parts: SpeechPart[];
   lang: Language;
 }
 
