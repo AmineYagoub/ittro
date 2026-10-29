@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "test": "node --test test/*.test.ts",
-    "lint": "eslint src test"
+    "check:understand": "node scripts/check-understand.mjs",
+    "lint": "eslint src test scripts"
   },
   "devDependencies": {
     "eslint": "^9.39.5",
