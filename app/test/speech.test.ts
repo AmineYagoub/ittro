@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { say, sayClip } from '../src/speech';
-import { resetSpeech, setSpeechHang, speechCalls } from './stubs.mjs';
+import { resetSpeech, setSpeechHang, setSpeechScript, speechCalls, speechStops } from './stubs.mjs';
 
 async function settles(promise: Promise<void>, ms: number): Promise<boolean> {
   let finished = false;
@@ -25,12 +25,62 @@ test('say resolves when speech finishes', async () => {
   }
 });
 
-test('say carries on when speech never finishes', async () => {
+test('say tries once more, then carries on when speech never finishes', async () => {
   resetSpeech();
   setSpeechHang(true);
   try {
     assert.equal(await settles(say('hi', 'en'), 3000), true);
-    assert.equal(speechCalls.length, 1);
+    assert.equal(speechCalls.length, 2);
+    assert.equal(speechCalls[0]?.text, 'hi');
+    assert.equal(speechCalls[1]?.text, 'hi');
+  } finally {
+    resetSpeech();
+  }
+});
+
+test('say says the line again once after a timeout', async () => {
+  resetSpeech();
+  setSpeechScript(['hang', 'ok']);
+  try {
+    assert.equal(await settles(say('hi', 'en'), 3000), true);
+    assert.equal(speechCalls.length, 2);
+  } finally {
+    resetSpeech();
+  }
+});
+
+test('say says the line again once after an error', async () => {
+  resetSpeech();
+  setSpeechScript(['error', 'ok']);
+  try {
+    assert.equal(await settles(say('hi', 'en'), 3000), true);
+    assert.equal(speechCalls.length, 2);
+  } finally {
+    resetSpeech();
+  }
+});
+
+test('say carries on when the retry fails too', async () => {
+  resetSpeech();
+  setSpeechScript(['error', 'error']);
+  try {
+    assert.equal(await settles(say('hi', 'en'), 3000), true);
+    assert.equal(speechCalls.length, 2);
+  } finally {
+    resetSpeech();
+  }
+});
+
+test('a superseded say neither retries nor stops the new line', async () => {
+  resetSpeech();
+  setSpeechScript(['hang', 'ok']);
+  try {
+    const first = say('first', 'en');
+    await settles(say('second', 'en'), 2000);
+    assert.equal(await settles(first, 3000), true);
+    assert.equal(speechCalls.length, 2);
+    assert.equal(speechCalls[1]?.text, 'second');
+    assert.equal(speechStops.length, 2);
   } finally {
     resetSpeech();
   }

@@ -5,6 +5,7 @@ import type { Language } from '../theme';
 import type { UnderstandAnswer } from '../relay';
 import type { ConversationContext } from './types';
 import { assignConversation as assign } from './actors';
+import { raiseQuestion } from './actions';
 import {
   acceptLanguage,
   acceptOffer,
@@ -63,6 +64,12 @@ function validTarget(value: string | null): value is Language {
 function hasDetail(answer: UnderstandAnswer): boolean {
   return (answer.items !== null && answer.items.length > 1) || answer.product_text !== null;
 }
+
+const ignoreSleep: Guard = ({ context }) =>
+  context.step === 'sleep' && answerOf(context)?.intent === 'ignore';
+
+const ignoreAwake: Guard = ({ context }) =>
+  context.step !== 'sleep' && answerOf(context)?.intent === 'ignore';
 
 const flLangAccept: Guard = ({ context }) => {
   const answer = answerOf(context);
@@ -228,6 +235,8 @@ const notBuiltIntent: Guard = ({ context }) => NOT_BUILT.includes(answerOf(conte
 export const chainActions = { tourOfferLines, welcomeAfterTour, noteTourDone };
 
 export const routingTransitions: Route[] = [
+  { guard: ignoreSleep, target: 'sleeping' },
+  { guard: ignoreAwake, actions: [raiseQuestion], target: 'listening' },
   { guard: flLangAccept, actions: [acceptLanguage, noteLanguage], target: 'sayingFlPrivacy' },
   { guard: flLang, actions: [missLine], target: 'sayingFlLang' },
   { guard: flTourYes, target: 'touringFl' },

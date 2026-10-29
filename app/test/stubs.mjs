@@ -49,25 +49,40 @@ export const AccessibilityInfo = {
 
 export const speechCalls = [];
 
+export const speechStops = [];
+
 let speechHangs = false;
+
+let speechScript = [];
 
 export function setSpeechHang(hang) {
   speechHangs = hang;
 }
 
+export function setSpeechScript(outcomes) {
+  speechScript = [...outcomes];
+}
+
 export function resetSpeech() {
   speechCalls.length = 0;
+  speechStops.length = 0;
   speechHangs = false;
+  speechScript = [];
 }
 
 export function speak(text, options) {
   speechCalls.push({ text, options });
-  if (!speechHangs) {
+  const next = speechScript.length > 0 ? speechScript.shift() : speechHangs ? 'hang' : 'ok';
+  if (next === 'ok') {
     options.onDone?.();
+  } else if (next === 'error') {
+    options.onError?.();
   }
 }
 
-export function stop() {}
+export function stop() {
+  speechStops.push(Date.now());
+}
 
 export function createAudioPlayer() {
   return {

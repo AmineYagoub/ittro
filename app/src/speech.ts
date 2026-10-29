@@ -71,6 +71,61 @@ function waitEstimate(text: string, g: number): Promise<void> {
   });
 }
 
+type SpeakOutcome = 'done' | 'stopped' | 'error' | 'timeout';
+
+function speakOnce(text: string, lang: Language): Promise<SpeakOutcome> {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (outcome: SpeakOutcome): void => {
+      if (!done) {
+        done = true;
+        resolve(outcome);
+      }
+    };
+    const timer = setTimeout(() => finish('timeout'), speechBudgetMs(text));
+    Speech.speak(text, {
+      language: SPEECH_LOCALE[lang],
+      rate: speechRate,
+      onDone: () => {
+        clearTimeout(timer);
+        finish('done');
+      },
+      onStopped: () => {
+        clearTimeout(timer);
+        finish('stopped');
+      },
+      onError: () => {
+        clearTimeout(timer);
+        finish('error');
+      },
+    });
+  });
+}
+
+function retryLog(outcome: 'error' | 'timeout', again: boolean): string {
+  if (outcome === 'timeout') {
+    return again ? 'say timed out, saying again' : 'say timed out twice, carrying on';
+  }
+  return again ? 'say failed, saying again' : 'say failed twice, carrying on';
+}
+
+async function speakWithRetry(text: string, lang: Language, g: number): Promise<void> {
+  const first = await speakOnce(text, lang);
+  if (!alive(g) || first === 'done' || first === 'stopped') {
+    return;
+  }
+  if (__DEV__) console.log(`[ittro] ${stamp()} ${retryLog(first, true)}`);
+  void Speech.stop();
+  const second = await speakOnce(text, lang);
+  if (!alive(g)) {
+    return;
+  }
+  if (second === 'timeout' || second === 'error') {
+    if (__DEV__) console.log(`[ittro] ${stamp()} ${retryLog(second, false)}`);
+    void Speech.stop();
+  }
+}
+
 export function say(text: string, lang: Language): Promise<void> {
   const g = ++generation;
   stopPlayer();
@@ -79,38 +134,7 @@ export function say(text: string, lang: Language): Promise<void> {
     AccessibilityInfo.announceForAccessibility(text);
     return waitEstimate(text, g);
   }
-  return new Promise((resolve) => {
-    let done = false;
-    const finish = (): void => {
-      if (!done) {
-        done = true;
-        resolve();
-      }
-    };
-    const timer = setTimeout(() => {
-      if (__DEV__) console.log(`[ittro] ${stamp()} say timed out, carrying on`);
-      void Speech.stop();
-      finish();
-    }, speechBudgetMs(text));
-    Speech.speak(text, {
-      language: SPEECH_LOCALE[lang],
-      rate: speechRate,
-      onDone: () => {
-        clearTimeout(timer);
-        if (alive(g)) {
-          finish();
-        }
-      },
-      onStopped: () => {
-        clearTimeout(timer);
-        finish();
-      },
-      onError: () => {
-        clearTimeout(timer);
-        finish();
-      },
-    });
-  });
+  return speakWithRetry(text, lang, g);
 }
 
 function stopPlayer(): void {
