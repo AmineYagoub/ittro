@@ -71,6 +71,7 @@ export const storeGuideTarget = assign({
 
 export const endGuide = assign({
   guiding: false,
+  guideReaching: false,
   guideTarget: null,
   guideLabel: '',
   guideKind: '',
@@ -86,6 +87,7 @@ export const endGuide = assign({
 
 export const stopGuide = assign({
   guiding: false,
+  guideReaching: false,
   guideResume: ({ context }: ContextArgs) => context.guiding && context.guideTarget !== null,
 });
 

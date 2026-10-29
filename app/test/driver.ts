@@ -17,6 +17,7 @@ import type {
 } from '../src/conversation/types';
 import type { Language } from '../src/theme';
 import type { UnderstandAnswer } from '../src/relay';
+import type { PairHelperInput, PairHelperOutput, SendHelpInput, SendHelpOutput } from '../src/helper/actors';
 
 export type UnderstandScript = (input: UnderstandInput) => UnderstandAnswer | Promise<UnderstandAnswer>;
 
@@ -39,12 +40,17 @@ export interface StartOptions {
   understandLogic?: typeof understandAnswer;
 }
 
+export type PairScript = (input: PairHelperInput) => PairHelperOutput | Promise<PairHelperOutput>;
+
+export type SendScript = (input: SendHelpInput) => SendHelpOutput | Promise<SendHelpOutput>;
+
 export interface Driver {
   spoken: string[];
   parts: SpeechPart[][];
   streamCommands: StreamCommand[];
   start: () => Promise<void>;
   setUnderstand: (script: UnderstandScript) => void;
+  setHelper: (scripts: { pair?: PairScript; send?: SendScript }) => void;
   send: (event: ConversationEvent) => void;
   heard: (text: string) => Promise<void>;
   partial: (text: string) => Promise<void>;
@@ -54,6 +60,7 @@ export interface Driver {
   search: () => string;
   guide: () => string;
   confirm: () => string;
+  helper: () => string;
   context: () => ConversationContext;
   stop: () => void;
 }
@@ -65,6 +72,8 @@ export function startConversation(options?: StartOptions): Driver {
   const parts: SpeechPart[][] = [];
   const streamCommands: StreamCommand[] = [];
   let script: UnderstandScript = () => answer({ intent: 'not_understood' });
+  let pairScript: PairScript = (input) => ({ name: input.name, code: '482715', expiresAt: Date.now() + 600000 });
+  let sendScript: SendScript = () => ({ id: 'q1', helpers: ['Sara'], photo: null });
   const provided = conversationMachine.provide({
     actors: {
       speakMany: fromPromise<void, SpeakInput>(async ({ input }) => {
@@ -87,6 +96,11 @@ export function startConversation(options?: StartOptions): Driver {
           streamCommands.push(event);
         });
       }),
+      pairHelper: fromPromise<PairHelperOutput, PairHelperInput>(async ({ input }) => pairScript(input)),
+      sendHelp: fromPromise<SendHelpOutput, SendHelpInput>(async ({ input }) => sendScript(input)),
+      pairPoll: fromCallback(() => () => undefined),
+      answerPoll: fromCallback(() => () => undefined),
+      pulseTick: fromCallback(() => () => undefined),
     },
   });
   const clock = new SimulatedClock();
@@ -122,6 +136,14 @@ export function startConversation(options?: StartOptions): Driver {
     },
     setUnderstand(next: UnderstandScript): void {
       script = next;
+    },
+    setHelper(scripts: { pair?: PairScript; send?: SendScript }): void {
+      if (scripts.pair) {
+        pairScript = scripts.pair;
+      }
+      if (scripts.send) {
+        sendScript = scripts.send;
+      }
     },
     send(event: ConversationEvent): void {
       actor.send(event);
@@ -166,6 +188,13 @@ export function startConversation(options?: StartOptions): Driver {
         return value;
       }
       return (value as { live: { confirm: string } }).live.confirm;
+    },
+    helper(): string {
+      const value = actor.getSnapshot().value;
+      if (typeof value === 'string') {
+        return value;
+      }
+      return (value as { live: { helper: string } }).live.helper;
     },
     context(): ConversationContext {
       return actor.getSnapshot().context;

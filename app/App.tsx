@@ -23,11 +23,13 @@ import { GuideOverlay } from './src/guide/GuideOverlay';
 import { useGuide } from './src/guide/useGuide';
 import { boxOverlap } from './src/shelf/outlines';
 import type { ShelfOutline } from './src/relay';
-import type { GuideHand } from './src/conversation/types';
+import type { GuideHand, HelperPairing, HelperWaiting } from './src/conversation/types';
+import { HelperView } from './src/helper/HelperView';
 import { lowBattery, micLine, phoneHot as phoneHotLine, refusedCamera, refusedMic } from './src/lines';
 import type { Language } from './src/theme';
 import { styles } from './src/appStyles';
 import { useConfirm } from './src/confirm/useConfirm';
+import { useButtons } from './src/useButtons';
 import { DetailCrop, VerdictScreen } from './src/confirm/VerdictView';
 import { verdictWord } from './src/confirm/lines';
 import type { DetailKind } from './src/relay';
@@ -56,6 +58,9 @@ export default function App(): React.JSX.Element {
   const [confirmLabel, setConfirmLabel] = useState('');
   const [confirmCrop, setConfirmCrop] = useState<string | null>(null);
   const [detailKind, setDetailKind] = useState<DetailKind | null>(null);
+  const [helper, setHelper] = useState<{ pairing: HelperPairing | null; waiting: HelperWaiting | null; verdict: 'yes' | 'no' | 'unsure' | null; label: string; photo: string | null }>(
+    { pairing: null, waiting: null, verdict: null, label: '', photo: null },
+  );
   const [viewSize, setViewSize] = useState({ width: 0, height: 0 });
   const [, requestCamera, getCameraPermission] = useCameraPermissions();
   const actorRef = useRef<ConversationActor | null>(null);
@@ -66,6 +71,7 @@ export default function App(): React.JSX.Element {
   const guide = useGuide(actorRef, cameraOn);
   const search = useShelfSearch(cameraRef, actorRef, searching, searchRequest, cameraReady, guide);
   useConfirm(cameraRef, actorRef, confirming, searchRequest, cameraReady);
+  useButtons(actorRef);
 
   useEffect(() => {
     cameraReady.current = false;
@@ -177,6 +183,13 @@ export default function App(): React.JSX.Element {
           setConfirmLabel(state.context.confirmLabel);
           setConfirmCrop(live ? state.context.confirmCrop : null);
           setDetailKind(live ? state.context.confirmDetailKind : null);
+          setHelper({
+            pairing: live ? state.context.pairing : null,
+            waiting: live ? state.context.waiting : null,
+            verdict: live ? state.context.helperVerdict : null,
+            label: state.context.helperLabel,
+            photo: live ? state.context.sentPhoto : null,
+          });
           if (live && !inLive.current) {
             inLive.current = true;
             void preparePhone();
@@ -195,7 +208,9 @@ export default function App(): React.JSX.Element {
 
   const rtl = lang === 'ar';
   const shown = verdict === 'yes' || verdict === 'no' || verdict === 'unsure' ? verdict : null;
-  const detailShown = !shown && detailKind !== null && confirmCrop !== null;
+  const helperShown = !shown && helper.verdict ? helper.verdict : null;
+  const helperCard = !shown && !helperShown && (helper.pairing || helper.waiting);
+  const detailShown = !shown && !helperShown && detailKind !== null && confirmCrop !== null;
 
   function measured(event: LayoutChangeEvent): void {
     const { width, height } = event.nativeEvent.layout;
@@ -239,16 +254,26 @@ export default function App(): React.JSX.Element {
           height={viewSize.height}
         />
       ) : null}
-      {shown ? (
+      {shown || helperShown ? (
         <VerdictScreen
-          verdict={shown}
-          word={verdictWord(shown, lang)}
-          label={confirmLabel}
-          crop={confirmCrop}
+          verdict={(shown ?? helperShown) as 'yes' | 'no' | 'unsure'}
+          word={verdictWord((shown ?? helperShown) as 'yes' | 'no' | 'unsure', lang)}
+          label={shown ? confirmLabel : helper.label}
+          crop={shown ? confirmCrop : helper.photo}
           line={line}
           chips={chips}
           rtl={rtl}
           talkBack={talkBack}
+        />
+      ) : helperCard ? (
+        <HelperView
+          code={helper.pairing?.code ?? null}
+          waiting={helper.waiting?.helpers ?? null}
+          line={line}
+          chips={chips}
+          rtl={rtl}
+          talkBack={talkBack}
+          cameraOn={cameraOn}
         />
       ) : (
         <View style={cameraOn ? styles.overlay : styles.plain}>

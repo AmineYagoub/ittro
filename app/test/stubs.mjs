@@ -37,6 +37,26 @@ export function addAudioChunkListener() {
   return { remove() {} };
 }
 
+export function setButtonsActive() {
+  return true;
+}
+
+export function earbudState() {
+  return null;
+}
+
+export function addButtonListener() {
+  return { remove() {} };
+}
+
+export function addEarbudListener() {
+  return { remove() {} };
+}
+
+export function validButtonPress() {
+  return true;
+}
+
 export async function prepareShelfPhoto() {
   return null;
 }
