@@ -5,8 +5,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShelfLoop } from '../src/shelf/loop';
 import type { LoopDeps, LoopPhoto, ShelfLoop } from '../src/shelf/loopTypes';
-import { ingestGrey } from '../src/shelf/tracker';
-import type { GreyFrame } from '../src/shelf/tracker';
 import type { ShelfBox, ShelfOutline, ShelfRead } from '../src/relay';
 import type { SceneView } from '../src/relay';
 import type { ConversationEvent } from '../src/conversation/types';
@@ -25,18 +23,6 @@ function read(id: string, verdict: ShelfRead['verdict']): ShelfRead {
 
 function photo(): LoopPhoto {
   return { image: 'frame', mime: 'image/jpeg', w: 112, h: 96, grey: { data: new Uint8Array(0), w: 0, h: 0 } };
-}
-
-function paint(w: number, h: number, dx: number, dy: number): GreyFrame {
-  const data = new Uint8Array(w * h);
-  for (let y = 0; y < h; y += 1) {
-    for (let x = 0; x < w; x += 1) {
-      const sx = x - dx;
-      const sy = y - dy;
-      data[y * w + x] = sx >= 0 && sy >= 0 && sx < w && sy < h ? (sx * 7 + sy * 13) % 251 : 0;
-    }
-  }
-  return ingestGrey(data, w, h);
 }
 
 interface Deferred<T> {
@@ -124,8 +110,7 @@ test('outlines move between passes without a new SAM call', async () => {
   rig.loop.setTarget('rice', 1);
   await rig.loop.cloudPass([photo()]);
   assert.equal(rig.calls.outline.length, 1);
-  rig.loop.trackFrame(paint(28, 24, 0, 0), 112);
-  rig.loop.trackFrame(paint(28, 24, 3, 1), 112);
+  rig.loop.trackShift(3, 1, false, 4);
   const moved = rig.sent.filter((event) => event.type === 'OUTLINES_MOVED');
   assert.equal(moved.length, 1);
   const first = moved[0];
@@ -247,21 +232,19 @@ test('a changed scene asks for a fresh outline', async () => {
   rig.loop.setTarget('rice', 1);
   await rig.loop.cloudPass([photo()]);
   assert.equal(rig.loop.cloudDue(), false);
-  const flat = new Uint8Array(28 * 24).fill(128);
-  rig.loop.trackFrame(paint(28, 24, 0, 0), 112);
-  rig.loop.trackFrame(ingestGrey(flat, 28, 24), 112);
+  rig.loop.trackShift(0, 0, true, 4);
   assert.equal(rig.loop.cloudDue(), true);
 });
 
 test('without tracks a frame moves nothing, and reset clears', async () => {
   const rig = harness({ outlines: [BAGS], reads: [[read('shelf-t1', 'yes'), read('shelf-t2', 'no')]] });
   rig.loop.setTarget('rice', 1);
-  rig.loop.trackFrame(paint(28, 24, 0, 0), 112);
-  rig.loop.trackFrame(paint(28, 24, 3, 1), 112);
+  rig.loop.trackShift(3, 1, false, 4);
+  rig.loop.trackShift(3, 1, false, 4);
   assert.equal(rig.sent.length, 0);
   await rig.loop.cloudPass([photo()]);
   rig.loop.reset();
-  rig.loop.trackFrame(paint(28, 24, 6, 2), 112);
+  rig.loop.trackShift(6, 2, false, 4);
   assert.ok(rig.sent.every((event) => event.type !== 'OUTLINES_MOVED'));
   assert.equal(rig.loop.cloudDue(), false);
   rig.loop.setTarget('rice', 2);

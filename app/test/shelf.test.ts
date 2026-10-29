@@ -1,10 +1,10 @@
-// Walks the shelf core without a phone or Meta: exact pans written
-// into one reused buffer, hand reads jumping the queue, outlines
-// moving with the pan, and one shelf pass with stubbed cloud calls.
+// Walks the shelf core without a phone or Meta: grey frames copied
+// on ingest, hand reads jumping the queue, outlines moving with a
+// shift, and one shelf pass with stubbed cloud calls.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { boxOverlap, mapBox, mapPoints, moveOutlines } from '../src/shelf/outlines';
-import { decodeBase64, estimatePan, ingestGrey, pickSharpest, sharpness, trackPan } from '../src/shelf/tracker';
+import { decodeBase64, ingestGrey, pickSharpest, sharpness } from '../src/shelf/tracker';
 import type { GreyFrame } from '../src/shelf/tracker';
 import { createReadQueue, dropEpoch, enqueueRead, nextRead, queueSize } from '../src/shelf/queue';
 import { biggestFirst, needsRead, reconcileTracks } from '../src/shelf/shelfTracks';
@@ -21,39 +21,6 @@ function patternFrame(w: number, h: number, paint: (x: number, y: number) => num
   return { data, w, h };
 }
 
-function shiftedInto(buffer: Uint8Array, w: number, h: number, dx: number, dy: number): void {
-  const paint = (x: number, y: number): number => (x * 7 + y * 13) % 251;
-  for (let y = 0; y < h; y += 1) {
-    for (let x = 0; x < w; x += 1) {
-      const sx = x - dx;
-      const sy = y - dy;
-      buffer[y * w + x] = sx >= 0 && sy >= 0 && sx < w && sy < h ? paint(sx, sy) : 0;
-    }
-  }
-}
-
-test('every synthetic pan in one reused buffer comes out exact', () => {
-  const w = 28;
-  const h = 24;
-  const buffer = new Uint8Array(w * h);
-  const pans: Array<[number, number]> = [
-    [3, 1],
-    [-2, 4],
-    [5, -3],
-    [0, 0],
-  ];
-  for (const [dx, dy] of pans) {
-    shiftedInto(buffer, w, h, 0, 0);
-    const before = ingestGrey(buffer, w, h);
-    shiftedInto(buffer, w, h, dx, dy);
-    const after = ingestGrey(buffer, w, h);
-    const pan = estimatePan(before, after, 6);
-    assert.equal(pan.dx, dx);
-    assert.equal(pan.dy, dy);
-    assert.equal(pan.changed, false);
-  }
-});
-
 test('ingesting copies, so the reused buffer cannot corrupt the past', () => {
   const w = 16;
   const h = 16;
@@ -61,26 +28,9 @@ test('ingesting copies, so the reused buffer cannot corrupt the past', () => {
   const first = ingestGrey(buffer, w, h);
   buffer.fill(10);
   assert.equal(first.data[0], 200);
-  const tracker = { previous: null as GreyFrame | null };
-  assert.equal(trackPan(tracker, first, 4), null);
-  buffer.fill(200);
-  const same = ingestGrey(buffer, w, h);
-  const pan = trackPan(tracker, same, 4);
-  assert.equal(pan?.score, 0);
-  assert.equal(pan?.changed, false);
-});
-
-test('a new scene reports changed instead of a pan', () => {
-  const before = patternFrame(16, 16, (x, y) => (x + y) % 2 === 0 ? 240 : 16);
-  const after = patternFrame(16, 16, () => 128);
-  const pan = estimatePan(before, after, 4);
-  assert.equal(pan.changed, true);
-});
-
-test('pan needs two frames of the same size', () => {
-  const a = patternFrame(16, 16, () => 0);
-  const b = patternFrame(12, 16, () => 0);
-  assert.throws(() => estimatePan(a, b, 4), /same size/);
+  const second = ingestGrey(buffer, w, h);
+  assert.equal(second.data[0], 10);
+  assert.throws(() => ingestGrey(buffer, w + 1, h), /smaller than its size/);
 });
 
 test('the sharpest frame wins the pick', () => {

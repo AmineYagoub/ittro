@@ -3,7 +3,7 @@
 // loop itself lives in loop.ts; the cloud half in loopReads.ts.
 import type { Language } from '../theme';
 import type { SceneView, ShelfCrop, ShelfOutline, ShelfRead } from '../relay';
-import type { GreyFrame, Tracker } from './tracker';
+import type { GreyFrame } from './tracker';
 import type { Tracked } from './shelfTracks';
 import type { ConversationEvent } from '../conversation/types';
 
@@ -48,7 +48,6 @@ export interface LoopStats {
 export interface LoopState {
   request: string;
   epoch: number;
-  tracker: Tracker;
   tracks: Tracked[];
   counter: number;
   phrases: Map<string, string>;
@@ -74,7 +73,7 @@ export interface ShelfLoop {
   fail: (error: unknown) => void;
   busy: () => boolean;
   cloudDue: () => boolean;
-  trackFrame: (grey: GreyFrame, photoW: number) => void;
+  trackShift: (dx: number, dy: number, changed: boolean, scale: number) => void;
   cloudPass: (photos: LoopPhoto[], hand?: ShelfCrop | null) => Promise<void>;
   stats: () => LoopStats;
 }

@@ -1,7 +1,8 @@
 // Live hand frames into the guide loop: native events become hand
 // fixes in photo pixels, and the stats behind the phone log line —
-// hands per second, detection p50/p95, frame-to-cue p50 and dropped
-// frames. Pure, so recorded frames walk it on the Mac.
+// hands per second, conversion and detection p50/p95, frame-to-cue
+// p50 and dropped frames. Pure, so recorded frames walk it on the
+// Mac.
 import type { HandFrame } from 'ittro-sensors';
 import type { HandFix } from './types';
 
@@ -37,6 +38,7 @@ function percentile(sorted: number[], rank: number): number {
 
 export interface FrameSummary {
   handsPerSecond: number;
+  convertP50: number;
   detectP50: number;
   detectP95: number;
   cueP50: number;
@@ -53,6 +55,7 @@ export interface FrameStats {
 
 export function createFrameStats(now: () => number): FrameStats {
   let count = 0;
+  let converts: number[] = [];
   let detects: number[] = [];
   let cues: number[] = [];
   let lastArrival = 0;
@@ -64,6 +67,7 @@ export function createFrameStats(now: () => number): FrameStats {
     noteFrame(frame: HandFrame): void {
       count += 1;
       lastArrival = now();
+      converts.push(frame.convertMs);
       if (frame.present) {
         detects.push(frame.detectMs);
       }
@@ -84,8 +88,10 @@ export function createFrameStats(now: () => number): FrameStats {
       const secs = (now() - start) / 1000;
       const ordered = [...detects].sort((a, b) => a - b);
       const cueOrdered = [...cues].sort((a, b) => a - b);
+      const convertOrdered = [...converts].sort((a, b) => a - b);
       return {
         handsPerSecond: count / Math.max(1, secs),
+        convertP50: percentile(convertOrdered, 0.5),
         detectP50: percentile(ordered, 0.5),
         detectP95: percentile(ordered, 0.95),
         cueP50: percentile(cueOrdered, 0.5),
@@ -94,6 +100,7 @@ export function createFrameStats(now: () => number): FrameStats {
     },
     reset(): void {
       count = 0;
+      converts = [];
       detects = [];
       cues = [];
       lastArrival = 0;

@@ -1,11 +1,10 @@
 // The shelf pass loop, both halves: the fast track path moves outlines
-// several times a second from grey frames, while slow cloud passes
-// outline and read in the background without blocking it. The clock,
-// the frames and the cloud are injected, so tests walk the loop with
-// simulated time and the phone drives it with real timers.
+// several times a second from native pan shifts, while slow cloud
+// passes outline and read in the background without blocking it. The
+// clock, the frames and the cloud are injected, so tests walk the
+// loop with simulated time and the phone drives it with real timers.
 import type { ShelfCrop, ShelfOutline, ShelfRead } from '../relay';
-import { createTracker, pickSharpest, sharpness, trackPan } from './tracker';
-import type { GreyFrame } from './tracker';
+import { pickSharpest, sharpness } from './tracker';
 import { moveOutlines } from './outlines';
 import { biggestFirst, needsRead, reconcileTracks } from './shelfTracks';
 import { outlineSignature, packageKind } from './match';
@@ -15,13 +14,11 @@ import type { LoopDeps, LoopPhoto, LoopState, LoopStats, ShelfLoop } from './loo
 const REFRESH_MS = 15000;
 const EMPTY_BEFORE_CLEAR = 3;
 const PRIORITY_BATCH = 2;
-const TRACK_SHIFT = 12;
 
 function freshState(): LoopState {
   return {
     request: '',
     epoch: -1,
-    tracker: createTracker(),
     tracks: [],
     counter: 0,
     phrases: new Map(),
@@ -43,7 +40,6 @@ function freshState(): LoopState {
 }
 
 function searchReset(state: LoopState): void {
-  state.tracker = createTracker();
   state.tracks = [];
   state.outlinedAt = null;
   state.sceneChanged = false;
@@ -106,24 +102,20 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
       return state.outlinedAt === null || state.sceneChanged || deps.now() - state.outlinedAt >= REFRESH_MS;
     },
 
-    trackFrame(grey: GreyFrame, photoW: number): void {
-      if (grey.w === 0 || photoW <= 0) {
+    trackShift(dx: number, dy: number, changed: boolean, scale: number): void {
+      if (!Number.isFinite(dx) || !Number.isFinite(dy) || !(scale > 0)) {
         return;
       }
-      const pan = trackPan(state.tracker, grey, TRACK_SHIFT);
-      if (!pan) {
-        return;
-      }
-      if (pan.changed) {
+      if (changed) {
         state.sceneChanged = true;
         return;
       }
-      if (state.tracks.length === 0 || (pan.dx === 0 && pan.dy === 0)) {
+      if (state.tracks.length === 0 || (dx === 0 && dy === 0)) {
         return;
       }
       const moved = moveOutlines(
         state.tracks.map((entry) => entry.outline),
-        { dx: pan.dx, dy: pan.dy, scale: photoW / grey.w },
+        { dx, dy, scale },
       );
       state.tracks = state.tracks.map((entry, at) => ({ ...entry, outline: moved[at] as ShelfOutline }));
       deps.send({ type: 'OUTLINES_MOVED', outlines: moved });

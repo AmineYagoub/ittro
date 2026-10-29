@@ -22,7 +22,6 @@ interface SensorsNative {
   stopAudioStream: () => boolean;
   prepareShelfPhoto: (uri: string) => Promise<ShelfPhoto | null>;
   cropShelfPhoto: (photo: string, x1: number, y1: number, x2: number, y2: number) => Promise<ShelfCrop | null>;
-  prepareTrackGrey: (uri: string) => Promise<TrackGrey | null>;
   setHandDelegate: (delegate: string) => boolean;
   takeCameraShot: () => Promise<string | null>;
 }
@@ -35,10 +34,20 @@ export interface HandFrame {
   y: number;
   confidence: number;
   handWidth: number;
+  convertMs: number;
   detectMs: number;
   frameMs: number;
   frame: number;
   dropped: number;
+}
+
+export interface TrackPan {
+  dx: number;
+  dy: number;
+  score: number;
+  changed: boolean;
+  gw: number;
+  panMs: number;
 }
 
 export interface CameraViewProps {
@@ -48,6 +57,7 @@ export interface CameraViewProps {
   importantForAccessibility?: 'auto' | 'yes' | 'no' | 'no-hide-descendants';
   onCameraReady?: () => void;
   onHandFrame?: (event: { nativeEvent: HandFrame }) => void;
+  onTrackPan?: (event: { nativeEvent: TrackPan }) => void;
   onCameraError?: (event: { nativeEvent: { message: string } }) => void;
 }
 
@@ -67,13 +77,6 @@ export interface ShelfPhoto {
 export interface ShelfCrop {
   image: string;
   mime: string;
-}
-
-export interface TrackGrey {
-  grey: string;
-  gw: number;
-  gh: number;
-  pw: number;
 }
 
 export interface AudioChunk {
@@ -178,17 +181,6 @@ export async function cropShelfPhoto(
   }
 }
 
-export async function prepareTrackGrey(uri: string): Promise<TrackGrey | null> {
-  if (!native) {
-    return null;
-  }
-  try {
-    return await native.prepareTrackGrey(uri);
-  } catch {
-    return null;
-  }
-}
-
 export function setHandDelegate(delegate: HandDelegate): boolean {
   if (!native) {
     return false;
@@ -230,10 +222,21 @@ export function validHandFrame(frame: HandFrame): boolean {
   return (
     typeof frame.present === 'boolean' &&
     (!frame.present || (frame.x >= 0 && frame.y >= 0 && frame.confidence >= 0)) &&
+    frame.convertMs >= 0 &&
     frame.detectMs >= 0 &&
     frame.frameMs >= 0 &&
     frame.frame > 0 &&
     frame.dropped >= 0
+  );
+}
+
+export function validTrackPan(pan: TrackPan): boolean {
+  return (
+    Number.isFinite(pan.dx) &&
+    Number.isFinite(pan.dy) &&
+    typeof pan.changed === 'boolean' &&
+    pan.gw > 0 &&
+    pan.panMs >= 0
   );
 }
 

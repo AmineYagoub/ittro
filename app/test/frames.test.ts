@@ -12,6 +12,7 @@ function frame(patch: Partial<HandFrame>): HandFrame {
     y: 0.5,
     confidence: 0.8,
     handWidth: 0.1,
+    convertMs: 20,
     detectMs: 120,
     frameMs: 150,
     frame: 1,
@@ -35,15 +36,16 @@ test('an absent frame or a missing photo maps to no fix', () => {
   assert.equal(handFixFromEvent(frame({}), 0, 960, 7000), null);
 });
 
-test('recorded frames summarize rate, detection and drops', () => {
+test('recorded frames summarize rate, conversion, detection and drops', () => {
   let now = 10000;
   const stats = createFrameStats(() => now);
   for (let at = 0; at < 40; at += 1) {
-    stats.noteFrame(frame({ frame: at + 1, detectMs: 100 + at, dropped: at >= 20 ? 2 : 0 }));
+    stats.noteFrame(frame({ frame: at + 1, convertMs: 20 + at, detectMs: 100 + at, dropped: at >= 20 ? 2 : 0 }));
     now += 125;
   }
   const summary = stats.snapshot();
   assert.equal(summary.handsPerSecond, 8);
+  assert.equal(summary.convertP50, 40);
   assert.equal(summary.detectP50, 120);
   assert.equal(summary.detectP95, 138);
   assert.equal(summary.dropped, 2);
