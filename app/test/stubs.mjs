@@ -53,9 +53,15 @@ export function setHandDelegate() {
   return true;
 }
 
-export async function findHand() {
+export async function takeCameraShot() {
   return null;
 }
+
+export function validHandFrame() {
+  return true;
+}
+
+export const IttroCameraView = null;
 
 export const Vibration = {
   vibrate() {},

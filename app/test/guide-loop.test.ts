@@ -149,6 +149,37 @@ test('resting on another product reads it and reports a wrong one', async () => 
   assert.deepEqual(wrong[0], { type: 'GUIDE_WRONG', label: 'Guedila water', cue: 'hand_right' });
 });
 
+test('a rest read landing after the hand moved stays silent', async () => {
+  const read: ShelfRead = { id: 'hand-1', brand_text: 'Guedila', size_text: 'water', verdict: 'no', spoken: 'Guedila water' };
+  const sent: ConversationEvent[] = [];
+  let now = 10000;
+  let release!: (value: { reads: ShelfRead[]; readMs: number }) => void;
+  const gate = new Promise<{ reads: ShelfRead[]; readMs: number }>((resolve) => {
+    release = resolve;
+  });
+  const loop = createGuideLoop({
+    now: () => now,
+    send: (event) => {
+      sent.push(event);
+    },
+    log: () => undefined,
+    cutCrop: async () => ({ id: 'hand-1', image: 'crop', mime: 'image/jpeg' }),
+    read: () => gate,
+  });
+  loop.setTarget(TARGET);
+  loop.setPhoto({ image: 'photo', mime: 'image/jpeg' });
+  await loop.handFrame(fix(180, 520, now), [TARGET, OTHER], 1280, 960);
+  now += 300;
+  await loop.handFrame(fix(181, 520, now), [TARGET, OTHER], 1280, 960);
+  now += 300;
+  const pending = loop.handFrame(fix(180, 520, now), [TARGET, OTHER], 1280, 960);
+  now += 250;
+  await loop.handFrame(fix(680, 520, now), [TARGET, OTHER], 1280, 960);
+  release({ reads: [read], readMs: 5 });
+  await pending;
+  assert.equal(sent.filter((event) => event.type === 'GUIDE_WRONG').length, 0);
+});
+
 test('an unsure rest read keeps guiding without a wrong verdict', async () => {
   const read: ShelfRead = { id: 'hand-1', brand_text: null, size_text: null, verdict: 'unsure', spoken: 'maybe' };
   const env = harness([read]);
