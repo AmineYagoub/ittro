@@ -113,6 +113,7 @@ export function startConversation(options?: StartOptions): Driver {
         brief: false,
         rate: 1,
         helpers: [],
+        brands: [],
       },
       snapshot: { request: options?.request ?? null },
       relayUrl: 'http://localhost:8787',

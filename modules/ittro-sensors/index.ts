@@ -22,6 +22,7 @@ interface SensorsNative {
   getMediaVolume: () => VolumeState;
   setMediaVolume: (fraction: number) => boolean;
   getThermalStatus: () => number;
+  getMemoryStatus: () => { availMb: number; totalMb: number };
   setButtonsActive: (active: boolean) => boolean;
   getEarbudState: () => EarbudState;
   startAudioStream: () => boolean;
@@ -130,6 +131,22 @@ export function thermalStatus(): number | null {
   }
   const status = native.getThermalStatus();
   return status < 0 ? null : status;
+}
+
+export interface MemoryStatus {
+  availMb: number;
+  totalMb: number;
+}
+
+export function memoryStatus(): MemoryStatus | null {
+  if (!native) {
+    return null;
+  }
+  const status = native.getMemoryStatus();
+  if (!(status.availMb > 0) || !(status.totalMb > 0)) {
+    return null;
+  }
+  return status;
 }
 
 export function setButtonsActive(active: boolean): boolean {

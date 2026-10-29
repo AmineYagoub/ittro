@@ -1,6 +1,7 @@
 // Shopper preferences, remembered between launches and never reset by
-// updates: the language, whether the first launch finished, and the
-// verbosity and speed the shopper chose.
+// updates: the language, whether the first launch finished, the
+// verbosity and speed the shopper chose, helpers, and confirmed
+// brand words the mic listens for next time.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Language } from './theme';
 import { speech } from './theme';
@@ -18,6 +19,7 @@ export interface Prefs {
   brief: boolean;
   rate: number;
   helpers: HelperPref[];
+  brands: string[];
 }
 
 const DEFAULTS: Prefs = {
@@ -26,6 +28,7 @@ const DEFAULTS: Prefs = {
   brief: false,
   rate: 1,
   helpers: [],
+  brands: [],
 };
 
 export async function loadPrefs(): Promise<Prefs> {
@@ -41,7 +44,8 @@ export async function loadPrefs(): Promise<Prefs> {
     const helpers = Array.isArray(parsed.helpers)
       ? parsed.helpers.filter((helper) => typeof helper?.name === 'string' && typeof helper?.token === 'string')
       : [];
-    return { language, firstLaunchDone: parsed.firstLaunchDone === true, brief: parsed.brief === true, rate, helpers };
+    const brands = Array.isArray(parsed.brands) ? parsed.brands.filter((word) => typeof word === 'string').slice(-20) : [];
+    return { language, firstLaunchDone: parsed.firstLaunchDone === true, brief: parsed.brief === true, rate, helpers, brands };
   } catch {
     return { ...DEFAULTS };
   }

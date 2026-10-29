@@ -4,7 +4,7 @@
 import { AppState, Vibration } from 'react-native';
 import * as Battery from 'expo-battery';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import { mediaVolume, sensorsStatus, setMediaVolumeFraction, thermalStatus } from 'ittro-sensors';
+import { mediaVolume, memoryStatus, sensorsStatus, setMediaVolumeFraction, thermalStatus } from 'ittro-sensors';
 import { haptics, speech } from './theme';
 
 function buzz(pattern: readonly number[]): void {
@@ -40,6 +40,25 @@ export async function batteryLow(): Promise<boolean> {
 export function phoneHot(): boolean {
   const status = thermalStatus();
   return status !== null && status >= 2;
+}
+
+export interface PhoneSample {
+  battery: number | null;
+  thermal: number | null;
+  memAvailMb: number | null;
+  memTotalMb: number | null;
+}
+
+export async function samplePhone(): Promise<PhoneSample> {
+  let battery: number | null = null;
+  try {
+    const level = await Battery.getBatteryLevelAsync();
+    battery = level >= 0 ? Math.round(level * 100) : null;
+  } catch {
+    battery = null;
+  }
+  const mem = memoryStatus();
+  return { battery, thermal: thermalStatus(), memAvailMb: mem?.availMb ?? null, memTotalMb: mem?.totalMb ?? null };
 }
 
 export function watchAppState(onPause: () => void, onResume: () => void): () => void {
