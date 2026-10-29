@@ -112,7 +112,12 @@ export const conversationMachine = setup({
       states: {
         talk: {
           initial: 'boot',
-          on: searchTalkOn,
+          on: {
+            ...searchTalkOn,
+            STREAM_CLOSED: { actions: [noteStreamDown, sendStart] },
+            STREAM_ERROR: { actions: [noteStreamDown, sendStart] },
+            STREAM_FAILED: { actions: [noteStreamDown, sendStart] },
+          },
           states: {
             boot: {
               entry: [spawnStream, applyInitialRate],
@@ -154,7 +159,8 @@ export const conversationMachine = setup({
                   { actions: [raiseHeard] },
                 ],
                 STREAM_CLOSED: { actions: [noteStreamDown, sendStart] },
-                STREAM_ERROR: [
+                STREAM_ERROR: { actions: [noteStreamDown, sendStart] },
+                STREAM_FAILED: [
                   { guard: netDue, actions: [noteStreamDown, noteNetComplaint, sendStart], target: 'saying' },
                   { actions: [noteStreamDown, sendStart] },
                 ],
@@ -216,7 +222,8 @@ export const conversationMachine = setup({
               on: {
                 ...listeningShared,
                 STREAM_CLOSED: { actions: [noteStreamDown, sendStart] },
-                STREAM_ERROR: [
+                STREAM_ERROR: { actions: [noteStreamDown, sendStart] },
+                STREAM_FAILED: [
                   { guard: netDue, actions: [noteStreamDown, noteNetComplaint, sendStart], target: 'sayingSleep' },
                   { actions: [noteStreamDown, sendStart] },
                 ],

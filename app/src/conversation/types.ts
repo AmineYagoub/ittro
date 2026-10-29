@@ -49,6 +49,7 @@ export type StreamEmitted =
   | { type: 'STREAM_OPEN' }
   | { type: 'STREAM_CLOSED' }
   | { type: 'STREAM_ERROR'; message: string }
+  | { type: 'STREAM_FAILED'; message: string }
   | { type: 'SPEECH_ENDED' }
   | { type: 'FINAL_TEXT'; text: string }
   | { type: 'PARTIAL_TEXT'; text: string }
@@ -138,6 +139,7 @@ export type ConversationEvent =
   | { type: 'STREAM_OPEN' }
   | { type: 'STREAM_CLOSED' }
   | { type: 'STREAM_ERROR'; message: string }
+  | { type: 'STREAM_FAILED'; message: string }
   | { type: 'MIC_FAILED' }
   | { type: 'PAUSE' }
   | { type: 'RESUME' }

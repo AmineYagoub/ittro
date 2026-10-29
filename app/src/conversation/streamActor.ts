@@ -1,9 +1,14 @@
-// The mic-and-socket stream: opens the relay socket, then the mic,
-// and forwards 24 kHz frames until Meta endpoints a sentence. While
-// Ittro speaks it sends silence, so the stream never hears its echo.
+// The mic-and-socket stream: opens the relay socket and the mic
+// together, buffering up to two seconds of 24 kHz frames until the
+// relay answers ready, then forwards live until Meta endpoints a
+// sentence. While Ittro speaks it sends silence, so the stream never
+// hears its echo. A socket that never gets ready fails loudly; one
+// the relay closes after ready restarts silently, and the log says
+// why it closed.
 import { fromCallback } from 'xstate';
 import { addAudioChunkListener, startAudioStream, stopAudioStream } from 'ittro-sensors';
 import type { StreamCommand, StreamEmitted, StreamInput } from './types';
+import { createMicStats } from './micStats';
 import { stamp } from '../stamp';
 
 const READY_TIMEOUT_MS = 12000;
@@ -14,12 +19,21 @@ const UNMUTE_TAIL_MS = 300;
 
 const SILENCE_FRAME_BYTES = 3840;
 
+const MIC_SUMMARY_EVERY = 100;
+
+const PRE_READY_BUFFER = 25;
+
 interface RelayMessage {
   type?: string;
   kind?: string;
   transcript?: string;
   final?: boolean;
   message?: string;
+}
+
+interface SocketClosedEvent {
+  code: unknown;
+  reason: unknown;
 }
 
 function decodeChunk(base64: string): Uint8Array | null {
@@ -35,6 +49,10 @@ function decodeChunk(base64: string): Uint8Array | null {
   }
 }
 
+function note(line: string): void {
+  if (__DEV__) console.log(`[ittro] ${stamp()} ${line}`);
+}
+
 export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamInput>(
   ({ sendBack, receive, input }) => {
     let socket: WebSocket | null = null;
@@ -43,13 +61,22 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
     let muted = true;
     let heldByCommand = true;
     let unmuteAt = 0;
-    let lastSequence = -1;
     let live = true;
     let keywords = input.keywords;
     let readyTimer: ReturnType<typeof setTimeout> | null = null;
     let micTimer: ReturnType<typeof setTimeout> | null = null;
+    let pending: Uint8Array[] = [];
+    const stats = createMicStats(() => Date.now());
 
     const silence = new Uint8Array(SILENCE_FRAME_BYTES);
+
+    const summarizeMic = (): void => {
+      const summary = stats.snapshot();
+      note(
+        `mic ${summary.ratePerSecond.toFixed(1)}/s gap p50 ${summary.gapP50}ms p95 ${summary.gapP95}ms max ${summary.gapMax}ms seqgaps ${summary.seqGaps} notready ${summary.notReady} senderr ${summary.sendErr}`,
+      );
+      stats.reset();
+    };
 
     const stopMic = (): void => {
       if (micTimer) {
@@ -87,13 +114,23 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
     };
 
     const sendFrame = (frame: Uint8Array): void => {
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        try {
-          socket.send(frame);
-        } catch {
-          // A closing socket ends the stream below.
-        }
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        stats.failSend();
+        return;
       }
+      try {
+        socket.send(frame);
+      } catch {
+        stats.failSend();
+      }
+    };
+
+    const holdFrame = (frame: Uint8Array): void => {
+      if (pending.length >= PRE_READY_BUFFER) {
+        pending = pending.slice(pending.length - PRE_READY_BUFFER + 1);
+        stats.dropPreReady();
+      }
+      pending.push(frame);
     };
 
     const startMic = (): void => {
@@ -103,20 +140,19 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
       let sub: { remove: () => void } | null = null;
       try {
         sub = addAudioChunkListener((event) => {
-          if (!live || !ready) {
+          if (!live) {
             return;
           }
-          if (lastSequence >= 0 && event.sequence !== lastSequence + 1 && __DEV__) {
-            console.log(`[ittro-debug] ${stamp()} mic gap ${lastSequence} -> ${event.sequence}`);
+          const at = Date.now();
+          stats.arrival(event.sequence);
+          if (stats.count() >= MIC_SUMMARY_EVERY) {
+            summarizeMic();
           }
-          lastSequence = event.sequence;
-          if (muted || Date.now() < unmuteAt) {
-            sendFrame(silence);
-            return;
-          }
-          const frame = decodeChunk(event.chunk);
-          if (frame) {
+          const frame = muted || at < unmuteAt ? silence : (decodeChunk(event.chunk) ?? silence);
+          if (ready) {
             sendFrame(frame);
+          } else {
+            holdFrame(frame);
           }
         });
       } catch {
@@ -141,25 +177,27 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
       if (!live) {
         return;
       }
-      lastSequence = -1;
+      pending = [];
+      let reported = false;
       let current: WebSocket;
       try {
         current = new WebSocket(`${input.url}/realtime?code=${input.code}`);
       } catch {
-        sendBack({ type: 'STREAM_ERROR', message: 'could not open the stream' });
+        sendBack({ type: 'STREAM_FAILED', message: 'could not open the stream' });
         return;
       }
       socket = current;
+      startMic();
       readyTimer = setTimeout(() => {
         if (!ready) {
-          sendBack({ type: 'STREAM_ERROR', message: 'the stream never answered' });
+          sendBack({ type: 'STREAM_FAILED', message: 'the stream never answered' });
         }
       }, READY_TIMEOUT_MS);
       current.onopen = (): void => {
         try {
           current.send(JSON.stringify({ type: 'config', keywords }));
         } catch {
-          sendBack({ type: 'STREAM_ERROR', message: 'the stream broke' });
+          sendBack({ type: 'STREAM_FAILED', message: 'the stream broke' });
         }
       };
       current.onmessage = (event): void => {
@@ -179,11 +217,17 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
             clearTimeout(readyTimer);
             readyTimer = null;
           }
+          const held = pending;
+          pending = [];
+          for (const frame of held) {
+            sendFrame(frame);
+          }
           sendBack({ type: 'STREAM_OPEN' });
           startMic();
           return;
         }
         if (message.type === 'error') {
+          note(`stream error from relay: ${String(message.message ?? 'the stream broke').slice(0, 120)}`);
           sendBack({ type: 'STREAM_ERROR', message: message.message ?? 'the stream broke' });
           return;
         }
@@ -199,8 +243,19 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
           sendBack({ type: 'PARTIAL_TEXT', text: message.transcript });
         }
       };
-      const closed = (): void => {
-        sendBack({ type: 'STREAM_CLOSED' });
+      const closed = (event: Event): void => {
+        if (reported) {
+          return;
+        }
+        reported = true;
+        const wasReady = ready;
+        const body = event as unknown as SocketClosedEvent;
+        const code = typeof body.code === 'number' ? body.code : '?';
+        const reason = typeof body.reason === 'string' && body.reason.length > 0 ? body.reason : '-';
+        note(`stream socket closed code ${code} reason ${reason.slice(0, 80)} ${wasReady ? 'after' : 'before'} ready`);
+        sendBack(
+          wasReady ? { type: 'STREAM_CLOSED' } : { type: 'STREAM_FAILED', message: 'the stream broke' },
+        );
       };
       current.onerror = closed;
       current.onclose = closed;
@@ -211,6 +266,7 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
       stopMic();
       closeSocket();
       muted = true;
+      pending = [];
       openSocket();
     };
 

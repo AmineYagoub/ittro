@@ -42,6 +42,7 @@ export interface StartOptions {
 export interface Driver {
   spoken: string[];
   parts: SpeechPart[][];
+  streamCommands: StreamCommand[];
   start: () => Promise<void>;
   setUnderstand: (script: UnderstandScript) => void;
   send: (event: ConversationEvent) => void;
@@ -62,6 +63,7 @@ const FLUSH_ROUNDS = 40;
 export function startConversation(options?: StartOptions): Driver {
   const spoken: string[] = [];
   const parts: SpeechPart[][] = [];
+  const streamCommands: StreamCommand[] = [];
   let script: UnderstandScript = () => answer({ intent: 'not_understood' });
   const provided = conversationMachine.provide({
     actors: {
@@ -80,7 +82,11 @@ export function startConversation(options?: StartOptions): Driver {
         fromPromise(async ({ input }: { input: UnderstandInput }) => script(input)),
       tourSequence: fromPromise<void, TourInput>(async () => undefined),
       ticking: fromCallback(() => () => undefined),
-      streamClient: fromCallback<StreamEmitted | StreamCommand, StreamInput>(() => () => undefined),
+      streamClient: fromCallback<StreamEmitted | StreamCommand, StreamInput>(({ receive }) => {
+        receive((event: StreamCommand) => {
+          streamCommands.push(event);
+        });
+      }),
     },
   });
   const clock = new SimulatedClock();
@@ -108,6 +114,7 @@ export function startConversation(options?: StartOptions): Driver {
   return {
     spoken,
     parts,
+    streamCommands,
     async start(): Promise<void> {
       actor.start();
       await flush();
