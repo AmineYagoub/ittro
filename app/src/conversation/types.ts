@@ -4,9 +4,11 @@
 import type { ActorRef, DoneActorEvent, ErrorActorEvent, Snapshot } from 'xstate';
 import type { Language } from '../theme';
 import type { Prefs } from '../store';
-import type { ShelfOutline, UnderstandAnswer } from '../relay';
+import type { ConfirmAttr, DetailKind, DetailReason, PictureProblem, ShelfOutline, UnderstandAnswer } from '../relay';
 
-export type ConversationStep = 'welcome' | 'confirm' | 'offer' | 'sleep' | 'language' | 'tour' | 'translate' | 'alternative';
+export type ConversationStep = 'welcome' | 'confirm' | 'offer' | 'sleep' | 'language' | 'tour' | 'translate' | 'alternative' | 'verdict';
+
+export type { ConfirmAttr, DetailKind, DetailReason, PictureProblem };
 
 export interface SpokenLine {
   text: string;
@@ -113,6 +115,20 @@ export interface ConversationContext {
   guideResume: boolean;
   guideParts: SpeechPart[];
   talkBusy: boolean;
+  confirming: boolean;
+  confirmEpoch: number;
+  confirmAsked: boolean;
+  confirmVerdict: 'yes' | 'no' | 'unsure' | 'picture' | null;
+  confirmFinal: boolean;
+  confirmLabel: string;
+  confirmRead: string[];
+  confirmMissing: ConfirmAttr[];
+  confirmProblem: PictureProblem | null;
+  confirmCrop: string | null;
+  confirmParts: SpeechPart[];
+  confirmDetailKind: DetailKind | null;
+  confirmDetailText: string | null;
+  confirmDetailReason: DetailReason | null;
 }
 
 export type ConversationEvent =
@@ -153,7 +169,19 @@ export type ConversationEvent =
   | { type: 'GUIDE_END' }
   | { type: 'NO_SHELF'; floor: boolean }
   | { type: 'OUTLINES_MOVED'; outlines: ShelfOutline[] }
-  | { type: 'SHELF_TURN'; direction: 'left' | 'right' };
+  | { type: 'SHELF_TURN'; direction: 'left' | 'right' }
+  | { type: 'CONFIRM_BEGIN' }
+  | { type: 'CONFIRM_AUTO' }
+  | { type: 'CONFIRM_YES'; epoch: number; label: string; crop: string }
+  | { type: 'CONFIRM_NO'; epoch: number; label: string; crop: string }
+  | { type: 'CONFIRM_UNSURE'; epoch: number; label: string; crop: string; read: string[]; missing: ConfirmAttr[] }
+  | { type: 'CONFIRM_PICTURE'; epoch: number; problem: PictureProblem }
+  | { type: 'CONFIRM_MOVED'; epoch: number }
+  | { type: 'CONFIRM_GIVEUP' }
+  | { type: 'CONFIRM_FAILED' }
+  | { type: 'CONFIRM_DETAIL_ASK' }
+  | { type: 'CONFIRM_DETAIL'; epoch: number; text: string | null; reason: DetailReason | null; crop: string }
+  | { type: 'CONFIRM_END' };
 
 export type ExpressionEvent = ConversationEvent | DoneActorEvent | ErrorActorEvent;
 
