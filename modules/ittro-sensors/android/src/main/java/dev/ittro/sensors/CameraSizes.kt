@@ -40,7 +40,13 @@ fun uprightDeg(context: Context, features: CameraCharacteristics): Int {
   val sensor = features.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 90
   val displayDeg =
     if (Build.VERSION.SDK_INT >= 30) {
-      when (context.display?.rotation) {
+      val rotation =
+        try {
+          context.display?.rotation
+        } catch (e: UnsupportedOperationException) {
+          null
+        }
+      when (rotation) {
         Surface.ROTATION_90 -> 90
         Surface.ROTATION_180 -> 180
         Surface.ROTATION_270 -> 270

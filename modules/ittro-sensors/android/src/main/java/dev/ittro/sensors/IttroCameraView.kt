@@ -9,13 +9,15 @@ import expo.modules.kotlin.viewevent.EventDispatcher
 import expo.modules.kotlin.views.ExpoView
 
 // Ittro's camera on screen: a preview surface with no controls, and
-// the three view events the app listens for. The surface opening
+// the four view events the app listens for. The surface opening
 // starts the one camera; the view leaving starts nothing and closes
 // everything, so a pause, a lock or another app never leaves the
-// camera running behind them.
+// camera running behind them. Frame and pan events emit straight
+// from the camera thread, never queued behind the main thread.
 class IttroCameraView(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
   private val onCameraReady by EventDispatcher<Unit>()
   private val onHandFrame by EventDispatcher()
+  private val onTrackPan by EventDispatcher()
   private val onCameraError by EventDispatcher()
 
   private val preview = SurfaceView(context)
@@ -70,7 +72,8 @@ class IttroCameraView(context: Context, appContext: AppContext) : ExpoView(conte
       context,
       target,
       onReady = { onCameraReady(Unit) },
-      onHandFrame = { frame -> post { onHandFrame(frame) } },
+      onHandFrame = { frame -> onHandFrame(frame) },
+      onPan = { pan -> onTrackPan(pan) },
       onError = { message -> onCameraError(mapOf("message" to message)) },
     )
   }

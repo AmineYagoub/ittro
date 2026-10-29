@@ -57,6 +57,7 @@ object IttroCamera {
     preview: Surface,
     onReady: () -> Unit,
     onHandFrame: (Map<String, Any>) -> Unit,
+    onPan: (Map<String, Any>) -> Unit,
     onError: (String) -> Unit,
   ) {
     synchronized(lock) {
@@ -80,7 +81,7 @@ object IttroCamera {
       synchronized(lock) {
         jpegDeg = rotation
       }
-      HandFrames(app, tracker, rotation, handsHandler, onHandFrame).attach(hands)
+      HandFrames(app, tracker, rotation, handsHandler, onHandFrame, onPan).attach(hands)
       stills.setOnImageAvailableListener({ reader ->
         val image = reader.acquireLatestImage() ?: return@setOnImageAvailableListener
         val plane = image.planes[0]

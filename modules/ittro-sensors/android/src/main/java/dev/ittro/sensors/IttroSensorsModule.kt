@@ -4,23 +4,24 @@ import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
-import android.os.Handler
-import android.os.Looper
 import android.os.PowerManager
+import android.os.Process
 import android.util.Base64
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import java.io.ByteArrayOutputStream
 import java.util.concurrent.atomic.AtomicBoolean
 
 // On-phone sensors for Ittro. The microphone streams 24 kHz PCM frames
 // to JavaScript while listening; Meta's realtime endpointing decides
-// where sentences end, so there are no fixed-length clips.
+// where sentences end, so there are no fixed-length clips. Listening
+// comes first: the mic thread runs at audio priority and emits
+// straight from that thread, never queued behind the main thread.
 class IttroSensorsModule : Module() {
   private var recorder: AudioRecord? = null
   private var streamThread: Thread? = null
   private var chunkSequence = 0
   private val streaming = AtomicBoolean(false)
-  private val mainHandler = Handler(Looper.getMainLooper())
 
   private fun audioManager(): AudioManager? {
     val context = appContext.reactContext ?: return null
@@ -31,9 +32,7 @@ class IttroSensorsModule : Module() {
     val payload = Base64.encodeToString(chunk, Base64.NO_WRAP)
     val sequence = chunkSequence
     chunkSequence += 1
-    mainHandler.post {
-      sendEvent("onAudioChunk", mapOf("chunk" to payload, "sequence" to sequence))
-    }
+    sendEvent("onAudioChunk", mapOf("chunk" to payload, "sequence" to sequence))
   }
 
   private fun startStream(): Boolean {
@@ -60,29 +59,33 @@ class IttroSensorsModule : Module() {
       chunkSequence = 0
       streaming.set(true)
       record.startRecording()
-      streamThread = Thread {
+      streamThread = Thread({
+        Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
         val buffer = ByteArray(minBuf)
-        var frame = ByteArray(0)
+        val frame = ByteArrayOutputStream(STREAM_FRAME_BYTES * 2)
         while (streaming.get()) {
           val read = record.read(buffer, 0, buffer.size)
           if (read > 0) {
-            frame += buffer.sliceArray(0 until read)
-            while (frame.size >= STREAM_FRAME_BYTES) {
-              emitChunk(frame.sliceArray(0 until STREAM_FRAME_BYTES))
-              frame = frame.sliceArray(STREAM_FRAME_BYTES until frame.size)
+            frame.write(buffer, 0, read)
+            while (frame.size() >= STREAM_FRAME_BYTES) {
+              val bytes = frame.toByteArray()
+              emitChunk(bytes.sliceArray(0 until STREAM_FRAME_BYTES))
+              frame.reset()
+              frame.write(bytes, STREAM_FRAME_BYTES, bytes.size - STREAM_FRAME_BYTES)
             }
           }
         }
-        val tail = if (frame.size % 2 == 1) frame.sliceArray(0 until frame.size - 1) else frame
-        if (tail.size >= 2) {
-          emitChunk(tail)
+        val tail = frame.toByteArray()
+        val even = if (tail.size % 2 == 1) tail.sliceArray(0 until tail.size - 1) else tail
+        if (even.size >= 2) {
+          emitChunk(even)
         }
         try {
           record.stop()
         } catch (e: Exception) {
         }
         record.release()
-      }
+      }, "IttroAudio")
       streamThread?.start()
       return true
     } catch (e: Exception) {
@@ -159,11 +162,6 @@ class IttroSensorsModule : Module() {
       shotCrop(photo, x1, y1, x2, y2)
     }
 
-    AsyncFunction("prepareTrackGrey") { uri: String ->
-      val context = appContext.reactContext ?: return@AsyncFunction null
-      shotTrack(context, uri)
-    }
-
     Function("setHandDelegate") { delegate: String ->
       IttroCamera.setHandDelegate(delegate)
     }
@@ -174,7 +172,7 @@ class IttroSensorsModule : Module() {
     }
 
     View(IttroCameraView::class) {
-      Events("onCameraReady", "onHandFrame", "onCameraError")
+      Events("onCameraReady", "onHandFrame", "onTrackPan", "onCameraError")
 
       Prop("active") { view: IttroCameraView, active: Boolean? ->
         view.setActive(active ?: false)
