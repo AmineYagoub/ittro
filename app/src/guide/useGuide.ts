@@ -121,7 +121,7 @@ export function useGuide(actor: { current: GuideActor | null }, active: boolean)
       const summary = stats.snapshot();
       const heat = thermalStatus();
       note(
-        `hands ${summary.handsPerSecond.toFixed(1)}/s detect p50 ${summary.detectP50}ms p95 ${summary.detectP95}ms cue p50 ${summary.cueP50}ms dropped ${summary.dropped} thermal ${heat === null ? 'unknown' : heat}`,
+        `hands ${summary.handsPerSecond.toFixed(1)}/s convert p50 ${summary.convertP50}ms detect p50 ${summary.detectP50}ms p95 ${summary.detectP95}ms cue p50 ${summary.cueP50}ms dropped ${summary.dropped} thermal ${heat === null ? 'unknown' : heat}`,
       );
       stats.reset();
     }
@@ -160,7 +160,8 @@ export function useGuide(actor: { current: GuideActor | null }, active: boolean)
           return;
         }
         const target = context?.guideTarget ?? null;
-        noteHandFix(handFixFromEvent(frame, target?.box.w ?? 0, target?.box.h ?? 0, Date.now()));
+        const fix = handFixFromEvent(frame, target?.box.w ?? 0, target?.box.h ?? 0, Date.now());
+        noteHandFix(fix);
         if (!loop || !stats || !context?.guiding) {
           if (!context?.guiding) {
             restLoop();
@@ -179,7 +180,7 @@ export function useGuide(actor: { current: GuideActor | null }, active: boolean)
         stats.noteFrame(frame);
         const photoW = target.box.w;
         const photoH = target.box.h;
-        void loop.handFrame(handFixFromEvent(frame, photoW, photoH, Date.now()), context.outlines, photoW, photoH);
+        void loop.handFrame(fix, context.outlines, photoW, photoH);
         if (stats.frames() >= HAND_SUMMARY_EVERY) {
           summarize(stats);
         }

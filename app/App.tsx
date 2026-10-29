@@ -64,7 +64,7 @@ export default function App(): React.JSX.Element {
   const inLive = useRef(false);
 
   const guide = useGuide(actorRef, cameraOn);
-  useShelfSearch(cameraRef, actorRef, searching, searchRequest, cameraReady, guide);
+  const search = useShelfSearch(cameraRef, actorRef, searching, searchRequest, cameraReady, guide);
   useConfirm(cameraRef, actorRef, confirming, searchRequest, cameraReady);
 
   useEffect(() => {
@@ -214,6 +214,7 @@ export default function App(): React.JSX.Element {
             cameraReady.current = true;
           }}
           onHandFrame={(event) => guide.onHandFrame(event.nativeEvent)}
+          onTrackPan={(event) => search.onTrackPan(event.nativeEvent)}
           onCameraError={(event) => {
             cameraReady.current = false;
             if (__DEV__) console.log(`[ittro] camera error: ${event.nativeEvent.message}`);

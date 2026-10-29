@@ -45,10 +45,6 @@ export async function cropShelfPhoto() {
   return null;
 }
 
-export async function prepareTrackGrey() {
-  return null;
-}
-
 export function setHandDelegate() {
   return true;
 }
@@ -58,6 +54,10 @@ export async function takeCameraShot() {
 }
 
 export function validHandFrame() {
+  return true;
+}
+
+export function validTrackPan() {
   return true;
 }
 
