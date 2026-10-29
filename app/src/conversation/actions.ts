@@ -1,13 +1,7 @@
 // Conversation actions: everything the states do that is not a
 // state. Muting, spawning, notes, boot lines and pause lines.
-import {
-  assignConversation as assign,
-  enqueueConversation as enqueue,
-  persistSnapshot,
-  raiseConversation as raise,
-  requestKeywords,
-  sendToConversation as sendTo,
-} from './actors';
+import { assignConversation as assign, persistSnapshot, raiseConversation as raise, requestKeywords } from './actors';
+import { wsUrl } from './streamCtl';
 import type { Language } from '../theme';
 import { playSound, setSpeechRate, stopVoice } from '../speech';
 import type { UnderstandAnswer } from '../relay';
@@ -26,9 +20,10 @@ import {
 } from '../lines';
 import { confirmList, confirmRequest, stillLooking, welcomeBackLooking } from '../requestLines';
 import { closeMatchLine } from '../shelf/searchLines';
+import { askConfirmLine, askNameLine, helpersWord, offerLine } from '../helper/lines';
 import { HELP_CHIP, NO_CHIP, YES_CHIP } from '../chips';
 import type { streamClient } from './streamActor';
-import type { ConversationContext, ExpressionEvent, SpokenLine, StreamCommand } from './types';
+import type { ConversationContext, ExpressionEvent, SpokenLine } from './types';
 import { stamp } from '../stamp';
 
 export type ContextArgs = { context: ConversationContext };
@@ -38,31 +33,6 @@ export const markTalkBusy = assign({ talkBusy: true });
 export const markTalkQuiet = assign({ talkBusy: false });
 
 export type EventArgs = { context: ConversationContext; event: ExpressionEvent };
-
-export function wsUrl(relayUrl: string): string {
-  return relayUrl.replace(/^http/, 'ws');
-}
-
-export function toStream(command: StreamCommand | ((args: ContextArgs) => StreamCommand)) {
-  return sendTo(
-    ({ context }: ContextArgs) => context.streamRef as NonNullable<ConversationContext['streamRef']>,
-    command,
-  );
-}
-
-export const muteMic = toStream({ type: 'MUTE' });
-
-export const unmuteMic = toStream({ type: 'UNMUTE' });
-
-export const sendStop = toStream({ type: 'STOP' });
-
-export const sendStart = toStream(({ context }) => ({ type: 'START', keywords: requestKeywords(context.request) }));
-
-export const ensureStream = enqueue(({ enqueue: collect, context }) => {
-  if (!context.streamUp) {
-    collect(sendStart);
-  }
-});
 
 export const raiseQuestion = raise({ type: 'QUESTION_ASKED' });
 
@@ -160,8 +130,11 @@ export const noteMicComplaint = assign({
 });
 
 export function repromptLines(step: ConversationContext['step'], request: string | null, lang: Language): SpokenLine[] {
-  if (step === 'confirm' || step === 'offer' || step === 'alternative') {
+  if (step === 'confirm' || step === 'offer' || step === 'alternative' || step === 'helperSend' || step === 'helperOffer') {
     return [{ text: askAgain[lang], chips: [YES_CHIP[lang], NO_CHIP[lang]] }];
+  }
+  if (step === 'helperName') {
+    return [{ text: askNameLine[lang], chips: [] }];
   }
   if (step === 'tour') {
     return [{ text: tourOffer[lang], chips: [YES_CHIP[lang], NO_CHIP[lang]] }];
@@ -241,6 +214,15 @@ export function pausedLines(context: ConversationContext): SpokenLine[] {
   }
   if (context.step === 'alternative' && context.alternative) {
     return [{ text: closeMatchLine(context.request ?? '', context.alternative, lang), chips: [YES_CHIP[lang], NO_CHIP[lang]] }];
+  }
+  if (context.step === 'helperName') {
+    return [{ text: askNameLine[lang], chips: [] }];
+  }
+  if (context.step === 'helperSend' && context.askQuestion) {
+    return [{ text: askConfirmLine(helpersWord(lang), context.askQuestion, lang), chips: [YES_CHIP[lang], NO_CHIP[lang]] }];
+  }
+  if (context.step === 'helperOffer' && context.helpers[0]) {
+    return [{ text: offerLine(context.helpers[0].name, lang), chips: [YES_CHIP[lang], NO_CHIP[lang]] }];
   }
   if (context.step === 'language') {
     return [
