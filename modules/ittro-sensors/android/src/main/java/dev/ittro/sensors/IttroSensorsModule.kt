@@ -110,7 +110,16 @@ class IttroSensorsModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("IttroSensors")
 
-    Events("onAudioChunk")
+    Events("onAudioChunk", "onButtonPress", "onEarbudState")
+
+    OnCreate {
+      IttroButtons.sink = { name, payload -> sendEvent(name, payload) }
+    }
+
+    OnDestroy {
+      IttroButtons.sink = null
+      IttroButtons.stop()
+    }
 
     Function("getStatus") {
       mapOf(
@@ -143,6 +152,16 @@ class IttroSensorsModule : Module() {
       } catch (e: Exception) {
         -1
       }
+    }
+
+    Function("setButtonsActive") { active: Boolean ->
+      val context = appContext.reactContext ?: return@Function false
+      if (active) IttroButtons.start(context) else true.also { IttroButtons.stop() }
+    }
+
+    Function("getEarbudState") {
+      val context = appContext.reactContext
+      mapOf("connected" to (context != null && IttroButtons.isConnected(context)))
     }
 
     Function("startAudioStream") {
