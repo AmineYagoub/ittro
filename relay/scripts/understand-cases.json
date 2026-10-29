@@ -1,5 +1,5 @@
 {
-  "note": "Fixed live check for /understand: lone product names are answered, commands survive, background stays ignore. Rerun with: npm run check:understand. Calls stay under the relay rate limit (pauseMs keeps starts under 30/min).",
+  "note": "Fixed live check for /understand: lone product names are answered, commands survive, background stays ignore, helper asks and cancels route. Rerun with: npm run check:understand. Calls stay under the relay rate limit (pauseMs keeps starts under 30/min).",
   "pauseMs": 2500,
   "effort": "minimal",
   "cases": [
@@ -352,6 +352,76 @@
       "pending_request": "Masaad water",
       "last_line": "I'm searching the shelf for Masaad water. 0 products checked so far.",
       "expect": ["ignore"]
+    },
+    {
+      "id": "en-welcome-ask-someone",
+      "transcript": "Ask someone",
+      "language": "en",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": "Masaad water",
+      "last_line": "I can't confirm yet. I can read Masaad, but not the size. Turn it slowly.",
+      "expect": ["ask_someone"]
+    },
+    {
+      "id": "en-welcome-ask-sara",
+      "transcript": "Ask Sara",
+      "language": "en",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": "Masaad water",
+      "last_line": "I can't confirm yet. I can read Masaad, but not the size. Turn it slowly.",
+      "expect": ["ask_someone"]
+    },
+    {
+      "id": "en-welcome-ask-again",
+      "transcript": "Ask again",
+      "language": "en",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": "Masaad water",
+      "last_line": "Sara hasn't answered. Say ask again, or read again.",
+      "expect": ["ask_someone"]
+    },
+    {
+      "id": "en-welcome-stop-waiting",
+      "transcript": "Stop waiting",
+      "language": "en",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": "Masaad water",
+      "last_line": "Sent to Sara. I'll tell you when they answer. Say cancel to stop waiting.",
+      "expect": ["cancel"]
+    },
+    {
+      "id": "en-welcome-never-mind",
+      "transcript": "Never mind waiting",
+      "language": "en",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": "Masaad water",
+      "last_line": "Sent to Sara. I'll tell you when they answer. Say cancel to stop waiting.",
+      "expect": ["cancel"]
+    },
+    {
+      "id": "en-welcome-add-helper",
+      "transcript": "Add a helper",
+      "language": "en",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": null,
+      "last_line": "Hi, I'm Ittro. Tell me what you're looking for, or say help.",
+      "expect": ["add_helper"]
+    },
+    {
+      "id": "en-welcome-add-sara",
+      "transcript": "Add Sara as a helper",
+      "language": "en",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": null,
+      "last_line": "Hi, I'm Ittro. Tell me what you're looking for, or say help.",
+      "expect": ["add_helper"]
     }
   ]
 }

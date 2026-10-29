@@ -40,6 +40,8 @@ const INSTRUCTIONS = [
   'product_text repeats what was asked for, word for word; never add a brand, size or detail not said.',
   'items lists each thing wanted when several are named, else null. detail names the label part for read_detail.',
   'target_language is set only for speak_language. helper_name is set only for ask_someone and add_helper.',
+  'Asking again ("ask again", "try asking again") is ask_someone with helper_name null. Stopping the wait',
+  '("stop waiting", "never mind waiting") is cancel.',
   'language_spoken is the language of the sentence itself: en, ar or fr.',
   'Anything else, or anything you cannot place, is not_understood.',
 ].join(' ');

@@ -9,6 +9,7 @@ import { outlineProducts } from './sam.ts';
 import { classifyScene, pickPackagePhrase, readShelfLabels } from './shelf.ts';
 import { startRealtimeSession } from './realtime.ts';
 import { confirmRoute, detailRoute } from './confirm.ts';
+import { helperRoutes } from './helperRoutes.ts';
 import { mimeField, textField } from './bodies.ts';
 import type { OutlineBody, PhraseBody, ReadBody } from './bodies.ts';
 import { wrapSocket } from './streamWire.ts';
@@ -55,6 +56,10 @@ export default {
     const url = new URL(request.url);
     if (request.method === 'GET' && url.pathname === '/health') {
       return Response.json({ ok: true });
+    }
+    const helper = await helperRoutes(request, env);
+    if (helper) {
+      return helper;
     }
     if (request.method === 'POST' && url.pathname === '/spark') {
       const blocked = await gate(request, env, Number(env.SPARK_COST_USD ?? '0.01'));

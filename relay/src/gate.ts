@@ -10,6 +10,9 @@ export interface Env {
   META_API_BASE?: string;
   META_API_KEY?: string;
   APP_ACCESS_CODE?: string;
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
+  VAPID_SUBJECT?: string;
   DAILY_BUDGET_USD?: string;
   SPARK_COST_USD?: string;
   SAM_COST_USD?: string;
