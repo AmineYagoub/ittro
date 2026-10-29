@@ -6,7 +6,7 @@ import type { Language } from '../theme';
 import type { Prefs } from '../store';
 import type { ConfirmAttr, DetailKind, DetailReason, PictureProblem, ShelfOutline, UnderstandAnswer } from '../relay';
 
-export type ConversationStep = 'welcome' | 'confirm' | 'offer' | 'sleep' | 'language' | 'tour' | 'translate' | 'alternative' | 'verdict';
+export type ConversationStep = 'welcome' | 'confirm' | 'offer' | 'sleep' | 'language' | 'tour' | 'translate' | 'alternative' | 'verdict' | 'helperName' | 'helperSend' | 'helperOffer';
 
 export type { ConfirmAttr, DetailKind, DetailReason, PictureProblem };
 
@@ -19,6 +19,8 @@ export type SpeechPart = { clip: string } | { text: string };
 
 export type GuidePosition = 'left' | 'middle' | 'right';
 
+export type ButtonGesture = 'single' | 'double' | 'triple' | 'hold' | 'volumeHold';
+
 export interface GuideHand {
   x: number;
   y: number;
@@ -26,6 +28,33 @@ export interface GuideHand {
 
 export interface SearchAnnouncement extends SpokenLine {
   kind: 'status' | 'alternative';
+}
+
+export interface HelperContact {
+  name: string;
+  token: string;
+}
+
+export interface HelperPairing {
+  name: string;
+  code: string;
+  expiresAt: number;
+}
+
+export interface HelperWaiting {
+  id: string;
+  helpers: string[];
+  label: string;
+}
+
+export interface HelperAnswer {
+  verdict: 'yes' | 'no' | 'cant_tell';
+  note: string | null;
+  helper: string;
+}
+
+export interface HelperQueued extends SpokenLine {
+  kind: 'status' | 'answer';
 }
 
 export interface MachineSnapshot {
@@ -115,6 +144,12 @@ export interface ConversationContext {
   guideWrong: string | null;
   guideResume: boolean;
   guideParts: SpeechPart[];
+  guideReaching: boolean;
+  earbuds: boolean;
+  earbudHintDone: boolean;
+  holdSeen: boolean;
+  buttonPresses: number;
+  holdHintDone: boolean;
   talkBusy: boolean;
   confirming: boolean;
   confirmEpoch: number;
@@ -130,6 +165,19 @@ export interface ConversationContext {
   confirmDetailKind: DetailKind | null;
   confirmDetailText: string | null;
   confirmDetailReason: DetailReason | null;
+  helpers: HelperContact[];
+  pairing: HelperPairing | null;
+  waiting: HelperWaiting | null;
+  nudgeCount: number;
+  helperAnswer: HelperAnswer | null;
+  pendingHelper: HelperQueued[];
+  unsureStreak: number;
+  helperOfferDone: boolean;
+  helperVerdict: 'yes' | 'no' | 'unsure' | null;
+  helperLabel: string;
+  askTarget: string[] | null;
+  askQuestion: string;
+  sentPhoto: string | null;
 }
 
 export type ConversationEvent =
@@ -183,7 +231,17 @@ export type ConversationEvent =
   | { type: 'CONFIRM_FAILED' }
   | { type: 'CONFIRM_DETAIL_ASK' }
   | { type: 'CONFIRM_DETAIL'; epoch: number; text: string | null; reason: DetailReason | null; crop: string }
-  | { type: 'CONFIRM_END' };
+  | { type: 'CONFIRM_END' }
+  | { type: 'BUTTON_PRESS'; gesture: ButtonGesture }
+  | { type: 'EARBUD_STATE'; connected: boolean }
+  | { type: 'HELPER_CODE' }
+  | { type: 'HELPER_JOINED'; name: string; token: string }
+  | { type: 'HELPER_PAIR_EXPIRED' }
+  | { type: 'HELPER_SENT' }
+  | { type: 'HELPER_ANSWER'; verdict: 'yes' | 'no' | 'cant_tell'; note: string | null; helper: string }
+  | { type: 'HELPER_NUDGE' }
+  | { type: 'HELPER_TIMEOUT'; names: string[] }
+  | { type: 'HELPER_END' };
 
 export type ExpressionEvent = ConversationEvent | DoneActorEvent | ErrorActorEvent;
 
