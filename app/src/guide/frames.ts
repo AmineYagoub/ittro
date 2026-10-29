@@ -18,6 +18,16 @@ export function handFixFromEvent(frame: HandFrame, photoW: number, photoH: numbe
   };
 }
 
+let latestFix: HandFix | null = null;
+
+export function noteHandFix(fix: HandFix | null): void {
+  latestFix = fix;
+}
+
+export function lastHandFix(): HandFix | null {
+  return latestFix;
+}
+
 function percentile(sorted: number[], rank: number): number {
   if (sorted.length === 0) {
     return 0;
