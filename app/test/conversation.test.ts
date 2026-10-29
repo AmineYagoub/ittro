@@ -63,6 +63,27 @@ test('corrects a confirmed request with the combined detail', async () => {
   }
 });
 
+test('a lone product name at the confirm question re-confirms', async () => {
+  resetStorage();
+  const driver = await startListening();
+  try {
+    driver.setUnderstand((input) => {
+      if (input.transcript.includes('Masaad')) {
+        return answer({ intent: 'request_product', product_text: 'Masaad water' });
+      }
+      return answer({ intent: 'confirm_no', product_text: 'Guedila water' });
+    });
+    await driver.heard("I'm looking for Masaad water");
+    assert.equal(driver.context().step, 'confirm');
+    await driver.heard('Guedila');
+    assert.equal(driver.context().step, 'confirm');
+    assert.equal(driver.context().pendingRequest, 'Guedila water');
+    assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /Guedila water\. Is that right/);
+  } finally {
+    driver.stop();
+  }
+});
+
 test('declining a re-confirm keeps the confirmed request', async () => {
   resetStorage();
   const driver = await startListening();
