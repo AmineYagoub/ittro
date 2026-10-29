@@ -21,7 +21,6 @@ class IttroSensorsModule : Module() {
   private var chunkSequence = 0
   private val streaming = AtomicBoolean(false)
   private val mainHandler = Handler(Looper.getMainLooper())
-  private val hands = HandTracker()
 
   private fun audioManager(): AudioManager? {
     val context = appContext.reactContext ?: return null
@@ -166,12 +165,24 @@ class IttroSensorsModule : Module() {
     }
 
     Function("setHandDelegate") { delegate: String ->
-      hands.setDelegate(delegate)
+      IttroCamera.setHandDelegate(delegate)
     }
 
-    AsyncFunction("findHand") { uri: String ->
+    AsyncFunction("takeCameraShot") {
       val context = appContext.reactContext ?: return@AsyncFunction null
-      hands.findIn(context, uri)
+      IttroCamera.takeShot(context)
+    }
+
+    View(IttroCameraView::class) {
+      Events("onCameraReady", "onHandFrame", "onCameraError")
+
+      Prop("active") { view: IttroCameraView, active: Boolean? ->
+        view.setActive(active ?: false)
+      }
+
+      OnViewDestroys { view: IttroCameraView ->
+        view.shutdown()
+      }
     }
   }
 }
