@@ -13,7 +13,7 @@ import { playSound } from '../speech';
 import { stamp } from '../stamp';
 import type { ShotListeners } from '../shelf/useShelfSearch';
 import type { ConversationContext, ConversationEvent } from '../conversation/types';
-import { createFrameStats, handFixFromEvent } from './frames';
+import { createFrameStats, handFixFromEvent, noteHandFix } from './frames';
 import type { FrameStats } from './frames';
 import { createGuideLoop } from './loop';
 import type { GuideLoop } from './loopTypes';
@@ -156,13 +156,17 @@ export function useGuide(actor: { current: GuideActor | null }, active: boolean)
         const loop = held.current.loop;
         const stats = held.current.stats;
         const context = actor.current?.getSnapshot().context;
-        if (!loop || !stats || !context?.guiding || !validHandFrame(frame)) {
+        if (!validHandFrame(frame)) {
+          return;
+        }
+        const target = context?.guideTarget ?? null;
+        noteHandFix(handFixFromEvent(frame, target?.box.w ?? 0, target?.box.h ?? 0, Date.now()));
+        if (!loop || !stats || !context?.guiding) {
           if (!context?.guiding) {
             restLoop();
           }
           return;
         }
-        const target = context.guideTarget;
         if (!target) {
           return;
         }

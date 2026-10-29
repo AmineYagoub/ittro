@@ -53,7 +53,7 @@ export const stopSearch = assign({
 });
 
 export const resumeSearch = assign({
-  searching: ({ context }: ContextArgs) => (context.pendingRequest ?? context.request) !== null,
+  searching: ({ context }: ContextArgs) => (context.pendingRequest ?? context.request) !== null && !context.confirming,
   cameraOn: ({ context }: ContextArgs) => (context.pendingRequest ?? context.request) !== null,
 });
 

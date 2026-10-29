@@ -180,7 +180,10 @@ export function repromptLines(step: ConversationContext['step'], request: string
 }
 
 export const assignReprompt = assign({
-  pendingSay: ({ context }: ContextArgs) => repromptLines(context.step, context.request, context.lang),
+  pendingSay: ({ context }: ContextArgs) =>
+    context.step === 'verdict' && context.lastLine
+      ? [{ text: context.lastLine, chips: context.lastChips }]
+      : repromptLines(context.step, context.request, context.lang),
 });
 
 export const logReprompt = (): void => {
@@ -245,6 +248,9 @@ export function pausedLines(context: ConversationContext): SpokenLine[] {
       { text: chooseLanguage.ar, chips: [] },
       { text: chooseLanguage.fr, chips: [] },
     ];
+  }
+  if (context.step === 'verdict' && context.lastLine) {
+    return [{ text: context.lastLine, chips: context.lastChips }];
   }
   if (context.request) {
     return [{ text: welcomeBackLooking(context.request, lang), chips: [] }];

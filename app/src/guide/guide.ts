@@ -4,6 +4,7 @@
 // almost speaks once, reaching listens for contact, and the hand
 // states stop directing until the hand is back.
 import type { ContextArgs } from '../conversation/actions';
+import { raiseConfirmAuto } from '../confirm/confirmSay';
 import {
   AIM_TIMEOUT_MS,
   ARM_TIMEOUT_MS,
@@ -115,8 +116,8 @@ export const guideRegion = {
       invoke: {
         src: 'speakParts' as const,
         input: ({ context }: ContextArgs) => ({ parts: context.guideParts, lang: context.lang }),
-        onDone: { actions: [endGuide], target: 'idle' },
-        onError: { actions: [endGuide], target: 'idle' },
+        onDone: { actions: [endGuide, raiseConfirmAuto], target: 'idle' },
+        onError: { actions: [endGuide, raiseConfirmAuto], target: 'idle' },
       },
     },
     noHand: {

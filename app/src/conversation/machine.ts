@@ -61,6 +61,8 @@ import { notePartial, partialWorthy, speculatingState } from './speculating';
 import { chainActions, routingTransitions } from './routing';
 import { guideRegion } from '../guide/guide';
 import { stopGuide } from '../guide/guideSay';
+import { confirmRegion } from '../confirm/confirm';
+import { endConfirm, stopConfirm } from '../confirm/confirmSay';
 import {
   hasQueuedAlternative,
   hasQueuedSearch,
@@ -274,14 +276,15 @@ export const conversationMachine = setup({
         },
         search: searchRegion,
         guide: guideRegion,
+        confirm: confirmRegion,
       },
     },
     paused: {
-      entry: [sendStop, quietVoice, stopSearch, stopGuide],
+      entry: [sendStop, quietVoice, stopSearch, stopGuide, stopConfirm],
       on: { RESUME: 'live.talk.resuming' },
     },
     over: {
-      entry: [sendStop, noteOver, stopGuide],
+      entry: [sendStop, noteOver, stopGuide, endConfirm],
       on: { RESUME: { target: 'live.talk.resuming', actions: [chimeWake] } },
     },
   },

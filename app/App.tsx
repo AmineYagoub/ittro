@@ -2,7 +2,7 @@
 // owns listening, understanding, pausing and the silence timers;
 // this screen only shows what it says.
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Text, View } from 'react-native';
 import type { LayoutChangeEvent } from 'react-native';
 import { useCameraPermissions } from 'expo-camera';
 import { IttroCameraView, takeCameraShot } from 'ittro-sensors';
@@ -25,8 +25,12 @@ import { boxOverlap } from './src/shelf/outlines';
 import type { ShelfOutline } from './src/relay';
 import type { GuideHand } from './src/conversation/types';
 import { lowBattery, micLine, phoneHot as phoneHotLine, refusedCamera, refusedMic } from './src/lines';
-import { color, font, size } from './src/theme';
 import type { Language } from './src/theme';
+import { styles } from './src/appStyles';
+import { useConfirm } from './src/confirm/useConfirm';
+import { DetailCrop, VerdictScreen } from './src/confirm/VerdictView';
+import { verdictWord } from './src/confirm/lines';
+import type { DetailKind } from './src/relay';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -47,6 +51,11 @@ export default function App(): React.JSX.Element {
   const [guideProximity, setGuideProximity] = useState(0);
   const [guideCue, setGuideCue] = useState<string | null>(null);
   const [guideLabel, setGuideLabel] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [verdict, setVerdict] = useState<'yes' | 'no' | 'unsure' | 'picture' | null>(null);
+  const [confirmLabel, setConfirmLabel] = useState('');
+  const [confirmCrop, setConfirmCrop] = useState<string | null>(null);
+  const [detailKind, setDetailKind] = useState<DetailKind | null>(null);
   const [viewSize, setViewSize] = useState({ width: 0, height: 0 });
   const [, requestCamera, getCameraPermission] = useCameraPermissions();
   const actorRef = useRef<ConversationActor | null>(null);
@@ -56,6 +65,7 @@ export default function App(): React.JSX.Element {
 
   const guide = useGuide(actorRef, cameraOn);
   useShelfSearch(cameraRef, actorRef, searching, searchRequest, cameraReady, guide);
+  useConfirm(cameraRef, actorRef, confirming, searchRequest, cameraReady);
 
   useEffect(() => {
     cameraReady.current = false;
@@ -162,6 +172,11 @@ export default function App(): React.JSX.Element {
           setGuideProximity(state.context.guideProximity);
           setGuideCue(state.context.guideCue);
           setGuideLabel(state.context.guideLabel);
+          setConfirming(live && state.context.confirming);
+          setVerdict(live ? state.context.confirmVerdict : null);
+          setConfirmLabel(state.context.confirmLabel);
+          setConfirmCrop(live ? state.context.confirmCrop : null);
+          setDetailKind(live ? state.context.confirmDetailKind : null);
           if (live && !inLive.current) {
             inLive.current = true;
             void preparePhone();
@@ -179,6 +194,8 @@ export default function App(): React.JSX.Element {
   }, []);
 
   const rtl = lang === 'ar';
+  const shown = verdict === 'yes' || verdict === 'no' || verdict === 'unsure' ? verdict : null;
+  const detailShown = !shown && detailKind !== null && confirmCrop !== null;
 
   function measured(event: LayoutChangeEvent): void {
     const { width, height } = event.nativeEvent.layout;
@@ -221,80 +238,36 @@ export default function App(): React.JSX.Element {
           height={viewSize.height}
         />
       ) : null}
-      <View style={cameraOn ? styles.overlay : styles.plain}>
-        <Text
-          style={[styles.line, rtl && styles.lineRtl]}
-          accessible
-          accessibilityRole="text"
-          accessibilityLiveRegion={talkBack ? 'none' : 'polite'}
-        >
-          {line}
-        </Text>
-        <View style={styles.chips}>
-          {chips.map((chip) => (
-            <Text key={chip} style={styles.chip}>{chip}</Text>
-          ))}
+      {shown ? (
+        <VerdictScreen
+          verdict={shown}
+          word={verdictWord(shown, lang)}
+          label={confirmLabel}
+          crop={confirmCrop}
+          line={line}
+          chips={chips}
+          rtl={rtl}
+          talkBack={talkBack}
+        />
+      ) : (
+        <View style={cameraOn ? styles.overlay : styles.plain}>
+          {detailShown && confirmCrop ? <DetailCrop crop={confirmCrop} /> : null}
+          <Text
+            style={[styles.line, rtl && styles.lineRtl]}
+            accessible
+            accessibilityRole="text"
+            accessibilityLiveRegion={talkBack ? 'none' : 'polite'}
+          >
+            {line}
+          </Text>
+          <View style={styles.chips}>
+            {chips.map((chip) => (
+              <Text key={chip} style={styles.chip}>{chip}</Text>
+            ))}
+          </View>
         </View>
-      </View>
+      )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: color.ink,
-  },
-  camera: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  plain: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: size.screenPadding,
-  },
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingBottom: 48,
-    paddingHorizontal: size.screenPadding,
-  },
-  line: {
-    color: color.paper,
-    fontSize: font.spokenLine.size,
-    fontFamily: 'ReadexPro_600SemiBold',
-    lineHeight: font.spokenLine.size * font.spokenLine.lineHeight,
-    textAlign: 'left',
-  },
-  lineRtl: {
-    textAlign: 'right',
-    lineHeight: font.spokenLineArabic.size * font.spokenLineArabic.lineHeight,
-    fontSize: font.spokenLineArabic.size,
-  },
-  chips: {
-    flexDirection: 'row',
-    marginTop: 16,
-  },
-  chip: {
-    color: color.paper,
-    fontSize: font.chip.size,
-    fontFamily: 'ReadexPro_500Medium',
-    borderColor: color.line,
-    borderWidth: 1,
-    borderRadius: size.panelRadius,
-    paddingHorizontal: 16,
-    height: font.chip.chipHeight,
-    textAlignVertical: 'center',
-    marginHorizontal: 6,
-  },
-});

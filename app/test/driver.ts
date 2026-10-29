@@ -52,6 +52,7 @@ export interface Driver {
   talk: () => string;
   search: () => string;
   guide: () => string;
+  confirm: () => string;
   context: () => ConversationContext;
   stop: () => void;
 }
@@ -70,7 +71,9 @@ export function startConversation(options?: StartOptions): Driver {
         }
       }),
       speakParts: fromPromise<void, SpeakPartsInput>(async ({ input }) => {
-        parts.push(input.parts);
+        if (input.parts.length > 0) {
+          parts.push(input.parts);
+        }
       }),
       understandAnswer:
         options?.understandLogic ??
@@ -148,6 +151,13 @@ export function startConversation(options?: StartOptions): Driver {
         return value;
       }
       return (value as { live: { guide: string } }).live.guide;
+    },
+    confirm(): string {
+      const value = actor.getSnapshot().value;
+      if (typeof value === 'string') {
+        return value;
+      }
+      return (value as { live: { confirm: string } }).live.confirm;
     },
     context(): ConversationContext {
       return actor.getSnapshot().context;
