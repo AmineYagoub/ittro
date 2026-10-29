@@ -34,6 +34,7 @@ const config: ExpoConfig = {
       },
     ],
     'expo-localization',
+    './plugins/ittro-buttons.js',
   ],
   extra: {
     relayUrl: process.env['ITTRO_RELAY_URL'] ?? 'https://ittro.djazair.dev',
