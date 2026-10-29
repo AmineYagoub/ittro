@@ -25,6 +25,10 @@ export function thermalStatus() {
   return null;
 }
 
+export function memoryStatus() {
+  return null;
+}
+
 export function startAudioStream() {
   return true;
 }

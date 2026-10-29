@@ -124,7 +124,10 @@ test('the first shot goes at once and a yes lands with its crop', async () => {
   assert.equal(script.shots, 1);
   script.answer(YES);
   await flush();
-  assert.deepEqual(script.sent, [{ type: 'CONFIRM_YES', epoch: 1, label: 'Masaad water', crop: PHOTO.crop }]);
+  assert.deepEqual(script.sent, [
+    { type: 'CONFIRM_YES', epoch: 1, label: 'Masaad water', crop: PHOTO.crop },
+    { type: 'LINK_OK' },
+  ]);
   loop.stop();
 });
 
@@ -172,8 +175,9 @@ test('an answer about a moved hand is dropped and reread', async () => {
   assert.equal(script.shots, 2);
   script.answer(YES);
   await flush();
-  assert.equal(script.sent.at(-1)?.type, 'CONFIRM_YES');
-  assert.equal((script.sent.at(-1) as { epoch: number }).epoch, 2);
+  assert.equal(script.sent.at(-2)?.type, 'CONFIRM_YES');
+  assert.equal((script.sent.at(-2) as { epoch: number }).epoch, 2);
+  assert.equal(script.sent.at(-1)?.type, 'LINK_OK');
   loop.stop();
 });
 
@@ -183,7 +187,8 @@ test('without hand data the answer still lands', async () => {
   await flush();
   script.answer(YES);
   await flush();
-  assert.equal(script.sent.at(-1)?.type, 'CONFIRM_YES');
+  assert.equal(script.sent.at(-2)?.type, 'CONFIRM_YES');
+  assert.equal(script.sent.at(-1)?.type, 'LINK_OK');
   loop.stop();
 });
 
@@ -219,7 +224,8 @@ test('a picture verdict without a problem is never a doubt', async () => {
   await flush();
   script.answer(read({ verdict: 'picture', picture_problem: null, label_name: 'Masaad', unreadable: ['size'] }));
   await flush();
-  assert.equal(script.sent.at(-1)?.type, 'CONFIRM_UNSURE');
+  assert.equal(script.sent.at(-2)?.type, 'CONFIRM_UNSURE');
+  assert.equal(script.sent.at(-1)?.type, 'LINK_OK');
   loop.stop();
 });
 
@@ -258,7 +264,8 @@ test('a failed shot retries without spending a try', async () => {
   loop.tick();
   await flush();
   assert.equal(shots, 3);
-  assert.equal(sent.at(-1)?.type, 'CONFIRM_YES');
+  assert.equal(sent.at(-2)?.type, 'CONFIRM_YES');
+  assert.equal(sent.at(-1)?.type, 'LINK_OK');
   loop.stop();
 });
 
@@ -270,6 +277,7 @@ test('a detail reads once from one photo', async () => {
   assert.equal(script.shots, 1);
   assert.deepEqual(script.sent, [
     { type: 'CONFIRM_DETAIL', epoch: 1, text: 'best before 12 March 2027', reason: null, crop: PHOTO.crop },
+    { type: 'LINK_OK' },
   ]);
   script.ctx.final = true;
   await advance(5000);
