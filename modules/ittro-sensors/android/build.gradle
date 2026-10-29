@@ -10,5 +10,11 @@ android {
   }
 }
 
+dependencies {
+  // MediaPipe Tasks vision for hand tracking (Apache 2.0, Google Maven).
+  // Pinned to the 0.10 line the test project measured on this phone.
+  implementation 'com.google.mediapipe:tasks-vision:0.10.14'
+}
+
 // Required by expo-autolinking; keep in sync with package.json.
 version = '0.1.0'

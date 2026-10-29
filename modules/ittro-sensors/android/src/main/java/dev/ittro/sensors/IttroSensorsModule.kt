@@ -21,6 +21,7 @@ class IttroSensorsModule : Module() {
   private var chunkSequence = 0
   private val streaming = AtomicBoolean(false)
   private val mainHandler = Handler(Looper.getMainLooper())
+  private val hands = HandTracker()
 
   private fun audioManager(): AudioManager? {
     val context = appContext.reactContext ?: return null
@@ -162,6 +163,15 @@ class IttroSensorsModule : Module() {
     AsyncFunction("prepareTrackGrey") { uri: String ->
       val context = appContext.reactContext ?: return@AsyncFunction null
       shotTrack(context, uri)
+    }
+
+    Function("setHandDelegate") { delegate: String ->
+      hands.setDelegate(delegate)
+    }
+
+    AsyncFunction("findHand") { uri: String ->
+      val context = appContext.reactContext ?: return@AsyncFunction null
+      hands.findIn(context, uri)
     }
   }
 }

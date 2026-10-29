@@ -23,6 +23,18 @@ interface SensorsNative {
   prepareShelfPhoto: (uri: string) => Promise<ShelfPhoto | null>;
   cropShelfPhoto: (photo: string, x1: number, y1: number, x2: number, y2: number) => Promise<ShelfCrop | null>;
   prepareTrackGrey: (uri: string) => Promise<TrackGrey | null>;
+  setHandDelegate: (delegate: string) => boolean;
+  findHand: (uri: string) => Promise<HandFix | null>;
+}
+
+export type HandDelegate = 'cpu' | 'gpu';
+
+export interface HandFix {
+  x: number;
+  y: number;
+  confidence: number;
+  handWidth: number;
+  detectMs: number;
 }
 
 export interface ShelfPhoto {
@@ -154,6 +166,32 @@ export async function prepareTrackGrey(uri: string): Promise<TrackGrey | null> {
   }
   try {
     return await native.prepareTrackGrey(uri);
+  } catch {
+    return null;
+  }
+}
+
+export function setHandDelegate(delegate: HandDelegate): boolean {
+  if (!native) {
+    return false;
+  }
+  try {
+    return native.setHandDelegate(delegate);
+  } catch {
+    return false;
+  }
+}
+
+export async function findHand(uri: string): Promise<HandFix | null> {
+  if (!native) {
+    return null;
+  }
+  try {
+    const fix = await native.findHand(uri);
+    if (!fix || !(fix.x >= 0) || !(fix.y >= 0) || !(fix.confidence >= 0)) {
+      return null;
+    }
+    return fix;
   } catch {
     return null;
   }
