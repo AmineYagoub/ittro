@@ -98,6 +98,7 @@ export function startConversation(options?: StartOptions): Driver {
         firstLaunchDone: options?.firstLaunchDone ?? true,
         brief: false,
         rate: 1,
+        helpers: [],
       },
       snapshot: { request: options?.request ?? null },
       relayUrl: 'http://localhost:8787',

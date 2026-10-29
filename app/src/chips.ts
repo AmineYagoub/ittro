@@ -26,3 +26,5 @@ export const READ_AGAIN_CHIP: Record<Language, string> = { en: 'read again', ar:
 export const FIND_ANOTHER_CHIP: Record<Language, string> = { en: 'find another', ar: 'ابحث عن غيره', fr: 'cherchez un autre' };
 
 export const DONE_CHIP: Record<Language, string> = { en: 'done', ar: 'انتهيت', fr: 'c’est fini' };
+
+export const CANCEL_CHIP: Record<Language, string> = { en: 'cancel', ar: 'إلغاء', fr: 'annulez' };

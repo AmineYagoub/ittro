@@ -190,4 +190,73 @@ export async function readLabelDetail(
   return postShelf('/read-detail', { detail, image, mime });
 }
 
+export interface HelperPairing {
+  code: string;
+  expiresAt: number;
+}
+
+export interface HelperPairStatus {
+  state: 'unknown' | 'waiting' | 'joined';
+  helper?: string;
+  token?: string;
+}
+
+export interface HelperAsked {
+  id: string;
+  helpers: string[];
+}
+
+export interface HelperAnswer {
+  verdict: 'yes' | 'no' | 'cant_tell';
+  note: string | null;
+  helper: string;
+}
+
+export interface HelperStatus {
+  status: 'waiting' | 'answered' | 'cancelled';
+  helpers: string[];
+  answer: HelperAnswer | null;
+}
+
+async function getShelf<T>(path: string): Promise<T> {
+  const { url, accessCode } = relayConfig();
+  const res = await fetch(`${url}${path}`, {
+    headers: { authorization: `Bearer ${accessCode}` },
+  });
+  const body = (await res.json()) as { ok: boolean; error?: string } & Partial<T>;
+  if (!res.ok || !body.ok) {
+    throw new Error(body.error ?? `helper http ${res.status}`);
+  }
+  return body as T;
+}
+
+export async function pairHelper(name: string): Promise<HelperPairing> {
+  return postShelf('/helper-pair', { name });
+}
+
+export async function pairStatus(code: string): Promise<HelperPairStatus> {
+  return getShelf(`/helper-pair?code=${encodeURIComponent(code)}`);
+}
+
+export interface HelperAsk {
+  tokens: string[];
+  question: string;
+  request: string;
+  read: string;
+  image: string;
+  mime: string;
+}
+
+export async function askHelper(args: HelperAsk): Promise<HelperAsked> {
+  return postShelf('/helper-ask', args);
+}
+
+export async function helperStatus(id: string): Promise<HelperStatus> {
+  return getShelf(`/helper-status?id=${encodeURIComponent(id)}`);
+}
+
+export async function cancelHelper(id: string): Promise<void> {
+  await postShelf('/helper-cancel', { id });
+}
+
 

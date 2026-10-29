@@ -205,6 +205,30 @@ export function offerLanguage(target: Language): string {
   return 'Do you want me to speak English? Say yes or no.';
 }
 
+export const earbudLine: Trilingual = {
+  en: 'With your earbuds: press once for yes, twice for no, hold to stop.',
+  ar: 'مع سماعات الأذن: اضغط مرة لنعم، ومرتين للا، واستمر بالضغط للإيقاف.',
+  fr: 'Avec vos écouteurs : appuyez une fois pour oui, deux fois pour non, maintenez pour arrêter.',
+};
+
+export const volumeLine: Trilingual = {
+  en: 'You can also hold the volume-down key to stop me.',
+  ar: 'يمكنك أيضًا الضغط مطولًا على زر خفض الصوت لإيقافي.',
+  fr: 'Vous pouvez aussi maintenir la touche volume bas pour m’arrêter.',
+};
+
+export const noHoldLine: Trilingual = {
+  en: "Your earbuds don't send a long press. Hold the volume-down key to stop me.",
+  ar: 'سماعاتك لا ترسل ضغطة مطولة. اضغط مطولًا على زر خفض الصوت لإيقافي.',
+  fr: 'Vos écouteurs n’envoient pas d’appui long. Maintenez la touche volume bas pour m’arrêter.',
+};
+
+export const helpEarbuds: Trilingual = {
+  en: 'Or press once for yes, twice for no, hold to stop.',
+  ar: 'أو اضغط مرة لنعم، ومرتين للا، واستمر للإيقاف.',
+  fr: 'Ou appuyez une fois pour oui, deux fois pour non, maintenez pour arrêter.',
+};
+
 export const tourMeaning: Trilingual[] = [
   {
     en: 'This short note means I heard you.',

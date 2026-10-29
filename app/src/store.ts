@@ -7,11 +7,17 @@ import { speech } from './theme';
 
 const KEY = 'ittro.prefs.v1';
 
+export interface HelperPref {
+  name: string;
+  token: string;
+}
+
 export interface Prefs {
   language: Language;
   firstLaunchDone: boolean;
   brief: boolean;
   rate: number;
+  helpers: HelperPref[];
 }
 
 const DEFAULTS: Prefs = {
@@ -19,6 +25,7 @@ const DEFAULTS: Prefs = {
   firstLaunchDone: false,
   brief: false,
   rate: 1,
+  helpers: [],
 };
 
 export async function loadPrefs(): Promise<Prefs> {
@@ -31,7 +38,10 @@ export async function loadPrefs(): Promise<Prefs> {
     const language: Language =
       parsed.language === 'ar' || parsed.language === 'fr' ? parsed.language : 'en';
     const rate = typeof parsed.rate === 'number' ? Math.min(2, Math.max(0.5, parsed.rate)) : 1;
-    return { language, firstLaunchDone: parsed.firstLaunchDone === true, brief: parsed.brief === true, rate };
+    const helpers = Array.isArray(parsed.helpers)
+      ? parsed.helpers.filter((helper) => typeof helper?.name === 'string' && typeof helper?.token === 'string')
+      : [];
+    return { language, firstLaunchDone: parsed.firstLaunchDone === true, brief: parsed.brief === true, rate, helpers };
   } catch {
     return { ...DEFAULTS };
   }
