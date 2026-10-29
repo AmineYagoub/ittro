@@ -116,6 +116,26 @@ test('product names keep one script and translate on request', async () => {
   assert.match(input, /In step translate, restate/);
 });
 
+test('accepts the ignore intent for background talk', async () => {
+  const parsed = await understandUtterance(
+    okFetch(completed({ ...answer, intent: 'ignore' })) as unknown as typeof fetch,
+    'https://example.invalid',
+    'key',
+    context,
+  );
+  assert.equal(parsed.intent, 'ignore');
+});
+
+test('background talk that is not addressed to Ittro is ignore', async () => {
+  let sent: Record<string, unknown> = {};
+  const capture = (async (_url: string, init: { body: string }) => {
+    sent = JSON.parse(init.body) as Record<string, unknown>;
+    return { ok: true, json: async () => completed(answer) };
+  }) as unknown as typeof fetch;
+  await understandUtterance(capture, 'https://example.invalid', 'key', context);
+  assert.match(JSON.stringify(sent['input']), /not addressed to Ittro is ignore/);
+});
+
 test('correction rule pins confirm_no with the combined text', async () => {
   let sent: Record<string, unknown> = {};
   const capture = (async (_url: string, init: { body: string }) => {

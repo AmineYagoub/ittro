@@ -40,6 +40,7 @@ export const INTENTS = [
   'stop',
   'wake',
   'not_understood',
+  'ignore',
 ] as const;
 
 export type Intent = (typeof INTENTS)[number];
