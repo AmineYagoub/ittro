@@ -8,15 +8,13 @@ import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker
 import kotlin.math.hypot
 
-// One hand per still through MediaPipe's hand landmarker. The choice
-// of processor is one setting (CPU until the benchmark says
-// otherwise); the model asset ships with this module. Confidence
-// thresholds sit at 0.3, so bottles covering the hand don't lose it.
-// The still is never deleted here: the caller deletes it after its
-// own decode, so every picture still outlives nothing.
+// One hand per live frame through MediaPipe's hand landmarker in
+// video mode, so the tracker follows the hand instead of finding it
+// from scratch on every frame. The choice of processor is one
+// setting (CPU until the benchmark says otherwise); the model asset
+// ships with this module. Confidence thresholds sit at 0.3, so
+// bottles covering the hand don't lose it.
 private const val MODEL_ASSET = "hand_landmarker.task"
-
-private const val HAND_LONG_SIDE = 480
 
 private const val CONFIDENCE = 0.3f
 
@@ -54,7 +52,7 @@ class HandTracker {
         HandLandmarker.HandLandmarkerOptions
           .builder()
           .setBaseOptions(base)
-          .setRunningMode(RunningMode.IMAGE)
+          .setRunningMode(RunningMode.VIDEO)
           .setNumHands(1)
           .setMinHandDetectionConfidence(CONFIDENCE)
           .setMinHandPresenceConfidence(CONFIDENCE)
@@ -68,24 +66,18 @@ class HandTracker {
     }
   }
 
-  fun findIn(context: Context, uri: String): Map<String, Any>? {
-    val decoded = decodeSampled(context, uri, HAND_LONG_SIDE) ?: return null
-    val bitmap = upright(context, decoded, uri)
-    val tracker = ensure(context.applicationContext)
-    if (tracker == null) {
-      bitmap.recycle()
-      return null
-    }
+  fun detectIn(context: Context, bitmap: android.graphics.Bitmap, timestampMs: Long): Map<String, Any>? {
+    val tracker = ensure(context.applicationContext) ?: return null
     val started = android.os.SystemClock.uptimeMillis()
     val image = BitmapImageBuilder(bitmap).build()
     val result =
       try {
-        tracker.detect(image)
+        synchronized(lock) {
+          tracker.detectForVideo(image, timestampMs)
+        }
       } catch (e: Exception) {
-        bitmap.recycle()
         return null
       }
-    bitmap.recycle()
     val landmarks = result.landmarks().firstOrNull() ?: return null
     if (landmarks.size <= PINKY_MCP) {
       return null
