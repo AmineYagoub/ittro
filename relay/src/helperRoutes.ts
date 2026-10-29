@@ -13,6 +13,7 @@ import {
   cancelQuestion,
   cleanName,
   cleanText,
+  helperKv,
   issuePair,
   joinPair,
   listHelpers,
@@ -41,6 +42,7 @@ async function browserAllowed(request: Request, env: Env): Promise<Response | nu
 
 export async function helperRoutes(request: Request, env: Env): Promise<Response | null> {
   const url = new URL(request.url);
+  const kv = helperKv(env);
   if (request.method === 'GET' && url.pathname === '/help') {
     return new Response(HELP_PAGE, { headers: { 'content-type': 'text/html; charset=utf-8' } });
   }
@@ -60,21 +62,21 @@ export async function helperRoutes(request: Request, env: Env): Promise<Response
     if (!name) {
       return Response.json({ ok: false, error: 'missing helper name' }, { status: 400 });
     }
-    return Response.json({ ok: true, ...issuePair(name) });
+    return Response.json({ ok: true, ...(await issuePair(kv, name)) });
   }
   if (request.method === 'GET' && url.pathname === '/helper-pair') {
     const blocked = await gate(request, env, 0);
     if (blocked) {
       return blocked;
     }
-    return Response.json({ ok: true, ...pairState(url.searchParams.get('code') ?? '') });
+    return Response.json({ ok: true, ...(await pairState(kv, url.searchParams.get('code') ?? '')) });
   }
   if (request.method === 'GET' && url.pathname === '/helpers') {
     const blocked = await gate(request, env, 0);
     if (blocked) {
       return blocked;
     }
-    return Response.json({ ok: true, helpers: listHelpers() });
+    return Response.json({ ok: true, helpers: await listHelpers(kv) });
   }
   if (request.method === 'POST' && url.pathname === '/helper-join') {
     const limited = await browserAllowed(request, env);
@@ -86,7 +88,7 @@ export async function helperRoutes(request: Request, env: Env): Promise<Response
     if (pushSubscriptionInvalid(body)) {
       return Response.json({ ok: false, error: 'bad push subscription' }, { status: 400 });
     }
-    const joined = code.length === 6 ? joinPair(code, readPushSubscription(body)) : null;
+    const joined = code.length === 6 ? await joinPair(kv, code, readPushSubscription(body)) : null;
     if (!joined) {
       return Response.json({ ok: false, error: 'unknown or expired code' }, { status: 404 });
     }
@@ -103,7 +105,7 @@ export async function helperRoutes(request: Request, env: Env): Promise<Response
     if (!token || !push) {
       return Response.json({ ok: false, error: 'missing token or push subscription' }, { status: 400 });
     }
-    if (!storePush(token, push)) {
+    if (!(await storePush(kv, token, push))) {
       return Response.json({ ok: false, error: 'unknown helper' }, { status: 404 });
     }
     return Response.json({ ok: true });
@@ -113,7 +115,7 @@ export async function helperRoutes(request: Request, env: Env): Promise<Response
     if (limited) {
       return limited;
     }
-    const question = nextQuestion(url.searchParams.get('token') ?? '');
+    const question = await nextQuestion(kv, url.searchParams.get('token') ?? '');
     if (!question) {
       return Response.json({ ok: true, question: null });
     }
@@ -141,7 +143,7 @@ export async function helperRoutes(request: Request, env: Env): Promise<Response
     if (!token || !id || !validVerdict(body['verdict']) || (body['note'] !== null && body['note'] !== undefined && note === null)) {
       return Response.json({ ok: false, error: 'missing token, id, verdict or note too long' }, { status: 400 });
     }
-    if (!answerQuestion(token, id, body['verdict'], note)) {
+    if (!(await answerQuestion(kv, token, id, body['verdict'], note))) {
       return Response.json({ ok: false, error: 'unknown question' }, { status: 404 });
     }
     return Response.json({ ok: true });
@@ -161,12 +163,13 @@ export async function helperRoutes(request: Request, env: Env): Promise<Response
     if (tokens.length === 0 || !question || !wanted || read === null || !mime || !image || image.length > MAX_IMAGE_CHARS) {
       return Response.json({ ok: false, error: 'missing helpers, question, request, read or photo' }, { status: 400 });
     }
-    const asked = askQuestion({ tokens, question, request: wanted, read, image, mime });
+    const asked = await askQuestion(kv, { tokens, question, request: wanted, read, image, mime });
     if (!asked) {
       return Response.json({ ok: false, error: 'unknown helpers' }, { status: 404 });
     }
     const id = asked.id;
-    await Promise.allSettled(pushTargets(id).map((push) => sendTickle(fetch, env, push)));
+    const targets = await pushTargets(kv, id);
+    await Promise.allSettled(targets.map((push) => sendTickle(fetch, env, push)));
     return Response.json({ ok: true, ...asked });
   }
   if (request.method === 'GET' && url.pathname === '/helper-status') {
@@ -174,7 +177,7 @@ export async function helperRoutes(request: Request, env: Env): Promise<Response
     if (blocked) {
       return blocked;
     }
-    const question = questionStatus(url.searchParams.get('id') ?? '');
+    const question = await questionStatus(kv, url.searchParams.get('id') ?? '');
     if (!question) {
       return Response.json({ ok: false, error: 'unknown question' }, { status: 404 });
     }
@@ -191,7 +194,7 @@ export async function helperRoutes(request: Request, env: Env): Promise<Response
       return blocked;
     }
     const body = (await request.json()) as Record<string, unknown>;
-    if (typeof body['id'] !== 'string' || !cancelQuestion(body['id'])) {
+    if (typeof body['id'] !== 'string' || !(await cancelQuestion(kv, body['id']))) {
       return Response.json({ ok: false, error: 'unknown question' }, { status: 404 });
     }
     return Response.json({ ok: true });
