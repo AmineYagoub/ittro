@@ -99,6 +99,37 @@ export interface SceneView {
   aisle_hint: string | null;
 }
 
+export type ConfirmVerdict = 'yes' | 'no' | 'unsure' | 'picture';
+
+export type PictureProblem = 'blurry' | 'dark' | 'glare' | 'far' | 'turned';
+
+export type ConfirmAttr = 'brand' | 'product' | 'variant' | 'size';
+
+export type DetailKind = 'date' | 'size' | 'price' | 'ingredients';
+
+export type DetailReason = 'too_small' | 'blurry' | 'dark' | 'glare' | 'turned' | 'not_visible';
+
+export interface ConfirmAttrs {
+  brand: string | null;
+  product: string | null;
+  variant: string | null;
+  size: string | null;
+}
+
+export interface ConfirmRead {
+  verdict: ConfirmVerdict;
+  picture_problem: PictureProblem | null;
+  asked: ConfirmAttrs;
+  read: ConfirmAttrs;
+  label_name: string;
+  unreadable: ConfirmAttr[];
+}
+
+export interface DetailRead {
+  text: string | null;
+  reason: DetailReason | null;
+}
+
 async function postShelf<T>(path: string, payload: unknown): Promise<T> {
   const { url, accessCode } = relayConfig();
   const res = await fetch(`${url}${path}`, {
@@ -141,6 +172,22 @@ export async function readShelfCrops(
 export async function classifySceneView(request: string, image: string, mime: string): Promise<SceneView> {
   const body = await postShelf<{ scene: SceneView }>('/classify-scene', { request, image, mime });
   return body.scene;
+}
+
+export async function confirmInHand(
+  request: string,
+  image: string,
+  mime: string,
+): Promise<{ read: ConfirmRead; readMs: number }> {
+  return postShelf('/confirm-hand', { request, image, mime });
+}
+
+export async function readLabelDetail(
+  detail: DetailKind,
+  image: string,
+  mime: string,
+): Promise<{ read: DetailRead; readMs: number }> {
+  return postShelf('/read-detail', { detail, image, mime });
 }
 
 
