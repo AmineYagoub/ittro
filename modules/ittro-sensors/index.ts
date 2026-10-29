@@ -24,17 +24,35 @@ interface SensorsNative {
   cropShelfPhoto: (photo: string, x1: number, y1: number, x2: number, y2: number) => Promise<ShelfCrop | null>;
   prepareTrackGrey: (uri: string) => Promise<TrackGrey | null>;
   setHandDelegate: (delegate: string) => boolean;
-  findHand: (uri: string) => Promise<HandFix | null>;
+  takeCameraShot: () => Promise<string | null>;
 }
 
 export type HandDelegate = 'cpu' | 'gpu';
 
-export interface HandFix {
+export interface HandFrame {
+  present: boolean;
   x: number;
   y: number;
   confidence: number;
   handWidth: number;
   detectMs: number;
+  frameMs: number;
+  frame: number;
+  dropped: number;
+}
+
+export interface CameraViewProps {
+  active: boolean;
+  style?: unknown;
+  accessible?: boolean;
+  importantForAccessibility?: 'auto' | 'yes' | 'no' | 'no-hide-descendants';
+  onCameraReady?: () => void;
+  onHandFrame?: (event: { nativeEvent: HandFrame }) => void;
+  onCameraError?: (event: { nativeEvent: { message: string } }) => void;
+}
+
+export interface CameraViewComponent {
+  (props: CameraViewProps): null;
 }
 
 export interface ShelfPhoto {
@@ -182,19 +200,41 @@ export function setHandDelegate(delegate: HandDelegate): boolean {
   }
 }
 
-export async function findHand(uri: string): Promise<HandFix | null> {
+export async function takeCameraShot(): Promise<string | null> {
   if (!native) {
     return null;
   }
   try {
-    const fix = await native.findHand(uri);
-    if (!fix || !(fix.x >= 0) || !(fix.y >= 0) || !(fix.confidence >= 0)) {
-      return null;
-    }
-    return fix;
+    const uri = await native.takeCameraShot();
+    return typeof uri === 'string' && uri.length > 0 ? uri : null;
   } catch {
     return null;
   }
+}
+
+function loadCameraView(): CameraViewComponent | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- optional native view, absent until prebuild links it
+    const core = require('expo-modules-core') as {
+      requireNativeViewManager: (module: string) => unknown;
+    };
+    return core.requireNativeViewManager('IttroSensors') as CameraViewComponent;
+  } catch {
+    return null;
+  }
+}
+
+export const IttroCameraView = loadCameraView();
+
+export function validHandFrame(frame: HandFrame): boolean {
+  return (
+    typeof frame.present === 'boolean' &&
+    (!frame.present || (frame.x >= 0 && frame.y >= 0 && frame.confidence >= 0)) &&
+    frame.detectMs >= 0 &&
+    frame.frameMs >= 0 &&
+    frame.frame > 0 &&
+    frame.dropped >= 0
+  );
 }
 
 export function addAudioChunkListener(listener: (chunk: AudioChunk) => void): { remove: () => void } | null {

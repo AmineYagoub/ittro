@@ -7,9 +7,10 @@
 // picture; a failed capture retries silently while only a failed
 // cloud pass tells the shopper. Every fortieth track tick logs its
 // rate and cost, so the phone check reads frames per second, skipped
-// ticks and heat straight from the log. Optional shot listeners hear
-// each still: the hand tracker runs on the track still before it is
-// deleted, and the guide loop caches the cloud photo for its crops.
+// ticks and heat straight from the log. An optional shot listener
+// hears each cloud photo, which the guide loop caches for its crops.
+// Hands no longer come from the stills: live frames arrive as camera
+// view events straight into the guide loop.
 import { useEffect, useRef } from 'react';
 import { cropShelfPhoto, prepareShelfPhoto, prepareTrackGrey, thermalStatus } from 'ittro-sensors';
 import { classifySceneView, outlineShelf, fetchPackagePhrase, readShelfCrops } from '../relay';
@@ -23,7 +24,7 @@ import type { ConversationContext, ConversationEvent } from '../conversation/typ
 import { stamp } from '../stamp';
 
 export interface SearchCamera {
-  takePictureAsync: (options: Record<string, unknown>) => Promise<{ uri: string }>;
+  takeShot: () => Promise<string | null>;
 }
 
 export interface SearchActor {
@@ -32,7 +33,6 @@ export interface SearchActor {
 }
 
 export interface ShotListeners {
-  trackShot?: (uri: string) => Promise<void>;
   cloudShot?: (photo: { image: string; mime: string; w: number; h: number }) => void;
 }
 
@@ -40,8 +40,6 @@ const TRACK_EVERY_MS = 250;
 const CLOUD_EVERY_MS = 500;
 
 const TRACK_SUMMARY_EVERY = 40;
-
-const SILENT_SHOT = { shutterSound: false, skipProcessing: true, exif: false };
 
 function percentile(sorted: number[], rank: number): number {
   if (sorted.length === 0) {
@@ -160,9 +158,11 @@ export function useShelfSearch(
       try {
         syncTarget();
         const shotStart = Date.now();
-        const picture = await eye.takePictureAsync({ ...SILENT_SHOT });
-        await shotsRef.current?.trackShot?.(picture.uri).catch(() => undefined);
-        const track = await prepareTrackGrey(picture.uri);
+        const uri = await eye.takeShot();
+        if (!uri) {
+          return;
+        }
+        const track = await prepareTrackGrey(uri);
         const shotMs = Date.now() - shotStart;
         if (stopped || !track) {
           return;
@@ -192,9 +192,12 @@ export function useShelfSearch(
         const shotStart = Date.now();
         let uri: string | null = null;
         try {
-          uri = (await eye.takePictureAsync({ ...SILENT_SHOT })).uri;
+          uri = await eye.takeShot();
         } catch (error) {
           note(`shelf capture failed: ${String((error as Error)?.message ?? error).slice(0, 80)}`);
+          return;
+        }
+        if (!uri) {
           return;
         }
         const prepared = await prepareShelfPhoto(uri);

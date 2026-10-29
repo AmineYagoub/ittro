@@ -1,17 +1,20 @@
-// The guide loop on the phone: each track still becomes one hand
-// frame for the guide loop, each cloud photo refreshes its crops,
-// and the proximity ticks run on their own timer between the spoken
-// cues. The delegate is one setting, CPU until the benchmark says
-// otherwise. Every fortieth hand tick logs its rate and cost, so the
-// phone check reads hands per second straight from the log.
+// The guide loop on the phone: live hand frames arrive as view
+// events from the one camera, each cloud photo refreshes the loop's
+// crops, and the proximity ticks run on their own timer between the
+// spoken cues. The delegate is one setting, CPU until the benchmark
+// says otherwise. Every fortieth hand frame logs its rate and cost,
+// and one line carries the heat after five minutes of guiding.
 import { useEffect, useMemo, useRef } from 'react';
 import { Vibration } from 'react-native';
-import { cropShelfPhoto, findHand, setHandDelegate } from 'ittro-sensors';
+import { cropShelfPhoto, setHandDelegate, thermalStatus, validHandFrame } from 'ittro-sensors';
+import type { HandFrame } from 'ittro-sensors';
 import { readShelfCrops } from '../relay';
 import { playSound } from '../speech';
 import { stamp } from '../stamp';
 import type { ShotListeners } from '../shelf/useShelfSearch';
 import type { ConversationContext, ConversationEvent } from '../conversation/types';
+import { createFrameStats, handFixFromEvent } from './frames';
+import type { FrameStats } from './frames';
 import { createGuideLoop } from './loop';
 import type { GuideLoop } from './loopTypes';
 import { tickGapMs } from './steer';
@@ -21,38 +24,38 @@ export interface GuideActor {
   getSnapshot: () => { context: ConversationContext; value: unknown };
 }
 
+export interface GuideShots extends ShotListeners {
+  onHandFrame: (frame: HandFrame) => void;
+}
+
 const HAND_SUMMARY_EVERY = 40;
 const STILL_TICK_MS = 2000;
 const IDLE_TICK_MS = 500;
 const TICK_PULSE_MS = 30;
+const HEAT_NOTE_MS = 300000;
 
 const MOTION_STATES = new Set(['directing', 'almost', 'reaching']);
-
-function percentile(sorted: number[], rank: number): number {
-  if (sorted.length === 0) {
-    return 0;
-  }
-  return sorted[Math.min(sorted.length - 1, Math.floor(rank * sorted.length))] as number;
-}
 
 function note(line: string): void {
   if (__DEV__) console.log(`[ittro] ${stamp()} ${line}`);
 }
 
-export function useGuide(actor: { current: GuideActor | null }, active: boolean): ShotListeners {
-  const held = useRef<{ loop: GuideLoop | null; targetKey: string }>({ loop: null, targetKey: '' });
-  const stats = useRef<{ frames: number; ms: number[]; skipped: number; busy: boolean; start: number }>({
-    frames: 0,
-    ms: [],
-    skipped: 0,
-    busy: false,
-    start: Date.now(),
+export function useGuide(actor: { current: GuideActor | null }, active: boolean): GuideShots {
+  const held = useRef<{ loop: GuideLoop | null; stats: FrameStats | null; targetKey: string; heatTimer: ReturnType<typeof setTimeout> | null }>({
+    loop: null,
+    stats: null,
+    targetKey: '',
+    heatTimer: null,
   });
 
   useEffect(() => {
+    const stats = createFrameStats(() => Date.now());
     const loop = createGuideLoop({
       now: () => Date.now(),
       send: (event) => {
+        if (event.type === 'GUIDE_CUE') {
+          stats.noteCue();
+        }
         actor.current?.send(event);
       },
       log: (line) => note(line),
@@ -62,11 +65,16 @@ export function useGuide(actor: { current: GuideActor | null }, active: boolean)
       },
       read: (label, crops) => readShelfCrops(label, crops),
     });
-    held.current = { loop, targetKey: '' };
+    held.current = { loop, stats, targetKey: '', heatTimer: null };
     note(`hand delegate cpu ${setHandDelegate('cpu') ? 'set' : 'missing'}`);
     return () => {
       held.current.loop?.reset();
       held.current.loop = null;
+      held.current.stats = null;
+      if (held.current.heatTimer) {
+        clearTimeout(held.current.heatTimer);
+        held.current.heatTimer = null;
+      }
     };
   }, []);
 
@@ -108,28 +116,49 @@ export function useGuide(actor: { current: GuideActor | null }, active: boolean)
     };
   }, [active]);
 
-  return useMemo<ShotListeners>(() => {
-    function summarize(): void {
-      const current = stats.current;
-      const secs = (Date.now() - current.start) / 1000;
-      const ordered = [...current.ms].sort((a, b) => a - b);
+  return useMemo<GuideShots>(() => {
+    function summarize(stats: FrameStats): void {
+      const summary = stats.snapshot();
+      const heat = thermalStatus();
       note(
-        `hands ${(current.frames / Math.max(1, secs)).toFixed(1)}/s detect p50 ${percentile(ordered, 0.5)}ms p95 ${percentile(ordered, 0.95)}ms skipped ${current.skipped}`,
+        `hands ${summary.handsPerSecond.toFixed(1)}/s detect p50 ${summary.detectP50}ms p95 ${summary.detectP95}ms cue p50 ${summary.cueP50}ms dropped ${summary.dropped} thermal ${heat === null ? 'unknown' : heat}`,
       );
-      current.frames = 0;
-      current.ms = [];
-      current.skipped = 0;
-      current.start = Date.now();
+      stats.reset();
+    }
+
+    function heatWatch(): void {
+      if (held.current.heatTimer) {
+        return;
+      }
+      held.current.heatTimer = setTimeout(() => {
+        held.current.heatTimer = null;
+        const heat = thermalStatus();
+        note(`hands guiding 5min thermal ${heat === null ? 'unknown' : heat}`);
+      }, HEAT_NOTE_MS);
+    }
+
+    function restLoop(): void {
+      if (held.current.targetKey !== '') {
+        held.current.targetKey = '';
+        held.current.loop?.reset();
+      }
+      if (held.current.heatTimer) {
+        clearTimeout(held.current.heatTimer);
+        held.current.heatTimer = null;
+      }
     }
 
     return {
-      trackShot: async (uri: string): Promise<void> => {
+      cloudShot: (photo: { image: string; mime: string }): void => {
+        held.current.loop?.setPhoto(photo);
+      },
+      onHandFrame: (frame: HandFrame): void => {
         const loop = held.current.loop;
+        const stats = held.current.stats;
         const context = actor.current?.getSnapshot().context;
-        if (!loop || !context?.guiding) {
-          if (loop && held.current.targetKey !== '') {
-            held.current.targetKey = '';
-            loop.reset();
+        if (!loop || !stats || !context?.guiding || !validHandFrame(frame)) {
+          if (!context?.guiding) {
+            restLoop();
           }
           return;
         }
@@ -142,32 +171,14 @@ export function useGuide(actor: { current: GuideActor | null }, active: boolean)
           held.current.targetKey = key;
           loop.setTarget(target, context.guideLabel);
         }
-        if (stats.current.busy) {
-          stats.current.skipped += 1;
-          return;
+        heatWatch();
+        stats.noteFrame(frame);
+        const photoW = target.box.w;
+        const photoH = target.box.h;
+        void loop.handFrame(handFixFromEvent(frame, photoW, photoH, Date.now()), context.outlines, photoW, photoH);
+        if (stats.frames() >= HAND_SUMMARY_EVERY) {
+          summarize(stats);
         }
-        stats.current.busy = true;
-        try {
-          const found = await findHand(uri);
-          stats.current.frames += 1;
-          if (found) {
-            stats.current.ms.push(found.detectMs);
-          }
-          const photoW = target.box.w;
-          const photoH = target.box.h;
-          const fix = found
-            ? { x: found.x * photoW, y: found.y * photoH, confidence: found.confidence, handWidth: found.handWidth * photoW, atMs: Date.now() }
-            : null;
-          await loop.handFrame(fix, context.outlines, photoW, photoH);
-          if (stats.current.frames >= HAND_SUMMARY_EVERY) {
-            summarize();
-          }
-        } finally {
-          stats.current.busy = false;
-        }
-      },
-      cloudShot: (photo: { image: string; mime: string }): void => {
-        held.current.loop?.setPhoto(photo);
       },
     };
   }, []);

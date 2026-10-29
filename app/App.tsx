@@ -4,7 +4,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
 import type { LayoutChangeEvent } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useCameraPermissions } from 'expo-camera';
+import { IttroCameraView, takeCameraShot } from 'ittro-sensors';
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
 import * as Font from 'expo-font';
 import { ReadexPro_400Regular, ReadexPro_500Medium, ReadexPro_600SemiBold, ReadexPro_700Bold } from '@expo-google-fonts/readex-pro';
@@ -49,12 +50,16 @@ export default function App(): React.JSX.Element {
   const [viewSize, setViewSize] = useState({ width: 0, height: 0 });
   const [, requestCamera, getCameraPermission] = useCameraPermissions();
   const actorRef = useRef<ConversationActor | null>(null);
-  const cameraRef = useRef<CameraView | null>(null);
+  const cameraRef = useRef({ takeShot: takeCameraShot });
   const cameraReady = useRef(false);
   const inLive = useRef(false);
 
-  const shots = useGuide(actorRef, cameraOn);
-  useShelfSearch(cameraRef, actorRef, searching, searchRequest, cameraReady, shots);
+  const guide = useGuide(actorRef, cameraOn);
+  useShelfSearch(cameraRef, actorRef, searching, searchRequest, cameraReady, guide);
+
+  useEffect(() => {
+    cameraReady.current = false;
+  }, [cameraOn]);
 
   useEffect(() => {
     let gone = false;
@@ -182,20 +187,19 @@ export default function App(): React.JSX.Element {
 
   return (
     <View style={styles.container} onLayout={measured}>
-      {cameraOn ? (
-        <CameraView
-          ref={(view) => {
-            cameraRef.current = view;
-            if (!view) {
-              cameraReady.current = false;
-            }
-          }}
+      {cameraOn && IttroCameraView ? (
+        <IttroCameraView
+          active
           style={styles.camera}
-          facing="back"
           accessible={false}
           importantForAccessibility="no"
           onCameraReady={() => {
             cameraReady.current = true;
+          }}
+          onHandFrame={(event) => guide.onHandFrame(event.nativeEvent)}
+          onCameraError={(event) => {
+            cameraReady.current = false;
+            if (__DEV__) console.log(`[ittro] camera error: ${event.nativeEvent.message}`);
           }}
         />
       ) : null}
@@ -228,9 +232,7 @@ export default function App(): React.JSX.Element {
         </Text>
         <View style={styles.chips}>
           {chips.map((chip) => (
-            <Text key={chip} style={styles.chip}>
-              {chip}
-            </Text>
+            <Text key={chip} style={styles.chip}>{chip}</Text>
           ))}
         </View>
       </View>

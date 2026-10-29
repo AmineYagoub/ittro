@@ -118,6 +118,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
     if (!container || !photo) {
       return;
     }
+    const reading = state.restAnchor;
     try {
       const crop = await deps.cutCrop(photo.image, container.box);
       if (!crop) {
@@ -126,6 +127,9 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
       const answer = await deps.read(state.label, [crop]);
       const verdict = answer.reads[0];
       if (!verdict || verdict.verdict !== 'no') {
+        return;
+      }
+      if (state.restAnchor !== reading || !state.restRead) {
         return;
       }
       const label = [verdict.brand_text, verdict.size_text].filter((part) => part && part.length > 0).join(' ') || verdict.spoken;
