@@ -15,7 +15,8 @@ import * as Localization from 'expo-localization';
 import { initVoice, say, setSpeechRate, stopVoice } from './src/speech';
 import { loadPrefs, loadSnapshot } from './src/store';
 import { relayConfig } from './src/relay';
-import { batteryLow, phoneHot, preparePhone, restPhone, watchAppState } from './src/phone';
+import { preparePhone, restPhone, watchAppState } from './src/phone';
+import { startPhoneWatch, trackState } from './src/phoneWatch';
 import { conversationMachine } from './src/conversation/machine';
 import { OutlineOverlay } from './src/shelf/OutlineOverlay';
 import { useShelfSearch } from './src/shelf/useShelfSearch';
@@ -25,7 +26,7 @@ import { boxOverlap } from './src/shelf/outlines';
 import type { ShelfOutline } from './src/relay';
 import type { GuideHand, HelperPairing, HelperWaiting } from './src/conversation/types';
 import { HelperView } from './src/helper/HelperView';
-import { lowBattery, micLine, phoneHot as phoneHotLine, refusedCamera, refusedMic } from './src/lines';
+import { micLine, refusedCamera, refusedMic } from './src/lines';
 import type { Language } from './src/theme';
 import { styles } from './src/appStyles';
 import { useConfirm } from './src/confirm/useConfirm';
@@ -85,31 +86,20 @@ export default function App(): React.JSX.Element {
       () => actorRef.current?.send({ type: 'RESUME' }),
     );
     const talkSub = AccessibilityInfo.addEventListener('screenReaderChanged', setTalkBack);
-    const checker = setInterval(() => void watchPhone(), 60000);
+    const unwatchPhone = startPhoneWatch({
+      sendAlert: (kind, text) => actorRef.current?.send({ type: 'ALERT', kind, text }),
+      lang: () => actorRef.current?.getSnapshot().context.lang ?? 'en',
+    });
     return () => {
       gone = true;
       unwatch();
       talkSub.remove();
-      clearInterval(checker);
+      unwatchPhone();
       restPhone();
       stopVoice();
       actorRef.current?.stop();
       actorRef.current = null;
     };
-
-    async function watchPhone(): Promise<void> {
-      const actor = actorRef.current;
-      if (!actor) {
-        return;
-      }
-      const at = actor.getSnapshot().context.lang;
-      if (await batteryLow()) {
-        actor.send({ type: 'ALERT', kind: 'battery', text: lowBattery[at] });
-      }
-      if (phoneHot()) {
-        actor.send({ type: 'ALERT', kind: 'heat', text: phoneHotLine[at] });
-      }
-    }
 
     async function run(): Promise<void> {
       try {
@@ -163,7 +153,9 @@ export default function App(): React.JSX.Element {
           input: { prefs, snapshot, relayUrl: relay.url, relayCode: relay.accessCode },
         });
         actorRef.current = actor;
+        const track = trackState();
         actor.subscribe((state) => {
+          track(state.value);
           const live = state.value !== 'paused' && state.value !== 'over';
           setLine(state.context.lastLine || '…');
           setChips(state.context.lastChips);

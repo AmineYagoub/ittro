@@ -6,6 +6,8 @@
 // photo and the cloud read are injected, so tests walk it with
 // scripted frames and the phone drives it with live stills.
 import type { ShelfBox, ShelfOutline } from '../relay';
+import { linkKindFor } from '../metaCall';
+import { linkEvent } from '../conversation/link';
 import { boxOverlap } from '../shelf/outlines';
 import { centerOf, cueIdFor, proximityFor, steerFor } from './steer';
 import type { HandFix, TipPoint } from './types';
@@ -125,6 +127,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
         return;
       }
       const answer = await deps.read(state.label, [crop]);
+      deps.send({ type: 'LINK_OK' });
       const verdict = answer.reads[0];
       if (!verdict || verdict.verdict !== 'no') {
         return;
@@ -139,6 +142,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
       deps.send({ type: 'GUIDE_WRONG', label, cue });
     } catch (error) {
       deps.log(`guide rest read failed: ${String((error as Error)?.message ?? error)}`);
+      deps.send(linkEvent(linkKindFor(error)));
     }
   }
 
