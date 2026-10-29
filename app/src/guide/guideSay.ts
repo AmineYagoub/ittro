@@ -1,0 +1,236 @@
+// What each guiding moment says: the assigns that write the line to
+// the screen the moment its clips start, the guards that route the
+// hand frames, and the sounds that mark losing and refusal.
+import { Vibration } from 'react-native';
+import { assignConversation as assign, raiseConversation as raise } from '../conversation/actors';
+import type { ContextArgs, EventArgs } from '../conversation/actions';
+import { GUIDE_CHIP, READ_AGAIN_CHIP } from '../chips';
+import { playSound } from '../speech';
+import { haptics } from '../theme';
+import { continueIdFor } from './steer';
+import { firstSentence, outOfViewLine, partsText, severalPrefix, thisIsLine } from './lines';
+import type { ConversationContext, SpeechPart } from '../conversation/types';
+
+export const raiseGuideEnd = raise({ type: 'GUIDE_END' });
+
+export const raiseGuideGotIt = raise({ type: 'GUIDE_GOT_IT' });
+
+export const raiseGuideRestart = raise({ type: 'GUIDE_RESTART' });
+
+export const REPEAT_MS = 6000;
+export const ARM_TIMEOUT_MS = 10000;
+export const AIM_TIMEOUT_MS = 8000;
+
+export const buzzNo = (): void => {
+  Vibration.vibrate([...haptics.no]);
+  playSound('no');
+};
+
+export const lostSound = (): void => {
+  playSound('lost');
+};
+
+function shown(parts: SpeechPart[], context: ConversationContext): string {
+  return partsText(parts, context.lang);
+}
+
+function firstParts(context: ConversationContext, cue: string): SpeechPart[] {
+  const where = firstSentence(context.guideLabel, cue, context.lang);
+  if (context.guideMatches > 1) {
+    const several = severalPrefix(context.guideMatches, context.guideLabel, context.guideKind, context.guidePosition, context.lang);
+    return [{ text: `${several} ${where}` }, { clip: cue }];
+  }
+  return [{ text: where }, { clip: cue }];
+}
+
+function directParts(context: ConversationContext, cue: string | null): SpeechPart[] {
+  if (!cue) {
+    return [];
+  }
+  if (context.guideFresh) {
+    return firstParts(context, cue);
+  }
+  return [{ clip: cue }];
+}
+
+export const storeGuideTarget = assign({
+  guiding: true,
+  pendingSearch: ({ context }: ContextArgs) => context.pendingSearch.filter((line) => line.kind === 'alternative'),
+  guideTarget: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.outline : null),
+  guideLabel: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.product : ''),
+  guideKind: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.kind : ''),
+  guideMatches: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.matches : 0),
+  guidePosition: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.position : 'middle'),
+  guideFresh: true,
+  guideCue: null,
+  guideHand: null,
+  guideProximity: 0,
+  guideWrong: null,
+  guideResume: false,
+});
+
+export const endGuide = assign({
+  guiding: false,
+  guideTarget: null,
+  guideLabel: '',
+  guideKind: '',
+  guideMatches: 0,
+  guideHand: null,
+  guideProximity: 0,
+  guideCue: null,
+  guideFresh: false,
+  guideWrong: null,
+  guideResume: false,
+  guideParts: [],
+});
+
+export const stopGuide = assign({
+  guiding: false,
+  guideResume: ({ context }: ContextArgs) => context.guiding && context.guideTarget !== null,
+});
+
+export const consumeResume = assign({
+  guiding: true,
+  guideResume: false,
+});
+
+export const sayCue = assign({
+  guideCue: ({ event }: EventArgs) => (event.type === 'GUIDE_CUE' ? event.cue : null),
+  guideProximity: ({ event }: EventArgs) => (event.type === 'GUIDE_CUE' ? event.proximity : 0),
+  guideHand: ({ event }: EventArgs) => (event.type === 'GUIDE_CUE' ? event.hand : null),
+  guideWrong: null,
+  guideParts: ({ context, event }: EventArgs) => (event.type === 'GUIDE_CUE' ? directParts(context, event.cue) : []),
+  lastLine: ({ context, event }: EventArgs) =>
+    event.type === 'GUIDE_CUE' ? shown(directParts(context, event.cue), context) : context.lastLine,
+  lastChips: [],
+  guideFresh: false,
+});
+
+export const trackCue = assign({
+  guideProximity: ({ event }: EventArgs) => (event.type === 'GUIDE_CUE' ? event.proximity : 0),
+  guideHand: ({ event }: EventArgs) => (event.type === 'GUIDE_CUE' ? event.hand : null),
+});
+
+export const sayContinue = assign({
+  guideCue: ({ context }: ContextArgs) => (context.guideCue ? continueIdFor(context.guideCue) : null),
+  guideParts: ({ context }: ContextArgs) => (context.guideCue ? [{ clip: continueIdFor(context.guideCue) }] : []),
+  lastLine: ({ context }: ContextArgs) =>
+    context.guideCue ? shown([{ clip: continueIdFor(context.guideCue) }], context) : context.lastLine,
+  lastChips: [],
+});
+
+export const sayAlmost = assign({
+  guideProximity: ({ event }: EventArgs) =>
+    event.type === 'GUIDE_ALIGNED' || event.type === 'GUIDE_COVERING' ? event.proximity : 0,
+  guideHand: ({ event }: EventArgs) => (event.type === 'GUIDE_ALIGNED' || event.type === 'GUIDE_COVERING' ? event.hand : null),
+  guideParts: ({ context }: EventArgs) =>
+    context.guideFresh && context.guideCue ? [...firstParts(context, context.guideCue), { clip: 'almost' }] : [{ clip: 'almost' }],
+  lastLine: ({ context }: EventArgs) =>
+    context.guideFresh && context.guideCue
+      ? shown([...firstParts(context, context.guideCue), { clip: 'almost' }], context)
+      : shown([{ clip: 'almost' }], context),
+  lastChips: [],
+  guideFresh: false,
+});
+
+export const sayReach = assign({
+  guideProximity: ({ event }: EventArgs) => (event.type === 'GUIDE_COVERING' ? event.proximity : 0),
+  guideHand: ({ event }: EventArgs) => (event.type === 'GUIDE_COVERING' ? event.hand : null),
+  guideParts: [{ clip: 'reach_forward' }],
+  lastLine: ({ context }: ContextArgs) => shown([{ clip: 'reach_forward' }], context),
+  lastChips: [],
+  guideFresh: false,
+});
+
+export const sayPick = assign({
+  guideParts: [{ clip: 'pick_up' }, { clip: 'checking' }],
+  lastLine: ({ context }: ContextArgs) => shown([{ clip: 'pick_up' }, { clip: 'checking' }], context),
+  lastChips: [],
+});
+
+export const sayNoHand = assign({
+  guideHand: null,
+  guideParts: [{ clip: 'hand_show' }],
+  lastLine: ({ context }: ContextArgs) => shown([{ clip: 'hand_show' }], context),
+  lastChips: [],
+});
+
+export const sayLost = assign({
+  guideHand: null,
+  guideParts: [{ clip: 'hand_lost' }],
+  lastLine: ({ context }: ContextArgs) => shown([{ clip: 'hand_lost' }], context),
+  lastChips: [],
+});
+
+export const sayWrong = assign({
+  guideCue: ({ event }: EventArgs) => (event.type === 'GUIDE_WRONG' ? event.cue : null),
+  guideWrong: ({ event }: EventArgs) => (event.type === 'GUIDE_WRONG' ? event.label : null),
+  guideParts: ({ context, event }: EventArgs) => {
+    if (event.type !== 'GUIDE_WRONG') {
+      return [];
+    }
+    return [
+      { clip: 'no' },
+      { text: thisIsLine(event.label, context.lang) },
+      { clip: 'put_back' },
+      { text: firstSentence(context.guideLabel, event.cue, context.lang) },
+      { clip: event.cue },
+    ];
+  },
+  lastLine: ({ context, event }: EventArgs) => {
+    if (event.type !== 'GUIDE_WRONG') {
+      return context.lastLine;
+    }
+    return shown(
+      [
+        { clip: 'no' },
+        { text: thisIsLine(event.label, context.lang) },
+        { clip: 'put_back' },
+        { text: firstSentence(context.guideLabel, event.cue, context.lang) },
+        { clip: event.cue },
+      ],
+      context,
+    );
+  },
+  lastChips: ({ context }: ContextArgs) => [GUIDE_CHIP[context.lang], READ_AGAIN_CHIP[context.lang]],
+});
+
+export const sayRestart = assign({
+  guideWrong: null,
+  guideParts: ({ context }: ContextArgs) => directParts(context, context.guideCue),
+  lastLine: ({ context }: ContextArgs) => {
+    const parts = directParts(context, context.guideCue);
+    return parts.length > 0 ? shown(parts, context) : context.lastLine;
+  },
+  lastChips: [],
+});
+
+export const sayTargetLost = assign({
+  guideParts: ({ context, event }: EventArgs) =>
+    event.type === 'GUIDE_TARGET_LOST'
+      ? [{ text: outOfViewLine(context.guideLabel, context.lang) }, { clip: event.cue }]
+      : [],
+  lastLine: ({ context, event }: EventArgs) =>
+    event.type === 'GUIDE_TARGET_LOST'
+      ? shown([{ text: outOfViewLine(context.guideLabel, context.lang) }, { clip: event.cue }], context)
+      : context.lastLine,
+  lastChips: [],
+});
+
+export const hasTarget = ({ context }: ContextArgs): boolean => context.guideTarget !== null;
+
+export const foundTarget = ({ event }: EventArgs): boolean => event.type === 'SHELF_FOUND' && event.outline !== null;
+
+export const confirmed = ({ context }: ContextArgs): boolean => context.request !== null && context.pendingRequest === null;
+
+export const sameCue = ({ context, event }: EventArgs): boolean =>
+  event.type === 'GUIDE_CUE' && context.guideCue !== null && event.cue === context.guideCue;
+
+export const wantsResume = ({ context }: ContextArgs): boolean => context.guideResume && context.guideTarget !== null;
+
+export const readyToArm = ({ context }: ContextArgs): boolean => hasTarget({ context }) && confirmed({ context });
+
+export function readyQuiet({ context }: ContextArgs): boolean {
+  return readyToArm({ context }) && !context.talkBusy;
+}
+
