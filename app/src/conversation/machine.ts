@@ -17,6 +17,7 @@ import { stopGuide } from '../guide/guideSay';
 import { confirmRegion } from '../confirm/confirm';
 import { endConfirm, stopConfirm } from '../confirm/confirmSay';
 import { searchRegion, stopSearch } from './search';
+import { linkRegion } from './link';
 import { helperRegion } from '../helper/helper';
 import type { ConversationContext, ConversationEvent, MachineInput } from './types';
 
@@ -60,6 +61,7 @@ export const conversationMachine = setup({
         guide: guideRegion,
         confirm: confirmRegion,
         helper: helperRegion,
+        link: linkRegion,
       },
     },
     paused: {

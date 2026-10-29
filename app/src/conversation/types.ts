@@ -4,6 +4,7 @@
 import type { ActorRef, DoneActorEvent, ErrorActorEvent, Snapshot } from 'xstate';
 import type { Language } from '../theme';
 import type { Prefs } from '../store';
+import type { LinkKind } from '../metaCall';
 import type { ConfirmAttr, DetailKind, DetailReason, PictureProblem, ShelfOutline, UnderstandAnswer } from '../relay';
 
 export type ConversationStep = 'welcome' | 'confirm' | 'offer' | 'sleep' | 'language' | 'tour' | 'translate' | 'alternative' | 'verdict' | 'helperName' | 'helperSend' | 'helperOffer';
@@ -116,8 +117,9 @@ export interface ConversationContext {
   transcript: string;
   pausedNote: SpokenLine[];
   pausedReturn: 'listening' | 'sleeping';
-  netSaidAt: number;
+  brands: string[];
   micSaidAt: number;
+  linkLine: SpokenLine | null;
   warnedBattery: boolean;
   warnedHeat: boolean;
   streamUp: boolean;
@@ -204,7 +206,11 @@ export type ConversationEvent =
   | { type: 'WRONG_SHELF'; kind: string; aisle: string }
   | { type: 'CLOSE_MATCH'; wanted: string; found: string }
   | { type: 'HAND_HOLD' }
-  | { type: 'SEARCH_FAILED' }
+  | { type: 'SEARCH_FAILED'; kind: LinkKind }
+  | { type: 'LINK_DOWN' }
+  | { type: 'LINK_LIMITED' }
+  | { type: 'LINK_BROKEN' }
+  | { type: 'LINK_OK' }
   | { type: 'SHELF_FOUND'; product: string; outline: ShelfOutline | null; matches: number; kind: string; position: GuidePosition }
   | { type: 'GUIDE_CUE'; cue: string; proximity: number; hand: GuideHand }
   | { type: 'GUIDE_ALIGNED'; proximity: number; hand: GuideHand }
@@ -228,7 +234,7 @@ export type ConversationEvent =
   | { type: 'CONFIRM_PICTURE'; epoch: number; problem: PictureProblem }
   | { type: 'CONFIRM_MOVED'; epoch: number }
   | { type: 'CONFIRM_GIVEUP' }
-  | { type: 'CONFIRM_FAILED' }
+  | { type: 'CONFIRM_FAILED'; kind: LinkKind }
   | { type: 'CONFIRM_DETAIL_ASK' }
   | { type: 'CONFIRM_DETAIL'; epoch: number; text: string | null; reason: DetailReason | null; crop: string }
   | { type: 'CONFIRM_END' }

@@ -131,10 +131,22 @@ export const pausing: Trilingual = {
   fr: 'Je me mets en pause. Ouvrez Ittro pour me réveiller.',
 };
 
-export const lostInternet: Trilingual = {
-  en: "I've lost the internet. I'll keep trying.",
-  ar: 'فقدت الاتصال بالإنترنت. سأستمر في المحاولة.',
-  fr: 'J’ai perdu internet. Je réessaie.',
+export const linkDown: Trilingual = {
+  en: "I've lost the internet. Check the phone has signal; I'll keep trying.",
+  ar: 'فقدت الاتصال بالإنترنت. تحقق من أن الهاتف يستقبل الإشارة؛ سأستمر في المحاولة.',
+  fr: 'J’ai perdu internet. Vérifiez que le téléphone capte ; je réessaie.',
+};
+
+export const linkLimited: Trilingual = {
+  en: "I've reached my asking limit. Give me a minute; I'll keep trying.",
+  ar: 'بلغت حد الأسئلة المسموح. امنحني دقيقة؛ سأستمر في المحاولة.',
+  fr: 'J’ai atteint ma limite de demandes. Laissez-moi une minute ; je réessaie.',
+};
+
+export const linkBroken: Trilingual = {
+  en: "Something came back broken. I'll try again; say it once more if I stay quiet.",
+  ar: 'جاءني جواب معطوب. سأحاول مجددًا؛ قله مرة أخرى إذا بقيت صامتًا.',
+  fr: 'Une réponse est revenue cassée. Je réessaie ; redites-le si je reste silencieux.',
 };
 
 export const whatToFind: Trilingual = {

@@ -3,11 +3,10 @@
 // vibration start, and the guards that drop answers from a moment
 // the statechart has already left.
 import { Vibration } from 'react-native';
-import { assignConversation as assign, raiseConversation as raise } from '../conversation/actors';
+import { assignConversation as assign, mergeBrands, raiseConversation as raise, storeConfirmedBrand } from '../conversation/actors';
 import type { ContextArgs, EventArgs } from '../conversation/actions';
 import { DONE_CHIP, FIND_ANOTHER_CHIP, GUIDE_CHIP, READ_AGAIN_CHIP } from '../chips';
 import { playSound } from '../speech';
-import { lostInternet } from '../lines';
 import { haptics } from '../theme';
 import { partsText, thisIsLine, whereSentence } from '../guide/lines';
 import type { GuideDir } from '../guide/types';
@@ -156,6 +155,11 @@ export const storeYes = assign({
   confirmFinal: true,
   step: 'verdict',
   pendingQuestion: 'verdict_done',
+  brands: ({ context, event }: EventArgs) => {
+    const label = event.type === 'CONFIRM_YES' ? event.label : null;
+    storeConfirmedBrand(label);
+    return mergeBrands(context.brands, label);
+  },
   confirmLabel: ({ event }: EventArgs) => (event.type === 'CONFIRM_YES' ? event.label : ''),
   confirmCrop: ({ event }: EventArgs) => (event.type === 'CONFIRM_YES' ? event.crop : null),
   confirmParts: ({ context, event }: EventArgs) => (event.type === 'CONFIRM_YES' ? yesParts(event.label, context) : []),
@@ -260,12 +264,6 @@ export const storeDetail = assign({
   lastChips: [],
 });
 
-export const storeFailed = assign({
-  confirmParts: ({ context }: ContextArgs) => [{ text: lostInternet[context.lang] }],
-  lastLine: ({ context }: ContextArgs) => lostInternet[context.lang],
-  lastChips: [],
-});
-
 export const endConfirm = assign({
   confirming: false,
   confirmAsked: false,
@@ -288,8 +286,6 @@ export const stopConfirm = assign({
 
 export const freshConfirm = ({ context, event }: EventArgs): boolean =>
   'epoch' in event && typeof event.epoch === 'number' ? event.epoch === context.confirmEpoch : false;
-
-export const failedNew = ({ context }: ContextArgs): boolean => context.lastLine !== lostInternet[context.lang];
 
 export const wantsDetail = ({ context }: ContextArgs): boolean => context.confirmDetailKind !== null;
 

@@ -22,7 +22,7 @@ export const unmuteMic = toStream({ type: 'UNMUTE' });
 
 export const sendStop = toStream({ type: 'STOP' });
 
-export const sendStart = toStream(({ context }) => ({ type: 'START', keywords: requestKeywords(context.request) }));
+export const sendStart = toStream(({ context }) => ({ type: 'START', keywords: requestKeywords(context.request, context.brands) }));
 
 export const ensureStream = enqueue(({ enqueue: collect, context }) => {
   if (!context.streamUp) {

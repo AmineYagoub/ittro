@@ -3,7 +3,9 @@
 // is current, the same state and the same epoch. A late answer, or
 // one about a hand that has since moved, finds the statechart
 // already elsewhere and is never spoken.
-import type { ContextArgs } from '../conversation/actions';
+import type { ContextArgs, EventArgs } from '../conversation/actions';
+import { raiseLinkKind } from '../conversation/link';
+import { stamp } from '../stamp';
 import { REPEAT_MS } from '../guide/guideSay';
 import {
   NET_UPDATE_MS,
@@ -14,11 +16,9 @@ import {
   chimeUnsure,
   chimeYes,
   endConfirm,
-  failedNew,
   freshConfirm,
   noteUnsure,
   storeDetail,
-  storeFailed,
   storeGiveup,
   storeMoved,
   storeNo,
@@ -38,6 +38,26 @@ function speakState() {
   };
 }
 
+const VERDICT_OF: Record<string, string> = {
+  CONFIRM_YES: 'yes',
+  CONFIRM_NO: 'no',
+  CONFIRM_UNSURE: 'unsure',
+  CONFIRM_PICTURE: 'picture',
+};
+
+function logVerdict({ event }: EventArgs): void {
+  if (!__DEV__) {
+    return;
+  }
+  const kind = VERDICT_OF[event.type];
+  if (!kind) {
+    return;
+  }
+  const epoch = 'epoch' in event && typeof event.epoch === 'number' ? event.epoch : '?';
+  const label = 'label' in event && typeof event.label === 'string' ? ` label ${JSON.stringify(event.label)}` : '';
+  console.log(`[ittro] ${stamp()} confirm verdict ${kind} epoch ${epoch}${label}`);
+}
+
 export const confirmRegion = {
   id: 'confirm',
   initial: 'idle',
@@ -55,25 +75,22 @@ export const confirmRegion = {
       ...speakState(),
       after: { [NET_UPDATE_MS]: { target: 'checking', reenter: true } },
       on: {
-        CONFIRM_YES: { guard: freshConfirm, actions: [storeYes], target: 'yes' },
-        CONFIRM_NO: { guard: freshConfirm, actions: [storeNo], target: 'no' },
-        CONFIRM_UNSURE: { guard: freshConfirm, actions: [storeUnsure], target: 'unsure' },
-        CONFIRM_PICTURE: { guard: freshConfirm, actions: [storePicture], target: 'picture' },
+        CONFIRM_YES: { guard: freshConfirm, actions: [logVerdict, storeYes], target: 'yes' },
+        CONFIRM_NO: { guard: freshConfirm, actions: [logVerdict, storeNo], target: 'no' },
+        CONFIRM_UNSURE: { guard: freshConfirm, actions: [logVerdict, storeUnsure], target: 'unsure' },
+        CONFIRM_PICTURE: { guard: freshConfirm, actions: [logVerdict, storePicture], target: 'picture' },
         CONFIRM_MOVED: { guard: freshConfirm, actions: [storeMoved], target: 'checking', reenter: true },
-        CONFIRM_FAILED: [
-          { guard: failedNew, actions: [storeFailed], target: 'checking', reenter: true },
-          { actions: [] },
-        ],
+        CONFIRM_FAILED: { actions: [raiseLinkKind] },
       },
     },
     unsure: {
       entry: [chimeUnsure],
       ...speakState(),
       on: {
-        CONFIRM_YES: { guard: freshConfirm, actions: [storeYes], target: 'yes' },
-        CONFIRM_NO: { guard: freshConfirm, actions: [storeNo], target: 'no' },
+        CONFIRM_YES: { guard: freshConfirm, actions: [logVerdict, storeYes], target: 'yes' },
+        CONFIRM_NO: { guard: freshConfirm, actions: [logVerdict, storeNo], target: 'no' },
         CONFIRM_UNSURE: { guard: freshConfirm, actions: [noteUnsure] },
-        CONFIRM_PICTURE: { guard: freshConfirm, actions: [storePicture], target: 'picture' },
+        CONFIRM_PICTURE: { guard: freshConfirm, actions: [logVerdict, storePicture], target: 'picture' },
         CONFIRM_MOVED: { guard: freshConfirm, actions: [storeMoved], target: 'checking' },
         CONFIRM_FAILED: { actions: [] },
         CONFIRM_GIVEUP: { actions: [storeGiveup], target: 'giveup' },
@@ -101,10 +118,7 @@ export const confirmRegion = {
       on: {
         CONFIRM_DETAIL: { guard: freshConfirm, actions: [storeDetail], target: 'detail' },
         CONFIRM_MOVED: { guard: freshConfirm, actions: [storeMoved], target: 'readingDetail', reenter: true },
-        CONFIRM_FAILED: [
-          { guard: failedNew, actions: [storeFailed], target: 'readingDetail', reenter: true },
-          { actions: [] },
-        ],
+        CONFIRM_FAILED: { actions: [raiseLinkKind] },
       },
     },
     detail: {

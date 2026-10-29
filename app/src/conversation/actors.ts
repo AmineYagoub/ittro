@@ -49,7 +49,9 @@ export const enqueueConversation = rawEnqueue<
 export const speakMany = fromPromise<void, SpeakInput>(async ({ input }) => {
   for (const line of input.lines) {
     if (__DEV__) console.log(`[ittro] ${stamp()} say: ${JSON.stringify(line.text)}`);
+    const started = Date.now();
     await say(line.text, input.lang);
+    if (__DEV__) console.log(`[ittro] ${stamp()} said ${Date.now() - started}ms`);
   }
 });
 
@@ -127,15 +129,30 @@ export const ticking = fromCallback<{ type: 'TICK' }, { everyMs: number }>(({ in
   return () => clearInterval(timer);
 });
 
-export function requestKeywords(request: string | null): string[] {
-  if (!request) {
-    return [];
-  }
-  const words = request
+export function brandWords(text: string): string[] {
+  return text
     .split(/[^\p{L}\p{N}]+/u)
     .filter((word) => word.length >= 3)
     .filter((word, at, all) => all.indexOf(word) === at);
-  return words.slice(0, 12);
+}
+
+export function mergeBrands(before: string[], text: string | null): string[] {
+  if (!text) {
+    return before;
+  }
+  return [...before, ...brandWords(text).filter((word) => !before.includes(word))].slice(-20);
+}
+
+export function requestKeywords(request: string | null, brands: string[]): string[] {
+  const words = [...(request ? brandWords(request) : []), ...brands.filter((word) => word.length >= 3)];
+  return words.filter((word, at, all) => all.indexOf(word) === at).slice(0, 12);
+}
+
+export function storeConfirmedBrand(text: string | null): void {
+  if (!text) {
+    return;
+  }
+  void loadPrefs().then((prefs) => savePrefs({ ...prefs, brands: mergeBrands(prefs.brands, text) }));
 }
 
 export function applyRate(rate: number): void {

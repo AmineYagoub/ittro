@@ -5,7 +5,8 @@
 import { assignConversation as assign, raiseConversation as raise } from './actors';
 import type { ContextArgs, EventArgs } from './actions';
 import { ASK_CHIP, NO_CHIP, YES_CHIP } from '../chips';
-import { lostInternet } from '../lines';
+import { raiseLinkKind } from './link';
+import { stamp } from '../stamp';
 import { stillLooking } from '../requestLines';
 import {
   checkingLine,
@@ -102,10 +103,19 @@ export const storeHandHold = assign({
     queueLine(context, { text: checkingLine(context.lang), chips: [], kind: 'status' }),
 });
 
-export const storeSearchFailed = assign({
-  pendingSearch: ({ context }: ContextArgs) =>
-    queueLine(context, { text: lostInternet[context.lang], chips: [], kind: 'status' }),
-});
+export const logSearchBegin = ({ context }: ContextArgs): void => {
+  if (__DEV__) {
+    console.log(
+      `[ittro] ${stamp()} search begin ${JSON.stringify(context.pendingRequest ?? context.request)} epoch ${context.searchEpoch}`,
+    );
+  }
+};
+
+export const logOutlined = ({ context, event }: EventArgs): void => {
+  if (__DEV__ && event.type === 'SHELF_OUTLINED') {
+    console.log(`[ittro] ${stamp()} search outlined epoch ${context.searchEpoch} count ${event.outlines.length}`);
+  }
+};
 
 export const storeFound = assign({
   pendingSearch: ({ context, event }: EventArgs) =>
@@ -164,12 +174,12 @@ export const wantsSearch = ({ context }: ContextArgs): boolean => context.search
 export const searchStopped = ({ context }: ContextArgs): boolean => !context.searching;
 
 export const searchTalkOn = {
-  SHELF_OUTLINED: { actions: [storeOutlined] },
+  SHELF_OUTLINED: { actions: [storeOutlined, logOutlined] },
   SHELF_SWEPT: { actions: [storeSwept] },
   WRONG_SHELF: { actions: [storeWrongShelf] },
   CLOSE_MATCH: { actions: [storeCloseMatch] },
   HAND_HOLD: { actions: [storeHandHold] },
-  SEARCH_FAILED: { actions: [storeSearchFailed] },
+  SEARCH_FAILED: { actions: [raiseLinkKind] },
   SHELF_FOUND: { actions: [storeFound] },
   NO_SHELF: { actions: [storeNoShelf] },
   OUTLINES_MOVED: { actions: [storeMoved] },
@@ -181,12 +191,12 @@ export const searchRegion = {
   states: {
     idle: {
       always: { guard: wantsSearch, target: 'active' },
-      on: { SEARCH_BEGIN: { actions: [beginSearch], target: 'active' } },
+      on: { SEARCH_BEGIN: { actions: [beginSearch, logSearchBegin], target: 'active' } },
     },
     active: {
       always: { guard: searchStopped, target: 'idle' },
       on: {
-        SEARCH_BEGIN: { actions: [beginSearch] },
+        SEARCH_BEGIN: { actions: [beginSearch, logSearchBegin] },
         SEARCH_END: { actions: [endSearch], target: 'idle' },
       },
     },

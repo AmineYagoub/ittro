@@ -61,6 +61,7 @@ export interface Driver {
   guide: () => string;
   confirm: () => string;
   helper: () => string;
+  link: () => string;
   context: () => ConversationContext;
   stop: () => void;
 }
@@ -196,6 +197,13 @@ export function startConversation(options?: StartOptions): Driver {
         return value;
       }
       return (value as { live: { helper: string } }).live.helper;
+    },
+    link(): string {
+      const value = actor.getSnapshot().value;
+      if (typeof value === 'string') {
+        return value;
+      }
+      return (value as { live: { link: string } }).live.link;
     },
     context(): ConversationContext {
       return actor.getSnapshot().context;

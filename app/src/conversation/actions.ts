@@ -8,7 +8,6 @@ import type { UnderstandAnswer } from '../relay';
 import {
   askAgain,
   chooseLanguage,
-  lostInternet,
   offerHelp,
   offerLanguage,
   pausing,
@@ -89,7 +88,7 @@ export const noteSnapshot = ({ context }: ContextArgs): void => persistSnapshot(
 export const spawnStream = assign({
   streamRef: ({ spawn, context }) =>
     spawn('streamClient' as unknown as typeof streamClient, {
-      input: { url: wsUrl(context.relayUrl), code: context.relayCode, keywords: requestKeywords(context.request) },
+      input: { url: wsUrl(context.relayUrl), code: context.relayCode, keywords: requestKeywords(context.request, context.brands) },
     }),
 });
 
@@ -99,8 +98,6 @@ export const freshAnswer: (args: ContextArgs) => boolean = ({ context }) => cont
 
 export const nonEmptyFinal: (args: EventArgs) => boolean = ({ event }) =>
   event.type === 'FINAL_TEXT' && event.text.trim().length > 0;
-
-export const netDue: (args: ContextArgs) => boolean = ({ context }) => Date.now() - context.netSaidAt > 8000;
 
 export const micDue: (args: ContextArgs) => boolean = ({ context }) => Date.now() - context.micSaidAt > 60000;
 
@@ -117,11 +114,6 @@ export const noteAlert = assign({
   warnedHeat: ({ context, event }: EventArgs) =>
     context.warnedHeat || (event.type === 'ALERT' && event.kind === 'heat'),
   pendingSay: ({ event }: EventArgs) => (event.type === 'ALERT' ? [{ text: event.text, chips: [] as string[] }] : []),
-});
-
-export const noteNetComplaint = assign({
-  netSaidAt: () => Date.now(),
-  pendingSay: ({ context }: ContextArgs) => [{ text: lostInternet[context.lang], chips: [] as string[] }],
 });
 
 export const noteMicComplaint = assign({

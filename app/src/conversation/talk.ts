@@ -22,12 +22,10 @@ import {
   markTalkQuiet,
   micDue,
   needsFirstLaunch,
-  netDue,
   nonEmptyFinal,
   noteAlert,
   noteHeard,
   noteMicComplaint,
-  noteNetComplaint,
   noteSaid,
   noteSnapshot,
   noteStreamDown,
@@ -44,6 +42,7 @@ import {
 } from './actions';
 import type { ContextArgs } from './actions';
 import { buttonsLines } from './answers';
+import { hasLinkLine, raiseLinkDown, raiseLinkForError, raiseLinkOk, sayLinkLine } from './link';
 import { applyTranslated } from './translation';
 import { notePartial, partialWorthy, speculatingState } from './speculating';
 import { chainActions, routingTransitions } from './routing';
@@ -83,7 +82,7 @@ function sayTo(target: 'listening' | 'sleeping' | 'over' | 'resumed' | 'routing'
 const listeningShared = {
   FINAL_TEXT: { guard: nonEmptyFinal, actions: [noteHeard, logHeard, raiseHeard], target: 'understanding' },
   SPEECH_ENDED: { actions: [playHeard, raiseHeard] },
-  STREAM_OPEN: { actions: [noteStreamOpen] },
+  STREAM_OPEN: { actions: [noteStreamOpen, raiseLinkOk] },
 };
 
 const buttonRoute = { actions: [stopSpokenVoice, noteButton, logButton, raiseHeard], target: '.routing' };
@@ -98,7 +97,7 @@ export const talkState = {
     BUTTON_PRESS: buttonRoute,
     STREAM_CLOSED: { actions: [noteStreamDown, sendStart] },
     STREAM_ERROR: { actions: [noteStreamDown, sendStart] },
-    STREAM_FAILED: { actions: [noteStreamDown, sendStart] },
+    STREAM_FAILED: { actions: [noteStreamDown, raiseLinkDown, sendStart] },
   },
   states: {
     boot: {
@@ -141,6 +140,7 @@ export const talkState = {
     listening: {
       entry: [ensureStream, noteSnapshot, raiseTalkIdle],
       always: [
+        { guard: hasLinkLine, actions: [sayLinkLine], target: 'sayingReprompt' },
         { guard: hasQueuedHelperAnswer, actions: [sayQueuedHelper], target: 'saying' },
         { guard: hasQueuedAlternative, actions: [sayQueuedAlternative], target: 'saying' },
         { guard: hasQueuedSearch, actions: [sayQueuedStatus], target: 'sayingReprompt' },
@@ -154,10 +154,7 @@ export const talkState = {
         ],
         STREAM_CLOSED: { actions: [noteStreamDown, sendStart] },
         STREAM_ERROR: { actions: [noteStreamDown, sendStart] },
-        STREAM_FAILED: [
-          { guard: netDue, actions: [noteStreamDown, noteNetComplaint, sendStart], target: 'saying' },
-          { actions: [noteStreamDown, sendStart] },
-        ],
+        STREAM_FAILED: { actions: [noteStreamDown, raiseLinkDown, sendStart] },
         MIC_FAILED: { guard: micDue, actions: [noteMicComplaint], target: 'saying' },
         ALERT: { guard: alertDue, actions: [noteAlert], target: 'saying' },
         REPROMPT: { actions: [assignReprompt, logReprompt], target: 'sayingReprompt' },
@@ -197,10 +194,10 @@ export const talkState = {
             lastLine: context.lastLine,
           }),
           onDone: [
-            { guard: freshAnswer, actions: [noteUnderstood], target: 'routing' },
+            { guard: freshAnswer, actions: [noteUnderstood, raiseLinkOk], target: 'routing' },
             { target: 'listening' },
           ],
-          onError: { actions: [noteNetComplaint], target: 'saying' },
+          onError: { actions: [raiseLinkForError], target: 'listening' },
         },
         { src: 'ticking' as const, input: { everyMs: speech.workingTickEveryMs } },
       ],
@@ -243,10 +240,7 @@ export const talkState = {
         ...listeningShared,
         STREAM_CLOSED: { actions: [noteStreamDown, sendStart] },
         STREAM_ERROR: { actions: [noteStreamDown, sendStart] },
-        STREAM_FAILED: [
-          { guard: netDue, actions: [noteStreamDown, noteNetComplaint, sendStart], target: 'sayingSleep' },
-          { actions: [noteStreamDown, sendStart] },
-        ],
+        STREAM_FAILED: { actions: [noteStreamDown, raiseLinkDown, sendStart] },
         MIC_FAILED: { guard: micDue, actions: [noteMicComplaint], target: 'sayingSleep' },
         ALERT: { guard: alertDue, actions: [noteAlert], target: 'sayingSleep' },
       },

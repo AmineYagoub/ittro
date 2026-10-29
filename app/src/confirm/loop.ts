@@ -5,6 +5,7 @@
 // since the photo. Failures retry on their own; the statechart
 // speaks them once.
 import type { ConfirmAttrs, ConfirmRead } from '../relay';
+import { linkKindFor } from '../metaCall';
 import type { ConversationEvent } from '../conversation/types';
 import type { HandFix } from '../guide/types';
 import { freshConfirmState } from './loopTypes';
@@ -32,14 +33,14 @@ function movedSince(shot: HandFix | null, now: HandFix | null): boolean {
 export function createConfirmLoop(deps: ConfirmLoopDeps): ConfirmLoop {
   const state = freshConfirmState();
 
-  function failed(epoch: number, what: string): void {
+  function failed(epoch: number, what: string, error: unknown): void {
     state.flight -= 1;
     state.tries -= 1;
     state.lastShotAt = deps.now() + (FAIL_GAP_MS - SHOT_GAP_MS);
     deps.log(`confirm ${what} failed, retrying`);
     const now = deps.readContext();
     if (state.active && now.epoch === epoch && !now.final) {
-      deps.send({ type: 'CONFIRM_FAILED' });
+      deps.send({ type: 'CONFIRM_FAILED', kind: what === 'shot' ? 'broken' : linkKindFor(error) });
     }
   }
 
@@ -74,11 +75,13 @@ export function createConfirmLoop(deps: ConfirmLoopDeps): ConfirmLoop {
     let photo: ConfirmPhoto | null = null;
     try {
       photo = await deps.shoot();
-    } catch {
+    } catch (error) {
       photo = null;
+      failed(epoch, 'shot', error);
+      return;
     }
     if (!photo) {
-      failed(epoch, 'shot');
+      failed(epoch, 'shot', null);
       return;
     }
     if (detail) {
@@ -99,8 +102,9 @@ export function createConfirmLoop(deps: ConfirmLoopDeps): ConfirmLoop {
         }
         deps.log(`confirm detail ${answer.readMs}ms text ${answer.read.text === null ? 'unread' : 'read'}`);
         deps.send({ type: 'CONFIRM_DETAIL', epoch, text: answer.read.text, reason: answer.read.reason, crop: photo.crop });
-      } catch {
-        failed(epoch, 'read');
+        deps.send({ type: 'LINK_OK' });
+      } catch (error) {
+        failed(epoch, 'read', error);
       }
       return;
     }
@@ -121,8 +125,9 @@ export function createConfirmLoop(deps: ConfirmLoopDeps): ConfirmLoop {
       }
       deps.log(`confirm read ${answer.readMs}ms verdict ${answer.read.verdict} label ${answer.read.label_name}`);
       deps.send(verdictEvent(epoch, photo, answer.read));
-    } catch {
-      failed(epoch, 'read');
+      deps.send({ type: 'LINK_OK' });
+    } catch (error) {
+      failed(epoch, 'read', error);
     }
   }
 

@@ -21,6 +21,7 @@ import {
   raiseHeard,
 } from './actions';
 import { sendStart } from './streamCtl';
+import { raiseLinkDown, raiseLinkOk } from './link';
 import { stamp } from '../stamp';
 import type { UnderstandAnswer } from '../relay';
 import type { ConversationContext, ExpressionEvent } from './types';
@@ -89,7 +90,7 @@ export const speculatingState = {
       pendingRequest: context.pendingRequest ?? context.request,
       lastLine: context.lastLine,
     }),
-    onDone: { actions: [noteSpeculative] },
+    onDone: { actions: [noteSpeculative, raiseLinkOk] },
     onError: { actions: [noteSpecClear] },
   },
   on: {
@@ -99,10 +100,10 @@ export const speculatingState = {
     ],
     PARTIAL_TEXT: { guard: partialChanged, actions: [notePartial, raiseHeard], target: 'speculating' },
     SPEECH_ENDED: { actions: [playHeard, raiseHeard] },
-    STREAM_OPEN: { actions: [noteStreamOpen] },
+    STREAM_OPEN: { actions: [noteStreamOpen, raiseLinkOk] },
     STREAM_CLOSED: { actions: [noteStreamDown, sendStart] },
     STREAM_ERROR: { actions: [noteStreamDown, sendStart] },
-    STREAM_FAILED: { actions: [noteStreamDown, sendStart] },
+    STREAM_FAILED: { actions: [noteStreamDown, raiseLinkDown, sendStart] },
     MIC_FAILED: { guard: micDue, actions: [noteMicComplaint], target: 'saying' },
     ALERT: { guard: alertDue, actions: [noteAlert], target: 'saying' },
     REPROMPT: { actions: [assignReprompt, logReprompt], target: 'sayingReprompt' },

@@ -4,6 +4,7 @@
 // clock, the frames and the cloud are injected, so tests walk the
 // loop with simulated time and the phone drives it with real timers.
 import type { ShelfCrop, ShelfOutline, ShelfRead } from '../relay';
+import { linkKindFor } from '../metaCall';
 import { pickSharpest, sharpness } from './tracker';
 import { moveOutlines } from './outlines';
 import { biggestFirst, needsRead, reconcileTracks } from './shelfTracks';
@@ -67,7 +68,7 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
     deps.log(`shelf pass failed: ${String((error as Error)?.message ?? error)}`);
     if (state.failAt === null || deps.now() - state.failAt > QUIET_MS) {
       state.failAt = deps.now();
-      deps.send({ type: 'SEARCH_FAILED' });
+      deps.send({ type: 'SEARCH_FAILED', kind: linkKindFor(error) });
     }
   }
 
@@ -169,6 +170,7 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
             deps.send({ type: 'OUTLINES_MOVED', outlines: [] });
           }
           await reportEmpty(ctx, request, epoch, sharpest.image, phrase);
+          deps.send({ type: 'LINK_OK' });
           return;
         }
         state.emptyOutlines = 0;
@@ -208,6 +210,7 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
           reportVerdicts(ctx, request, passReads, epoch);
         }
         maybeSwept(ctx, passReads, epoch);
+        deps.send({ type: 'LINK_OK' });
       } catch (error) {
         fail(error);
       } finally {

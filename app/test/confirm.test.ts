@@ -166,16 +166,17 @@ test('a moved hand on an automatic check rereads silently', async () => {
   driver.stop();
 });
 
-test('a failed read says the internet is lost once, then retries silently', async () => {
+test('a failed read says the lost internet line once, then retries silently', async () => {
   const driver = await checking();
-  driver.send({ type: 'CONFIRM_FAILED' });
+  driver.send({ type: 'CONFIRM_FAILED', kind: 'down' });
   await driver.flush();
-  assert.equal(driver.context().lastLine, "I've lost the internet. I'll keep trying.");
-  const said = driver.parts.length;
-  driver.send({ type: 'CONFIRM_FAILED' });
+  assert.equal(driver.link(), 'down');
+  assert.equal(driver.context().lastLine, "I've lost the internet. Check the phone has signal; I'll keep trying.");
+  const said = driver.spoken.length;
+  driver.send({ type: 'CONFIRM_FAILED', kind: 'down' });
   await driver.flush();
   assert.equal(driver.confirm(), 'checking');
-  assert.equal(driver.parts.length, said);
+  assert.equal(driver.spoken.length, said);
   driver.stop();
 });
 
