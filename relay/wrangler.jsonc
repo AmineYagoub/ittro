@@ -6,7 +6,14 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-10-27",
   "routes": [{ "pattern": "ittro.djazair.dev/*", "zone_name": "djazair.dev" }],
-  "kv_namespaces": [{ "binding": "ITTRO_LIMITS", "id": "7f63a9ce59ad44dca7d465d1a8f61e68" }],
+  // ITTRO_HELPERS holds pairings, helpers and questions so they
+  // survive across isolates. Deploy needs a real namespace first:
+  // `wrangler kv namespace create ITTRO_HELPERS`, then put its id
+  // here. Local runs without it fall back to memory.
+  "kv_namespaces": [
+    { "binding": "ITTRO_LIMITS", "id": "7f63a9ce59ad44dca7d465d1a8f61e68" },
+    { "binding": "ITTRO_HELPERS", "id": "00000000000000000000000000000000" }
+  ],
   "vars": {
     "META_API_BASE": "https://api.meta.ai/v1",
     "DAILY_BUDGET_USD": "3",

@@ -1,6 +1,8 @@
 // The relay gate: every route except /health needs the app access
 // code, is rate-limited per visitor, and stops for the day when the
 // spending limit is reached. Costs are recorded before answering.
+import type { KvBinding } from './helperStore.ts';
+
 export interface Limits {
   get(key: string): Promise<string | null>;
   put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
@@ -18,6 +20,7 @@ export interface Env {
   SAM_COST_USD?: string;
   RATE_LIMIT_PER_MINUTE?: string;
   ITTRO_LIMITS?: Limits;
+  ITTRO_HELPERS?: KvBinding;
 }
 
 export function codesEqual(a: string, b: string): boolean {
