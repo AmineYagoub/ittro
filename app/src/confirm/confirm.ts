@@ -16,6 +16,7 @@ import {
   chimeNo,
   chimeUnsure,
   chimeYes,
+  clearConfirmSpeech,
   endConfirm,
   freshConfirm,
   noteUnsure,
@@ -71,7 +72,7 @@ export const confirmRegion = {
     },
     checking: {
       ...speakState(),
-      after: { [NET_UPDATE_MS]: { target: 'checking', reenter: true } },
+      after: { [NET_UPDATE_MS]: { actions: [clearConfirmSpeech] } },
       on: {
         CONFIRM_YES: { guard: freshConfirm, actions: [logVerdict, storeYes, raiseQuestion], target: 'yes' },
         CONFIRM_NO: { guard: freshConfirm, actions: [logVerdict, storeNo, raiseQuestion], target: 'no' },

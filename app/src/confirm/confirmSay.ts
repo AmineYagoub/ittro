@@ -264,6 +264,10 @@ export const storeDetail = assign({
   lastChips: [],
 });
 
+export const clearConfirmSpeech = assign({
+  confirmParts: [],
+});
+
 export const endConfirm = assign({
   confirming: false,
   confirmAsked: false,

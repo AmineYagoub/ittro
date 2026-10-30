@@ -32,6 +32,27 @@ test('asking if it is right rereads from a new photo', async () => {
   driver.stop();
 });
 
+test('a repeated question mid-check keeps the same check', async () => {
+  const driver = await checking();
+  const epoch = driver.context().confirmEpoch;
+  driver.setUnderstand(() => answer({ intent: 'is_this_right' }));
+  await driver.heard('is this the right one');
+  assert.equal(driver.talk(), 'listening');
+  assert.equal(driver.confirm(), 'checking');
+  assert.equal(driver.context().confirmEpoch, epoch);
+  assert.equal(driver.parts.length, 1);
+  driver.stop();
+});
+
+test('checking is said once per check', async () => {
+  const driver = await checking();
+  assert.deepEqual(driver.parts, [[{ clip: 'checking' }]]);
+  await driver.advance(9000);
+  assert.equal(driver.parts.length, 1);
+  assert.deepEqual(driver.context().confirmParts, []);
+  driver.stop();
+});
+
 test('reading the date asks, then reads it word for word', async () => {
   const driver = await startListening({ request: 'Masaad water' });
   driver.setUnderstand(() => answer({ intent: 'read_detail', detail: 'date' }));

@@ -31,6 +31,16 @@ const detailInHand = ({ context }: { context: ConversationContext }): boolean =>
   return answer?.intent === 'read_detail' && wantedOf(context) !== null && !!answer && validDetail(answer.detail);
 };
 
+const checkBusy = ({ context }: { context: ConversationContext }): boolean => {
+  const intent = answerOf(context)?.intent;
+  return (
+    (intent === 'is_this_right' || intent === 'read_again') &&
+    wantedOf(context) !== null &&
+    context.confirming &&
+    !context.confirmFinal
+  );
+};
+
 const checkLost = ({ context }: { context: ConversationContext }): boolean => {
   const intent = answerOf(context)?.intent;
   return intent === 'is_this_right' || intent === 'read_again';
@@ -40,6 +50,7 @@ const detailLost = ({ context }: { context: ConversationContext }): boolean =>
   answerOf(context)?.intent === 'read_detail';
 
 export const confirmRoutes: Route[] = [
+  { guard: checkBusy, target: 'listening' },
   { guard: checkInHand, actions: [raiseConfirmBegin, raiseQuestion], target: 'listening' },
   { guard: rereadInHand, actions: [raiseConfirmBegin, raiseQuestion], target: 'listening' },
   { guard: detailInHand, actions: [setDetailKind, raiseConfirmDetailAsk, raiseQuestion], target: 'listening' },

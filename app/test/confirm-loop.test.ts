@@ -117,6 +117,20 @@ function fix(x: number, y: number): HandFix {
   return { x, y, confidence: 0.9, handWidth: 60, atMs: 0 };
 }
 
+test('a second shot waits for the first answer', async () => {
+  const { script, loop, advance } = scripted();
+  loop.begin();
+  await flush();
+  assert.equal(script.shots, 1);
+  await advance(1200);
+  assert.equal(script.shots, 1);
+  script.answer(UNSURE);
+  await flush();
+  await advance(1200);
+  assert.equal(script.shots, 2);
+  loop.stop();
+});
+
 test('the first shot goes at once and a yes lands with its crop', async () => {
   const { script, loop } = scripted();
   loop.begin();
@@ -200,21 +214,6 @@ test('a stale epoch answer is dropped', async () => {
   script.answer(YES);
   await flush();
   assert.deepEqual(script.sent, []);
-  loop.stop();
-});
-
-test('two reads may fly while a third waits', async () => {
-  const { script, loop, advance, pending } = scripted();
-  loop.begin();
-  await flush();
-  await advance(1200);
-  await advance(1200);
-  assert.equal(script.shots, 2);
-  assert.equal(pending(), 2);
-  script.answer(UNSURE);
-  await flush();
-  await advance(1200);
-  assert.equal(script.shots, 3);
   loop.stop();
 });
 

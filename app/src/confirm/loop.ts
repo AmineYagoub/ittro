@@ -14,7 +14,7 @@ import type { ConfirmLoop, ConfirmLoopContext, ConfirmLoopDeps, ConfirmPhoto } f
 const SHOT_GAP_MS = 1200;
 const FAIL_GAP_MS = 4000;
 const MAX_TRIES = 5;
-const MAX_FLIGHT = 2;
+const MAX_FLIGHT = 1;
 const MOVE_PX = 80;
 
 function readValues(read: ConfirmAttrs): string[] {
