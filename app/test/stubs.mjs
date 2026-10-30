@@ -105,6 +105,8 @@ let speechHangs = false;
 
 let speechScript = [];
 
+let speechSpeaking = false;
+
 export function setSpeechHang(hang) {
   speechHangs = hang;
 }
@@ -113,11 +115,21 @@ export function setSpeechScript(outcomes) {
   speechScript = [...outcomes];
 }
 
+export function setSpeechSpeaking(speaking) {
+  speechSpeaking = speaking;
+}
+
+export async function isSpeakingAsync() {
+  return speechSpeaking;
+}
+
 export function resetSpeech() {
   speechCalls.length = 0;
   speechStops.length = 0;
   speechHangs = false;
   speechScript = [];
+  speechSpeaking = false;
+  audioPlayers.length = 0;
 }
 
 export function speak(text, options) {
@@ -134,16 +146,34 @@ export function stop() {
   speechStops.push(Date.now());
 }
 
+export const audioPlayers = [];
+
 export function createAudioPlayer() {
-  return {
-    play() {},
-    pause() {},
+  const player = {
+    playing: false,
+    currentTime: 0,
+    duration: 1,
+    isLoaded: true,
+    listener: null,
+    play() {
+      player.playing = true;
+    },
+    pause() {
+      player.playing = false;
+    },
     remove() {},
     setPlaybackRate() {},
-    addListener() {
+    addListener(event, callback) {
+      player.listener = callback;
       return { remove() {} };
     },
+    finish() {
+      player.playing = false;
+      player.listener?.({ didJustFinish: true });
+    },
   };
+  audioPlayers.push(player);
+  return player;
 }
 
 const store = new Map();

@@ -15,6 +15,10 @@ const SPEECH_LOCALE: Record<Language, string> = { en: 'en-US', ar: 'ar-SA', fr: 
 
 const CLIP_TIMEOUT_MS = 8000;
 
+const CLIP_GRACE_MS = 400;
+
+const CLIP_POLL_MS = 200;
+
 let generation = 0;
 let talkBack = false;
 let activePlayer: AudioPlayer | null = null;
@@ -71,40 +75,80 @@ function waitEstimate(text: string, g: number): Promise<void> {
   });
 }
 
-type SpeakOutcome = 'done' | 'stopped' | 'error' | 'timeout';
+type SpeakOutcome = 'done' | 'stopped' | 'error' | 'slow' | 'unacked' | 'dropped';
+
+async function engineSpeaking(): Promise<boolean> {
+  try {
+    return await Speech.isSpeakingAsync();
+  } catch {
+    return false;
+  }
+}
+
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function speakOnce(text: string, lang: Language): Promise<SpeakOutcome> {
   return new Promise((resolve) => {
     let done = false;
+    let heardEngine = false;
     const finish = (outcome: SpeakOutcome): void => {
       if (!done) {
         done = true;
+        clearTimeout(timer);
+        clearInterval(probe);
         resolve(outcome);
       }
     };
-    const timer = setTimeout(() => finish('timeout'), speechBudgetMs(text));
-    Speech.speak(text, {
-      language: SPEECH_LOCALE[lang],
-      rate: speechRate,
-      onDone: () => {
-        clearTimeout(timer);
-        finish('done');
-      },
-      onStopped: () => {
-        clearTimeout(timer);
-        finish('stopped');
-      },
-      onError: () => {
-        clearTimeout(timer);
-        finish('error');
-      },
-    });
+    const probe = setInterval(() => {
+      void engineSpeaking().then((speaking) => {
+        heardEngine = heardEngine || speaking;
+      });
+    }, 200);
+    const timer = setTimeout(() => {
+      void engineSpeaking().then((speaking) => {
+        if (speaking) {
+          finish('slow');
+        } else if (heardEngine) {
+          finish('unacked');
+        } else {
+          finish('dropped');
+        }
+      });
+    }, speechBudgetMs(text));
+    try {
+      Speech.speak(text, {
+        language: SPEECH_LOCALE[lang],
+        rate: speechRate,
+        onDone: () => finish('done'),
+        onStopped: () => finish('stopped'),
+        onError: () => finish('error'),
+      });
+    } catch {
+      finish('error');
+    }
   });
 }
 
-function retryLog(outcome: 'error' | 'timeout', again: boolean): string {
-  if (outcome === 'timeout') {
-    return again ? 'say timed out, saying again' : 'say timed out twice, carrying on';
+async function waitForEngine(text: string, g: number): Promise<void> {
+  const budgetMs = speechBudgetMs(text);
+  const started = Date.now();
+  for (;;) {
+    if (!alive(g) || !(await engineSpeaking())) {
+      return;
+    }
+    if (Date.now() - started >= budgetMs) {
+      void Speech.stop();
+      return;
+    }
+    await sleepMs(200);
+  }
+}
+
+function retryLog(outcome: 'error' | 'dropped', again: boolean): string {
+  if (outcome === 'dropped') {
+    return again ? 'say dropped, saying again' : 'say dropped twice, carrying on';
   }
   return again ? 'say failed, saying again' : 'say failed twice, carrying on';
 }
@@ -114,16 +158,31 @@ async function speakWithRetry(text: string, lang: Language, g: number): Promise<
   if (!alive(g) || first === 'done' || first === 'stopped') {
     return;
   }
+  if (first === 'slow') {
+    logIttro('say slow, waiting for the engine');
+    await waitForEngine(text, g);
+    return;
+  }
+  if (first === 'unacked') {
+    logIttro('say ended without its callback, carrying on');
+    return;
+  }
   logIttro(retryLog(first, true));
   void Speech.stop();
   const second = await speakOnce(text, lang);
-  if (!alive(g)) {
+  if (!alive(g) || second === 'done' || second === 'stopped') {
     return;
   }
-  if (second === 'timeout' || second === 'error') {
-    logIttro(retryLog(second, false));
-    void Speech.stop();
+  if (second === 'slow') {
+    await waitForEngine(text, g);
+    return;
   }
+  if (second === 'unacked') {
+    logIttro('say ended without its callback, carrying on');
+    return;
+  }
+  logIttro(retryLog(second, false));
+  void Speech.stop();
 }
 
 export function say(text: string, lang: Language): Promise<void> {
@@ -174,11 +233,14 @@ function playFile(source: unknown, rate: number): Promise<void> {
   }
   return new Promise((resolve) => {
     let done = false;
+    const started = Date.now();
     const finish = (): void => {
       if (done) {
         return;
       }
       done = true;
+      clearTimeout(timer);
+      clearInterval(poll);
       subscription.remove();
       if (activePlayer === player) {
         activePlayer = null;
@@ -190,9 +252,22 @@ function playFile(source: unknown, rate: number): Promise<void> {
       logIttro('clip timed out, carrying on');
       finish();
     }, CLIP_TIMEOUT_MS);
+    const poll = setInterval(() => {
+      if (Date.now() - started < CLIP_GRACE_MS) {
+        return;
+      }
+      let ended = false;
+      try {
+        ended = !player.playing || (player.duration > 0 && player.currentTime >= player.duration);
+      } catch {
+        ended = false;
+      }
+      if (ended || !alive(g)) {
+        finish();
+      }
+    }, CLIP_POLL_MS);
     const subscription = player.addListener('playbackStatusUpdate', (status) => {
       if (status.didJustFinish || !alive(g)) {
-        clearTimeout(timer);
         finish();
       }
     });

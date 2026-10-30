@@ -1,9 +1,18 @@
-// A spoken line never blocks Ittro forever: say and sayClip both
-// resolve when the platform answers and when it never does.
+// A spoken line never blocks Ittro forever, and it is never said
+// twice: say and sayClip both resolve when the platform answers,
+// when the engine already played the line, and when it never does.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { say, sayClip } from '../src/speech';
-import { resetSpeech, setSpeechHang, setSpeechScript, speechCalls, speechStops } from './stubs.mjs';
+import {
+  audioPlayers,
+  resetSpeech,
+  setSpeechHang,
+  setSpeechScript,
+  setSpeechSpeaking,
+  speechCalls,
+  speechStops,
+} from './stubs.mjs';
 
 async function settles(promise: Promise<void>, ms: number): Promise<boolean> {
   let finished = false;
@@ -12,6 +21,10 @@ async function settles(promise: Promise<void>, ms: number): Promise<boolean> {
     finished = true;
   }), timeout]);
   return finished;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 test('say resolves when speech finishes', async () => {
@@ -25,7 +38,7 @@ test('say resolves when speech finishes', async () => {
   }
 });
 
-test('say tries once more, then carries on when speech never finishes', async () => {
+test('say tries once more, then carries on when the engine drops the line', async () => {
   resetSpeech();
   setSpeechHang(true);
   try {
@@ -38,7 +51,7 @@ test('say tries once more, then carries on when speech never finishes', async ()
   }
 });
 
-test('say says the line again once after a timeout', async () => {
+test('say says the line again once after the engine drops it', async () => {
   resetSpeech();
   setSpeechScript(['hang', 'ok']);
   try {
@@ -71,6 +84,35 @@ test('say carries on when the retry fails too', async () => {
   }
 });
 
+test('say says the line once when the engine played it but lost the callback', async () => {
+  resetSpeech();
+  setSpeechHang(true);
+  setSpeechSpeaking(true);
+  try {
+    const said = say('hi', 'en');
+    await sleep(300);
+    setSpeechSpeaking(false);
+    assert.equal(await settles(said, 3000), true);
+    assert.equal(speechCalls.length, 1);
+  } finally {
+    resetSpeech();
+  }
+});
+
+test('say waits for a slow engine instead of saying the line twice', async () => {
+  resetSpeech();
+  setSpeechHang(true);
+  setSpeechSpeaking(true);
+  try {
+    const said = say('hi', 'en');
+    setTimeout(() => setSpeechSpeaking(false), 1300);
+    assert.equal(await settles(said, 4000), true);
+    assert.equal(speechCalls.length, 1);
+  } finally {
+    resetSpeech();
+  }
+});
+
 test('a superseded say neither retries nor stops the new line', async () => {
   resetSpeech();
   setSpeechScript(['hang', 'ok']);
@@ -81,6 +123,34 @@ test('a superseded say neither retries nor stops the new line', async () => {
     assert.equal(speechCalls.length, 2);
     assert.equal(speechCalls[1]?.text, 'second');
     assert.equal(speechStops.length, 2);
+  } finally {
+    resetSpeech();
+  }
+});
+
+test('sayClip ends when the clip finishes', async () => {
+  resetSpeech();
+  try {
+    const played = sayClip('testcue', 'en');
+    await sleep(100);
+    const player = audioPlayers[audioPlayers.length - 1] as { finish: () => void } | undefined;
+    player?.finish();
+    assert.equal(await settles(played, 2000), true);
+  } finally {
+    resetSpeech();
+  }
+});
+
+test('sayClip ends when the player stops even without its event', async () => {
+  resetSpeech();
+  try {
+    const played = sayClip('testcue', 'en');
+    await sleep(100);
+    const player = audioPlayers[audioPlayers.length - 1] as { playing: boolean } | undefined;
+    if (player) {
+      player.playing = false;
+    }
+    assert.equal(await settles(played, 2000), true);
   } finally {
     resetSpeech();
   }
