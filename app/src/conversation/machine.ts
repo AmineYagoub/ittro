@@ -1,6 +1,7 @@
 // The conversation: one statechart for listening, understanding,
-// pausing and the silence timers. Speech mutes the mic; a pause bumps
-// the epoch so nothing heard before it is acted on after.
+// pausing and the silence timers. The mic stays live while Ittro
+// speaks, so the shopper can interrupt; a pause bumps the epoch so
+// nothing heard before it is acted on after.
 import { setup } from 'xstate';
 import { speakMany, speakParts, ticking, tourSequence, understandAnswer } from './actors';
 import { answerPoll, pairHelper, pairPoll, pulseTick, sendHelp } from '../helper/actors';

@@ -23,6 +23,7 @@ import { askConfirmLine, askNameLine, helpersWord, offerLine } from '../helper/l
 import { HELP_CHIP, NO_CHIP, YES_CHIP } from '../chips';
 import type { streamClient } from './streamActor';
 import type { ConversationContext, ExpressionEvent, SpokenLine } from './types';
+import { strippedText } from './echo';
 import { logIttro } from '../log';
 
 export type ContextArgs = { context: ConversationContext };
@@ -57,6 +58,23 @@ export const noteHeard = assign({
 export const logHeard = ({ event }: EventArgs): void => {
   if (event.type === 'FINAL_TEXT') {
     logIttro(`heard: ${JSON.stringify(event.text)}`);
+  }
+};
+
+export const noteHeardStripped = assign({
+  transcript: ({ context, event }: EventArgs) => strippedText({ context, event }),
+  askedEpoch: ({ context }: ContextArgs) => context.epoch,
+});
+
+export const logHeardStripped = ({ context, event }: EventArgs): void => {
+  if (event.type === 'FINAL_TEXT') {
+    logIttro(`heard after echo strip: ${JSON.stringify(strippedText({ context, event }))}`);
+  }
+};
+
+export const logEchoDrop = ({ event }: EventArgs): void => {
+  if (event.type === 'FINAL_TEXT' || event.type === 'PARTIAL_TEXT') {
+    logIttro(`dropped own echo: ${JSON.stringify(event.text)}`);
   }
 };
 

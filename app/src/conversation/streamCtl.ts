@@ -1,6 +1,7 @@
-// Stream commands: muting, starting and stopping the voice stream
-// from the states. The mic mutes while Ittro speaks and unmutes
-// when listening opens again.
+// Stream commands: starting and stopping the voice stream from
+// the states. The mic stays live while Ittro speaks, so the
+// shopper can always interrupt; transcripts of Ittro's own voice
+// are dropped by the echo check instead.
 import { enqueueConversation as enqueue, requestKeywords, sendToConversation as sendTo } from './actors';
 import type { ContextArgs } from './actions';
 import type { ConversationContext, StreamCommand } from './types';
@@ -15,10 +16,6 @@ export function toStream(command: StreamCommand | ((args: ContextArgs) => Stream
     command,
   );
 }
-
-export const muteMic = toStream({ type: 'MUTE' });
-
-export const unmuteMic = toStream({ type: 'UNMUTE' });
 
 export const sendStop = toStream({ type: 'STOP' });
 

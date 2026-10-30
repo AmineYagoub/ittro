@@ -69,11 +69,7 @@ export interface MachineInput {
   relayCode: string;
 }
 
-export type StreamCommand =
-  | { type: 'MUTE' }
-  | { type: 'UNMUTE' }
-  | { type: 'START'; keywords: string[] }
-  | { type: 'STOP' };
+export type StreamCommand = { type: 'START'; keywords: string[] } | { type: 'STOP' };
 
 export type StreamEmitted =
   | { type: 'STREAM_OPEN' }

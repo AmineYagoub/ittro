@@ -49,6 +49,7 @@ export interface Driver {
   parts: SpeechPart[][];
   streamCommands: StreamCommand[];
   start: () => Promise<void>;
+  holdSpeech: (hold: boolean) => void;
   setUnderstand: (script: UnderstandScript) => void;
   setHelper: (scripts: { pair?: PairScript; send?: SendScript }) => void;
   send: (event: ConversationEvent) => void;
@@ -75,9 +76,16 @@ export function startConversation(options?: StartOptions): Driver {
   let script: UnderstandScript = () => answer({ intent: 'not_understood' });
   let pairScript: PairScript = (input) => ({ name: input.name, code: '482715', expiresAt: Date.now() + 600000 });
   let sendScript: SendScript = () => ({ id: 'q1', helpers: ['Sara'], photo: null });
+  let speechHeld = false;
+  let speechGate: (() => void) | null = null;
   const provided = conversationMachine.provide({
     actors: {
       speakMany: fromPromise<void, SpeakInput>(async ({ input }) => {
+        if (speechHeld) {
+          await new Promise<void>((release) => {
+            speechGate = release;
+          });
+        }
         for (const line of input.lines) {
           spoken.push(line.text);
         }
@@ -135,6 +143,14 @@ export function startConversation(options?: StartOptions): Driver {
     async start(): Promise<void> {
       actor.start();
       await flush();
+    },
+    holdSpeech(hold: boolean): void {
+      speechHeld = hold;
+      if (!hold && speechGate) {
+        const release = speechGate;
+        speechGate = null;
+        release();
+      }
     },
     setUnderstand(next: UnderstandScript): void {
       script = next;

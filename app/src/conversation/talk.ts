@@ -3,7 +3,9 @@
 // word, from any substate: the talk-level BUTTON_PRESS routes it,
 // stopping whatever speech or understanding was running.
 import { speech } from '../theme';
-import { ensureStream, muteMic, sendStart, unmuteMic } from './streamCtl';
+import { ensureStream, sendStart } from './streamCtl';
+import { bargeIn } from './bargeIn';
+import { echoFull, echoStripped } from './echo';
 import {
   alertDue,
   applyInitialRate,
@@ -15,7 +17,9 @@ import {
   freshAnswer,
   freshLines,
   hasRequest,
+  logEchoDrop,
   logHeard,
+  logHeardStripped,
   logHelp,
   logReprompt,
   markTalkBusy,
@@ -25,6 +29,7 @@ import {
   nonEmptyFinal,
   noteAlert,
   noteHeard,
+  noteHeardStripped,
   noteMicComplaint,
   noteSaid,
   noteSnapshot,
@@ -68,19 +73,24 @@ import {
 function sayTo(target: 'listening' | 'sleeping' | 'over' | 'resumed' | 'routing', raiseClock: boolean) {
   const resolved = target === 'over' ? '#conversation.over' : target;
   return {
-    entry: [muteMic, markTalkBusy],
+    entry: [markTalkBusy],
     invoke: {
       src: 'speakMany' as const,
       input: ({ context }: ContextArgs) => ({ lines: context.pendingSay, lang: context.lang }),
       onDone: { actions: raiseClock ? [noteSaid, raiseQuestion] : [noteSaid], target: resolved },
       onError: { actions: [noteSaid], target: resolved },
     },
-    exit: [unmuteMic, markTalkQuiet],
+    exit: [markTalkQuiet],
+    on: bargeIn,
   };
 }
 
 const listeningShared = {
-  FINAL_TEXT: { guard: nonEmptyFinal, actions: [noteHeard, logHeard, raiseHeard], target: 'understanding' },
+  FINAL_TEXT: [
+    { guard: echoFull, actions: [logEchoDrop] },
+    { guard: echoStripped, actions: [noteHeardStripped, logHeardStripped, raiseHeard], target: 'understanding' },
+    { guard: nonEmptyFinal, actions: [noteHeard, logHeard, raiseHeard], target: 'understanding' },
+  ],
   SPEECH_ENDED: { actions: [playHeard, raiseHeard] },
   STREAM_OPEN: { actions: [noteStreamOpen, raiseLinkOk] },
 };
@@ -117,24 +127,26 @@ export const talkState = {
     sayingResume: sayTo('resumed', true),
     sayingFlLang: sayTo('listening', true),
     sayingFlPrivacy: {
-      entry: [muteMic, markTalkBusy],
+      entry: [markTalkBusy],
       invoke: {
         src: 'speakMany' as const,
         input: ({ context }: ContextArgs) => ({ lines: context.pendingSay, lang: context.lang }),
         onDone: { actions: [noteSaid, buttonsLines], target: 'sayingFlButtons' },
         onError: { actions: [noteSaid, buttonsLines], target: 'sayingFlButtons' },
       },
-      exit: [unmuteMic, markTalkQuiet],
+      exit: [markTalkQuiet],
+      on: bargeIn,
     },
     sayingFlButtons: {
-      entry: [muteMic, markTalkBusy],
+      entry: [markTalkBusy],
       invoke: {
         src: 'speakMany' as const,
         input: ({ context }: ContextArgs) => ({ lines: context.pendingSay, lang: context.lang }),
         onDone: { actions: [noteSaid, chainActions.tourOfferLines], target: 'sayingFlTourOffer' },
         onError: { actions: [noteSaid, chainActions.tourOfferLines], target: 'sayingFlTourOffer' },
       },
-      exit: [unmuteMic, markTalkQuiet],
+      exit: [markTalkQuiet],
+      on: bargeIn,
     },
     sayingFlTourOffer: sayTo('listening', true),
     listening: {
@@ -149,6 +161,7 @@ export const talkState = {
       on: {
         ...listeningShared,
         PARTIAL_TEXT: [
+          { guard: echoFull, actions: [logEchoDrop] },
           { guard: partialWorthy, actions: [notePartial, raiseHeard], target: 'speculating' },
           { actions: [raiseHeard] },
         ],
@@ -246,24 +259,26 @@ export const talkState = {
       },
     },
     touring: {
-      entry: [muteMic, markTalkBusy],
+      entry: [markTalkBusy],
       invoke: {
         src: 'tourSequence' as const,
         input: ({ context }: ContextArgs) => ({ lang: context.lang }),
         onDone: { actions: [raiseQuestion], target: 'listening' },
         onError: { actions: [raiseQuestion], target: 'listening' },
       },
-      exit: [unmuteMic, markTalkQuiet],
+      exit: [markTalkQuiet],
+      on: bargeIn,
     },
     touringFl: {
-      entry: [muteMic, markTalkBusy],
+      entry: [markTalkBusy],
       invoke: {
         src: 'tourSequence' as const,
         input: ({ context }: ContextArgs) => ({ lang: context.lang }),
         onDone: { actions: [chainActions.welcomeAfterTour, chainActions.noteTourDone], target: 'saying' },
         onError: { actions: [chainActions.welcomeAfterTour, chainActions.noteTourDone], target: 'saying' },
       },
-      exit: [unmuteMic, markTalkQuiet],
+      exit: [markTalkQuiet],
+      on: bargeIn,
     },
     resuming: {
       entry: [sendStart],

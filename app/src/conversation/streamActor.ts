@@ -1,8 +1,9 @@
 // The mic-and-socket stream: opens the relay socket and the mic
 // together, buffering up to two seconds of 24 kHz frames until the
 // relay answers ready, then forwards live until Meta endpoints a
-// sentence. While Ittro speaks it sends silence, so the stream never
-// hears its echo. Restarts wait 1 s, 2 s, 4 s and on, and the log
+// sentence. The mic stays live while Ittro speaks, so the shopper
+// can interrupt; the statechart drops transcripts of Ittro's own
+// voice instead. Restarts wait 1 s, 2 s, 4 s and on, and the log
 // says why the socket closed.
 import { fromCallback } from 'xstate';
 import { addAudioChunkListener, startAudioStream, stopAudioStream } from 'ittro-sensors';
@@ -14,8 +15,6 @@ import { logIttro } from '../log';
 const READY_TIMEOUT_MS = 12000;
 
 const MIC_RETRY_MS = 5000;
-
-const UNMUTE_TAIL_MS = 300;
 
 const SILENCE_FRAME_BYTES = 3840;
 
@@ -45,9 +44,6 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
     let socket: WebSocket | null = null;
     let micStop: (() => void) | null = null;
     let ready = false;
-    let muted = true;
-    let heldByCommand = true;
-    let unmuteAt = 0;
     let live = true;
     let keywords = input.keywords;
     let readyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -132,12 +128,11 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
           if (!live) {
             return;
           }
-          const at = Date.now();
           stats.arrival(event.sequence);
           if (stats.count() >= MIC_SUMMARY_EVERY) {
             summarizeMic();
           }
-          const frame = muted || at < unmuteAt ? silence : (decodeChunk(event.chunk) ?? silence);
+          const frame = decodeChunk(event.chunk) ?? silence;
           if (ready) {
             sendFrame(frame);
           } else {
@@ -204,7 +199,6 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
         if (message.type === 'ready') {
           ready = true;
           retry.ready();
-          muted = heldByCommand;
           if (readyTimer) {
             clearTimeout(readyTimer);
             readyTimer = null;
@@ -257,7 +251,6 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
     const reopen = (): void => {
       stopMic();
       closeSocket();
-      muted = true;
       pending = [];
       openSocket();
     };
@@ -274,14 +267,7 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
     };
 
     receive((event: StreamCommand) => {
-      if (event.type === 'MUTE') {
-        heldByCommand = true;
-        muted = true;
-      } else if (event.type === 'UNMUTE') {
-        heldByCommand = false;
-        muted = false;
-        unmuteAt = Date.now() + UNMUTE_TAIL_MS;
-      } else if (event.type === 'STOP') {
+      if (event.type === 'STOP') {
         stop();
       } else if (event.type === 'START') {
         start(event.keywords);

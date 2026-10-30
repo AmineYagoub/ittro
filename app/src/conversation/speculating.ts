@@ -7,19 +7,23 @@ import {
   alertDue,
   assignHelp,
   assignReprompt,
+  logEchoDrop,
   logHeard,
+  logHeardStripped,
   logHelp,
   logReprompt,
   micDue,
   nonEmptyFinal,
   noteAlert,
   noteHeard,
+  noteHeardStripped,
   noteMicComplaint,
   noteStreamDown,
   noteStreamOpen,
   playHeard,
   raiseHeard,
 } from './actions';
+import { echoFull, echoStripped } from './echo';
 import { sendStart } from './streamCtl';
 import { raiseLinkDown, raiseLinkOk } from './link';
 import { logIttro } from '../log';
@@ -96,9 +100,14 @@ export const speculatingState = {
   on: {
     FINAL_TEXT: [
       { guard: finalMatch, actions: [noteSpecHit], target: 'routing' },
+      { guard: echoFull, actions: [logEchoDrop] },
+      { guard: echoStripped, actions: [noteHeardStripped, logHeardStripped, raiseHeard], target: 'understanding' },
       { guard: nonEmptyFinal, actions: [noteHeard, logHeard, raiseHeard], target: 'understanding' },
     ],
-    PARTIAL_TEXT: { guard: partialChanged, actions: [notePartial, raiseHeard], target: 'speculating' },
+    PARTIAL_TEXT: [
+      { guard: echoFull, actions: [logEchoDrop] },
+      { guard: partialChanged, actions: [notePartial, raiseHeard], target: 'speculating' },
+    ],
     SPEECH_ENDED: { actions: [playHeard, raiseHeard] },
     STREAM_OPEN: { actions: [noteStreamOpen, raiseLinkOk] },
     STREAM_CLOSED: { actions: [noteStreamDown, sendStart] },
