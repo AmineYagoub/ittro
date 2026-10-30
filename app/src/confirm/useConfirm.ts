@@ -7,7 +7,7 @@ import { useEffect } from 'react';
 import { prepareShelfPhoto } from 'ittro-sensors';
 import { confirmInHand, readLabelDetail } from '../relay';
 import { playSound } from '../speech';
-import { stamp } from '../stamp';
+import { logIttro } from '../log';
 import type { SearchActor, SearchCamera } from '../shelf/useShelfSearch';
 import { lastHandFix } from '../guide/frames';
 import { createConfirmLoop } from './loop';
@@ -68,7 +68,7 @@ export function useConfirm(
         }
       },
       log: (line) => {
-        if (__DEV__) console.log(`[ittro] ${stamp()} ${line}`);
+        logIttro(line);
       },
     });
     loop.begin();

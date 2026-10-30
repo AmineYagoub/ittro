@@ -6,7 +6,7 @@ import type { ContextArgs, EventArgs } from '../conversation/actions';
 import { loadPrefs, savePrefs } from '../store';
 import { cancelHelper, relayConfig } from '../relay';
 import { CANCEL_CHIP, NO_CHIP, YES_CHIP } from '../chips';
-import { stamp } from '../stamp';
+import { logIttro } from '../log';
 import type { ConversationContext } from '../conversation/types';
 import type { UnderstandAnswer } from '../relay';
 import {
@@ -211,7 +211,7 @@ export const fireCancel: Effect = ({ context }) => {
   const id = context.waiting?.id;
   if (id) {
     void cancelHelper(id).catch((err: unknown) => {
-      if (__DEV__) console.log(`[ittro] ${stamp()} helper cancel failed: ${String((err as Error)?.message ?? err)}`);
+      logIttro(`helper cancel failed: ${String((err as Error)?.message ?? err)}`);
     });
   }
 };

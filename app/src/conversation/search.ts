@@ -6,7 +6,7 @@ import { assignConversation as assign, raiseConversation as raise } from './acto
 import type { ContextArgs, EventArgs } from './actions';
 import { ASK_CHIP, NO_CHIP, YES_CHIP } from '../chips';
 import { raiseLinkKind } from './link';
-import { stamp } from '../stamp';
+import { logIttro } from '../log';
 import { stillLooking } from '../requestLines';
 import {
   checkingLine,
@@ -104,16 +104,12 @@ export const storeHandHold = assign({
 });
 
 export const logSearchBegin = ({ context }: ContextArgs): void => {
-  if (__DEV__) {
-    console.log(
-      `[ittro] ${stamp()} search begin ${JSON.stringify(context.pendingRequest ?? context.request)} epoch ${context.searchEpoch}`,
-    );
-  }
+  logIttro(`search begin ${JSON.stringify(context.pendingRequest ?? context.request)} epoch ${context.searchEpoch}`);
 };
 
 export const logOutlined = ({ context, event }: EventArgs): void => {
-  if (__DEV__ && event.type === 'SHELF_OUTLINED') {
-    console.log(`[ittro] ${stamp()} search outlined epoch ${context.searchEpoch} count ${event.outlines.length}`);
+  if (event.type === 'SHELF_OUTLINED') {
+    logIttro(`search outlined epoch ${context.searchEpoch} count ${event.outlines.length}`);
   }
 };
 

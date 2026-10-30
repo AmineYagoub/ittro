@@ -5,7 +5,7 @@
 // already elsewhere and is never spoken.
 import type { ContextArgs, EventArgs } from '../conversation/actions';
 import { raiseLinkKind } from '../conversation/link';
-import { stamp } from '../stamp';
+import { logIttro } from '../log';
 import { REPEAT_MS } from '../guide/guideSay';
 import {
   NET_UPDATE_MS,
@@ -46,16 +46,13 @@ const VERDICT_OF: Record<string, string> = {
 };
 
 function logVerdict({ event }: EventArgs): void {
-  if (!__DEV__) {
-    return;
-  }
   const kind = VERDICT_OF[event.type];
   if (!kind) {
     return;
   }
   const epoch = 'epoch' in event && typeof event.epoch === 'number' ? event.epoch : '?';
   const label = 'label' in event && typeof event.label === 'string' ? ` label ${JSON.stringify(event.label)}` : '';
-  console.log(`[ittro] ${stamp()} confirm verdict ${kind} epoch ${epoch}${label}`);
+  logIttro(`confirm verdict ${kind} epoch ${epoch}${label}`);
 }
 
 export const confirmRegion = {

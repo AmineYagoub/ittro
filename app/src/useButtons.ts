@@ -3,7 +3,7 @@
 // become EARBUD_STATE, so the statechart answers them like words.
 import { useEffect } from 'react';
 import { addButtonListener, addEarbudListener, earbudState, setButtonsActive } from 'ittro-sensors';
-import { stamp } from './stamp';
+import { logIttro } from './log';
 import type { ButtonGesture } from './conversation/types';
 
 interface ButtonActor {
@@ -14,7 +14,7 @@ export function useButtons(actorRef: { current: ButtonActor | null }): void {
   useEffect(() => {
     setButtonsActive(true);
     const initial = earbudState();
-    if (__DEV__) console.log(`[ittro] ${stamp()} buttons active, earbuds ${JSON.stringify(initial)}`);
+    logIttro(`buttons active, earbuds ${JSON.stringify(initial)}`);
     if (initial) {
       actorRef.current?.send({ type: 'EARBUD_STATE', connected: initial.connected });
     }

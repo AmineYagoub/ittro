@@ -5,7 +5,7 @@
 import { batteryLow, phoneHot, samplePhone } from './phone';
 import { lowBattery, phoneHot as phoneHotLine } from './lines';
 import type { Language } from './theme';
-import { stamp } from './stamp';
+import { logIttro } from './log';
 
 export interface PhoneWatcher {
   sendAlert: (kind: 'battery' | 'heat', text: string) => void;
@@ -37,9 +37,7 @@ export function startPhoneWatch(watcher: PhoneWatcher): () => void {
       watcher.sendAlert('heat', phoneHotLine[at]);
     }
     const sample = await samplePhone();
-    if (__DEV__) {
-      console.log(`[ittro] ${stamp()} ${sampleLine(Date.now() - started, sample.battery, sample.thermal, sample.memAvailMb, sample.memTotalMb)}`);
-    }
+    logIttro(sampleLine(Date.now() - started, sample.battery, sample.thermal, sample.memAvailMb, sample.memTotalMb));
   }
 }
 
@@ -47,8 +45,8 @@ export function trackState(): (value: unknown) => void {
   let last = '';
   return (value: unknown): void => {
     const flat = JSON.stringify(value);
-    if (__DEV__ && flat !== last) {
-      console.log(`[ittro] ${stamp()} state ${flat}`);
+    if (flat !== last) {
+      logIttro(`state ${flat}`);
       last = flat;
     }
   };

@@ -9,7 +9,7 @@ import type { Language, SoundName } from './theme';
 import { soundFile } from './theme';
 import { cueClip, cueText } from './voiceClips';
 import { soundAsset } from './soundBank';
-import { stamp } from './stamp';
+import { logIttro } from './log';
 
 const SPEECH_LOCALE: Record<Language, string> = { en: 'en-US', ar: 'ar-SA', fr: 'fr-FR' };
 
@@ -114,14 +114,14 @@ async function speakWithRetry(text: string, lang: Language, g: number): Promise<
   if (!alive(g) || first === 'done' || first === 'stopped') {
     return;
   }
-  if (__DEV__) console.log(`[ittro] ${stamp()} ${retryLog(first, true)}`);
+  logIttro(retryLog(first, true));
   void Speech.stop();
   const second = await speakOnce(text, lang);
   if (!alive(g)) {
     return;
   }
   if (second === 'timeout' || second === 'error') {
-    if (__DEV__) console.log(`[ittro] ${stamp()} ${retryLog(second, false)}`);
+    logIttro(retryLog(second, false));
     void Speech.stop();
   }
 }
@@ -187,7 +187,7 @@ function playFile(source: unknown, rate: number): Promise<void> {
       resolve();
     };
     const timer = setTimeout(() => {
-      if (__DEV__) console.log(`[ittro] ${stamp()} clip timed out, carrying on`);
+      logIttro('clip timed out, carrying on');
       finish();
     }, CLIP_TIMEOUT_MS);
     const subscription = player.addListener('playbackStatusUpdate', (status) => {

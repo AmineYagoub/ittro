@@ -13,6 +13,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { createActor } from 'xstate';
 import * as Localization from 'expo-localization';
 import { initVoice, say, setSpeechRate, stopVoice } from './src/speech';
+import { logIttro } from './src/log';
 import { loadPrefs, loadSnapshot } from './src/store';
 import { relayConfig } from './src/relay';
 import { preparePhone, restPhone, watchAppState } from './src/phone';
@@ -148,7 +149,7 @@ export default function App(): React.JSX.Element {
         }
         const snapshot = await loadSnapshot();
         const relay = relayConfig();
-        if (__DEV__) console.log('[ittro] relay:', JSON.stringify({ url: relay.url }));
+        logIttro(`relay ${JSON.stringify({ url: relay.url })}`);
         const actor = createActor(conversationMachine, {
           input: { prefs, snapshot, relayUrl: relay.url, relayCode: relay.accessCode },
         });
@@ -224,7 +225,7 @@ export default function App(): React.JSX.Element {
           onTrackPan={(event) => search.onTrackPan(event.nativeEvent)}
           onCameraError={(event) => {
             cameraReady.current = false;
-            if (__DEV__) console.log(`[ittro] camera error: ${event.nativeEvent.message}`);
+            logIttro(`camera error: ${event.nativeEvent.message}`);
           }}
         />
       ) : null}

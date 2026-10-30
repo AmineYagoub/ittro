@@ -4,7 +4,7 @@
 // once. Down is a dead route; limited is the relay asking to slow
 // down or the day's budget spent; broken is anything else.
 import Constants from 'expo-constants';
-import { stamp } from './stamp';
+import { logIttro } from './log';
 
 export type LinkKind = 'down' | 'limited' | 'broken';
 
@@ -23,7 +23,7 @@ export function linkKindFor(error: unknown): LinkKind {
 }
 
 function noteMeta(line: string): void {
-  if (__DEV__) console.log(`[ittro] ${stamp()} meta ${line}`);
+  logIttro(`meta ${line}`);
 }
 
 export function relayEndpoint(): { url: string; accessCode: string } {

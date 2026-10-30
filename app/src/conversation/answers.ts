@@ -31,7 +31,7 @@ import {
 } from '../lines';
 import { confirmList, confirmRequest, declinedRequest, welcomeBackLooking } from '../requestLines';
 import { applyRate, mergeBrands, persistSnapshot, storeBrief, storeConfirmedBrand, storeFirstLaunchDone, storeLanguage } from './actors';
-import { stamp } from '../stamp';
+import { logIttro } from '../log';
 import { spokenLang, switchedLines } from './translation';
 import { playSound } from '../speech';
 import type { ConversationContext } from './types';
@@ -155,7 +155,7 @@ export const confirmRequestLine = assign({
 });
 
 export const logRequestConfirmed: Effect = ({ context }) => {
-  if (__DEV__) console.log(`[ittro] ${stamp()} search request confirmed ${JSON.stringify(context.pendingRequest)}`);
+  logIttro(`search request confirmed ${JSON.stringify(context.pendingRequest)}`);
 };
 
 export const clearAsk = assign({

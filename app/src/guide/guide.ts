@@ -4,7 +4,7 @@
 // almost speaks once, reaching listens for contact, and the hand
 // states stop directing until the hand is back.
 import type { ContextArgs } from '../conversation/actions';
-import { stamp } from '../stamp';
+import { logIttro } from '../log';
 import { raiseConfirmAuto } from '../confirm/confirmSay';
 import {
   AIM_TIMEOUT_MS,
@@ -44,9 +44,7 @@ function speakState() {
 }
 
 function logHandOn({ context }: ContextArgs): void {
-  if (__DEV__) {
-    console.log(`[ittro] ${stamp()} guide hand on product epoch ${context.searchEpoch}`);
-  }
+  logIttro(`guide hand on product epoch ${context.searchEpoch}`);
 }
 
 export const guideRegion = {

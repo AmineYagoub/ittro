@@ -6,7 +6,7 @@ import { fromCallback, fromPromise } from 'xstate';
 import { askHelper, helperStatus, pairHelper as relayPair, pairStatus } from '../relay';
 import { prepareShelfPhoto, takeCameraShot } from 'ittro-sensors';
 import { playSound } from '../speech';
-import { stamp } from '../stamp';
+import { logIttro } from '../log';
 import type { ConversationEvent } from '../conversation/types';
 
 export interface PairHelperInput {
@@ -44,7 +44,7 @@ export interface PulseInput {
 export const pairHelper = fromPromise<PairHelperOutput, PairHelperInput>(async ({ input }) => {
   const started = Date.now();
   const paired = await relayPair(input.name);
-  if (__DEV__) console.log(`[ittro] ${stamp()} helper pair for ${JSON.stringify(input.name)} in ${Date.now() - started} ms`);
+  logIttro(`helper pair for ${JSON.stringify(input.name)} in ${Date.now() - started} ms`);
   return { name: input.name, code: paired.code, expiresAt: paired.expiresAt };
 });
 
@@ -66,7 +66,7 @@ async function resolvePhoto(crop: string | null): Promise<{ image: string; photo
 export const sendHelp = fromPromise<SendHelpOutput, SendHelpInput>(async ({ input }) => {
   const started = Date.now();
   const { image, photo } = await resolvePhoto(input.crop);
-  if (__DEV__) console.log(`[ittro] ${stamp()} helper photo ready in ${Date.now() - started} ms`);
+  logIttro(`helper photo ready in ${Date.now() - started} ms`);
   const asked = await askHelper({
     tokens: input.tokens,
     question: input.question,
@@ -75,7 +75,7 @@ export const sendHelp = fromPromise<SendHelpOutput, SendHelpInput>(async ({ inpu
     image,
     mime: 'image/jpeg',
   });
-  if (__DEV__) console.log(`[ittro] ${stamp()} helper ask sent to ${asked.helpers.length} in ${Date.now() - started} ms`);
+  logIttro(`helper ask sent to ${asked.helpers.length} in ${Date.now() - started} ms`);
   return { id: asked.id, helpers: asked.helpers, photo };
 });
 
@@ -93,17 +93,17 @@ export const pairPoll = fromCallback<ConversationEvent, PollInput>(({ sendBack, 
         if (status.state === 'joined' && status.token) {
           done = true;
           clearInterval(timer);
-          if (__DEV__) console.log(`[ittro] ${stamp()} helper joined: ${JSON.stringify(status.helper)}`);
+          logIttro(`helper joined: ${JSON.stringify(status.helper)}`);
           sendBack({ type: 'HELPER_JOINED', name: status.helper ?? '', token: status.token });
         } else if (status.state === 'unknown') {
           done = true;
           clearInterval(timer);
-          if (__DEV__) console.log(`[ittro] ${stamp()} helper code expired`);
+          logIttro('helper code expired');
           sendBack({ type: 'HELPER_PAIR_EXPIRED' });
         }
       })
       .catch((err: unknown) => {
-        if (__DEV__) console.log(`[ittro] ${stamp()} helper pair poll failed: ${String((err as Error)?.message ?? err)}`);
+        logIttro(`helper pair poll failed: ${String((err as Error)?.message ?? err)}`);
       });
   }, 3000);
   return () => {
@@ -126,7 +126,7 @@ export const answerPoll = fromCallback<ConversationEvent, PollInput>(({ sendBack
         if (status.status === 'answered') {
           done = true;
           clearInterval(timer);
-          if (__DEV__) console.log(`[ittro] ${stamp()} helper answered: ${status.answer.verdict}`);
+          logIttro(`helper answered: ${status.answer.verdict}`);
           sendBack({
             type: 'HELPER_ANSWER',
             verdict: status.answer.verdict,
@@ -143,7 +143,7 @@ export const answerPoll = fromCallback<ConversationEvent, PollInput>(({ sendBack
           sendBack({ type: 'HELPER_TIMEOUT', names: [] });
           return;
         }
-        if (__DEV__) console.log(`[ittro] ${stamp()} helper answer poll failed: ${message}`);
+        logIttro(`helper answer poll failed: ${message}`);
       });
   }, 3000);
   return () => {

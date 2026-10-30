@@ -9,7 +9,7 @@ import type { ContextArgs, EventArgs } from './actions';
 import { stopVoice } from '../speech';
 import type { UnderstandAnswer } from '../relay';
 import { earbudLine, noHoldLine } from '../lines';
-import { stamp } from '../stamp';
+import { logIttro } from '../log';
 import type { ButtonGesture, ConversationContext, ConversationStep } from './types';
 
 function yesNoOpen(step: ConversationStep): boolean {
@@ -78,8 +78,8 @@ export const noteButton = assign({
 });
 
 export const logButton = ({ context, event }: EventArgs): void => {
-  if (event.type === 'BUTTON_PRESS' && __DEV__) {
-    console.log(`[ittro] ${stamp()} button ${event.gesture} -> ${gestureIntent(event.gesture, context)}`);
+  if (event.type === 'BUTTON_PRESS') {
+    logIttro(`button ${event.gesture} -> ${gestureIntent(event.gesture, context)}`);
   }
 };
 
@@ -116,8 +116,8 @@ export const storeEarbuds = assign({
 });
 
 export const logEarbuds = ({ event }: EventArgs): void => {
-  if (event.type === 'EARBUD_STATE' && __DEV__) {
-    console.log(`[ittro] ${stamp()} earbuds ${event.connected ? 'connected' : 'disconnected'}`);
+  if (event.type === 'EARBUD_STATE') {
+    logIttro(`earbuds ${event.connected ? 'connected' : 'disconnected'}`);
   }
 };
 

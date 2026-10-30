@@ -13,7 +13,7 @@ import type { AnyActorRef } from 'xstate';
 import { loadPrefs, savePrefs, saveSnapshot } from '../store';
 import { playSound, say, sayClip, setSpeechRate, stopVoice } from '../speech';
 import { tourMeaning } from '../lines';
-import { stamp } from '../stamp';
+import { logIttro } from '../log';
 import { speech } from '../theme';
 import type { Language } from '../theme';
 import { understandUtterance } from '../relay';
@@ -48,20 +48,20 @@ export const enqueueConversation = rawEnqueue<
 
 export const speakMany = fromPromise<void, SpeakInput>(async ({ input }) => {
   for (const line of input.lines) {
-    if (__DEV__) console.log(`[ittro] ${stamp()} say: ${JSON.stringify(line.text)}`);
+    logIttro(`say: ${JSON.stringify(line.text)}`);
     const started = Date.now();
     await say(line.text, input.lang);
-    if (__DEV__) console.log(`[ittro] ${stamp()} said ${Date.now() - started}ms`);
+    logIttro(`said ${Date.now() - started}ms`);
   }
 });
 
 export const speakParts = fromPromise<void, SpeakPartsInput>(async ({ input }) => {
   for (const part of input.parts) {
     if ('clip' in part) {
-      if (__DEV__) console.log(`[ittro] ${stamp()} clip: ${part.clip}`);
+      logIttro(`clip: ${part.clip}`);
       await sayClip(part.clip, input.lang);
     } else {
-      if (__DEV__) console.log(`[ittro] ${stamp()} say: ${JSON.stringify(part.text)}`);
+      logIttro(`say: ${JSON.stringify(part.text)}`);
       await say(part.text, input.lang);
     }
   }
@@ -95,10 +95,10 @@ function cacheStore(key: string, value: UnderstandAnswer): void {
 export const understandAnswer = fromPromise(async ({ input }: { input: UnderstandInput }) => {
   const cached = understandCache.get(fullCacheKey(input)) ?? understandCache.get(shortCacheKey(input));
   if (cached) {
-    if (__DEV__) console.log(`[ittro] ${stamp()} understand cached: ${JSON.stringify(input.transcript)}`);
+    logIttro(`understand cached: ${JSON.stringify(input.transcript)}`);
     return cached;
   }
-  if (__DEV__) console.log(`[ittro] ${stamp()} understand sent: ${JSON.stringify(input.transcript)}`);
+  logIttro(`understand sent: ${JSON.stringify(input.transcript)}`);
   const answer = await understandUtterance({
     transcript: input.transcript,
     language: input.lang,
@@ -108,7 +108,7 @@ export const understandAnswer = fromPromise(async ({ input }: { input: Understan
     last_line: input.lastLine,
     effort: 'minimal',
   });
-  if (__DEV__) console.log(`[ittro] ${stamp()} intent: ${JSON.stringify(answer)}`);
+  logIttro(`intent: ${JSON.stringify(answer)}`);
   cacheStore(fullCacheKey(input), answer);
   if (cacheableWithoutContext(answer)) {
     cacheStore(shortCacheKey(input), answer);

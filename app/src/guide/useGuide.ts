@@ -10,7 +10,7 @@ import { cropShelfPhoto, setHandDelegate, thermalStatus, validHandFrame } from '
 import type { HandFrame } from 'ittro-sensors';
 import { readShelfCrops } from '../relay';
 import { playSound } from '../speech';
-import { stamp } from '../stamp';
+import { logIttro } from '../log';
 import type { ShotListeners } from '../shelf/useShelfSearch';
 import type { ConversationContext, ConversationEvent } from '../conversation/types';
 import { createFrameStats, handFixFromEvent, noteHandFix } from './frames';
@@ -37,7 +37,7 @@ const HEAT_NOTE_MS = 300000;
 const MOTION_STATES = new Set(['directing', 'almost', 'reaching']);
 
 function note(line: string): void {
-  if (__DEV__) console.log(`[ittro] ${stamp()} ${line}`);
+  logIttro(line);
 }
 
 export function useGuide(actor: { current: GuideActor | null }, active: boolean): GuideShots {

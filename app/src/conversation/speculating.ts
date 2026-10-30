@@ -22,7 +22,7 @@ import {
 } from './actions';
 import { sendStart } from './streamCtl';
 import { raiseLinkDown, raiseLinkOk } from './link';
-import { stamp } from '../stamp';
+import { logIttro } from '../log';
 import type { UnderstandAnswer } from '../relay';
 import type { ConversationContext, ExpressionEvent } from './types';
 
@@ -68,8 +68,8 @@ export const noteSpecClear = assign({
 
 export const noteSpecHit = assign({
   transcript: ({ event }: SpecArgs) => {
-    if (__DEV__ && event.type === 'FINAL_TEXT') {
-      console.log(`[ittro] ${stamp()} speculative hit: ${JSON.stringify(event.text)}`);
+    if (event.type === 'FINAL_TEXT') {
+      logIttro(`speculative hit: ${JSON.stringify(event.text)}`);
     }
     return event.type === 'FINAL_TEXT' ? event.text : '';
   },

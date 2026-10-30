@@ -6,17 +6,18 @@ import * as Battery from 'expo-battery';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { mediaVolume, memoryStatus, sensorsStatus, setMediaVolumeFraction, thermalStatus } from 'ittro-sensors';
 import { haptics, speech } from './theme';
+import { logIttro } from './log';
 
 function buzz(pattern: readonly number[]): void {
   Vibration.vibrate([...pattern]);
 }
 
 export async function preparePhone(): Promise<void> {
-  if (__DEV__) console.log(`[ittro-debug] sensors ${JSON.stringify(sensorsStatus())}`);
+  logIttro(`debug sensors ${JSON.stringify(sensorsStatus())}`);
   const state = mediaVolume();
-  if (__DEV__) console.log(`[ittro-debug] volume ${JSON.stringify(state)}`);
+  logIttro(`debug volume ${JSON.stringify(state)}`);
   if (state && state.volume / state.max < speech.lowVolumeThreshold) {
-    if (__DEV__) console.log(`[ittro-debug] raising to ${speech.raisedVolume}`);
+    logIttro(`debug raising to ${speech.raisedVolume}`);
     if (setMediaVolumeFraction(speech.raisedVolume)) {
       buzz(haptics.startVolumeBuzz);
     }

@@ -20,7 +20,7 @@ import type { LoopPhoto, ShelfLoop } from './loopTypes';
 import { decodeBase64, ingestGrey } from './tracker';
 import type { GreyFrame } from './tracker';
 import type { ConversationContext, ConversationEvent } from '../conversation/types';
-import { stamp } from '../stamp';
+import { logIttro } from '../log';
 
 export interface SearchCamera {
   takeShot: () => Promise<string | null>;
@@ -71,7 +71,7 @@ function percentile(sorted: number[], rank: number): number {
 }
 
 function note(line: string): void {
-  if (__DEV__) console.log(`[ittro] ${stamp()} ${line}`);
+  logIttro(line);
 }
 
 export function useShelfSearch(

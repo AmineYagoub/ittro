@@ -1,6 +1,8 @@
 // Expo config. The relay URL and access code come from the environment
 // at build time and are never committed: ITTRO_RELAY_URL and
 // ITTRO_ACCESS_CODE. Neither is the Meta key; only the relay holds that.
+// ITTRO_LOGS=off silences the timeline for the store build; test
+// builds keep it on.
 import type { ExpoConfig } from 'expo/config';
 
 const config: ExpoConfig = {
@@ -39,6 +41,7 @@ const config: ExpoConfig = {
   extra: {
     relayUrl: process.env['ITTRO_RELAY_URL'] ?? 'https://ittro.djazair.dev',
     accessCode: process.env['ITTRO_ACCESS_CODE'] ?? '',
+    logs: process.env['ITTRO_LOGS'] !== 'off',
   },
 };
 

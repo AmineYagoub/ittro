@@ -23,7 +23,7 @@ import { askConfirmLine, askNameLine, helpersWord, offerLine } from '../helper/l
 import { HELP_CHIP, NO_CHIP, YES_CHIP } from '../chips';
 import type { streamClient } from './streamActor';
 import type { ConversationContext, ExpressionEvent, SpokenLine } from './types';
-import { stamp } from '../stamp';
+import { logIttro } from '../log';
 
 export type ContextArgs = { context: ConversationContext };
 
@@ -55,14 +55,14 @@ export const noteHeard = assign({
 });
 
 export const logHeard = ({ event }: EventArgs): void => {
-  if (event.type === 'FINAL_TEXT' && __DEV__) {
-    console.log(`[ittro] ${stamp()} heard: ${JSON.stringify(event.text)}`);
+  if (event.type === 'FINAL_TEXT') {
+    logIttro(`heard: ${JSON.stringify(event.text)}`);
   }
 };
 
 export const playHeard = (): void => {
   playSound('heard');
-  if (__DEV__) console.log(`[ittro] ${stamp()} speech ended`);
+  logIttro('speech ended');
 };
 
 export interface DoneArgs {
@@ -152,7 +152,7 @@ export const assignReprompt = assign({
 });
 
 export const logReprompt = (): void => {
-  if (__DEV__) console.log(`[ittro] ${stamp()} silence 8s, asking again`);
+  logIttro('silence 8s, asking again');
 };
 
 export const assignHelp = assign({
@@ -160,7 +160,7 @@ export const assignHelp = assign({
 });
 
 export const logHelp = (): void => {
-  if (__DEV__) console.log(`[ittro] ${stamp()} silence 20s, offering help`);
+  logIttro('silence 20s, offering help');
 };
 
 export const flLangLines = assign({

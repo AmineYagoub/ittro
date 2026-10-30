@@ -9,7 +9,7 @@ import { fromCallback } from 'xstate';
 import { addAudioChunkListener, startAudioStream, stopAudioStream } from 'ittro-sensors';
 import type { StreamCommand, StreamEmitted, StreamInput } from './types';
 import { createMicStats } from './micStats';
-import { stamp } from '../stamp';
+import { logIttro } from '../log';
 
 const READY_TIMEOUT_MS = 12000;
 
@@ -50,7 +50,7 @@ function decodeChunk(base64: string): Uint8Array | null {
 }
 
 function note(line: string): void {
-  if (__DEV__) console.log(`[ittro] ${stamp()} ${line}`);
+  logIttro(line);
 }
 
 export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamInput>(
