@@ -53,6 +53,7 @@ export function initialContext({ input }: { input: MachineInput }): Conversation
     alternative: null,
     guiding: false,
     guideTarget: null,
+    shelfTarget: null,
     guideLabel: '',
     guideKind: '',
     guideMatches: 0,

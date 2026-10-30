@@ -41,6 +41,7 @@ import {
   declineAlternative,
   raiseSearchBegin,
   raiseSearchEnd,
+  resumeGuideShelf,
   saySearchingStatus,
 } from './search';
 import { raiseGuideEnd, raiseGuideGotIt, raiseGuideRestart } from '../guide/guideSay';
@@ -181,6 +182,9 @@ const guideMeTarget: Guard = ({ context }) => answerOf(context)?.intent === 'gui
 
 const guideMeSearching: Guard = ({ context }) => answerOf(context)?.intent === 'guide_me' && context.searching;
 
+const guideMeShelf: Guard = ({ context }) =>
+  answerOf(context)?.intent === 'guide_me' && context.guideTarget === null && context.shelfTarget !== null;
+
 const guideMeLost: Guard = ({ context }) => answerOf(context)?.intent === 'guide_me';
 
 const switchLangCarry: Guard = ({ context }) => {
@@ -276,6 +280,7 @@ export const routingTransitions: Route[] = [
   { guard: gotItLost, actions: [missLine], target: 'saying' },
   { guard: guideMeTarget, actions: [raiseGuideRestart, raiseSearchBegin, raiseConfirmEnd, raiseQuestion], target: 'listening' },
   { guard: guideMeSearching, actions: [saySearchingStatus], target: 'saying' },
+  { guard: guideMeShelf, actions: [resumeGuideShelf, raiseGuideRestart, raiseSearchBegin, raiseConfirmEnd, raiseQuestion], target: 'listening' },
   { guard: guideMeLost, actions: [missLine], target: 'saying' },
   { guard: verboseIntent, actions: [sayVerbose, noteVerbose], target: 'saying' },
   { guard: rateIntent, actions: [changeRate], target: 'saying' },

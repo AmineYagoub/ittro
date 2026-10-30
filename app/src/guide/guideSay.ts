@@ -59,6 +59,7 @@ export const storeGuideTarget = assign({
   guiding: true,
   pendingSearch: ({ context }: ContextArgs) => context.pendingSearch.filter((line) => line.kind === 'alternative'),
   guideTarget: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.outline : null),
+  shelfTarget: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.outline : null),
   guideLabel: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? shortProduct(event.product) : ''),
   guideKind: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.kind : ''),
   guideMatches: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.matches : 0),

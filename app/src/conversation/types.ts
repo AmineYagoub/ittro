@@ -132,6 +132,7 @@ export interface ConversationContext {
   alternative: string | null;
   guiding: boolean;
   guideTarget: ShelfOutline | null;
+  shelfTarget: ShelfOutline | null;
   guideLabel: string;
   guideKind: string;
   guideMatches: number;

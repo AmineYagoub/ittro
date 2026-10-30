@@ -7,7 +7,7 @@ import type { ContextArgs, EventArgs } from './actions';
 import { ASK_CHIP, NO_CHIP, YES_CHIP } from '../chips';
 import { raiseLinkKind } from './link';
 import { logIttro } from '../log';
-import { stillLooking } from '../requestLines';
+import { shortProduct, stillLooking } from '../requestLines';
 import {
   checkingLine,
   closeMatchLine,
@@ -19,7 +19,7 @@ import {
   shelfSweptLine,
   wrongShelfLine,
 } from '../shelf/searchLines';
-import type { ConversationContext, SearchAnnouncement } from './types';
+import type { ConversationContext, GuidePosition, SearchAnnouncement } from './types';
 
 export const raiseSearchBegin = raise({ type: 'SEARCH_BEGIN' });
 
@@ -42,7 +42,23 @@ export const endSearch = assign({
   checkedCount: 0,
   pendingSearch: [],
   alternative: null,
+  shelfTarget: null,
   searchEpoch: ({ context }: ContextArgs) => context.searchEpoch + 1,
+});
+
+function shelfSide(context: ConversationContext): GuidePosition {
+  const target = context.shelfTarget;
+  if (!target) {
+    return 'middle';
+  }
+  return (target.box.x1 + target.box.x2) / 2 < target.box.w / 2 ? 'left' : 'right';
+}
+
+export const resumeGuideShelf = assign({
+  guiding: true,
+  guideTarget: ({ context }: ContextArgs) => context.shelfTarget,
+  guideLabel: ({ context }: ContextArgs) => shortProduct(context.pendingRequest ?? context.request ?? ''),
+  guidePosition: ({ context }: ContextArgs) => shelfSide(context),
 });
 
 export const stopSearch = assign({

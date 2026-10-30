@@ -6,6 +6,7 @@ import { Vibration } from 'react-native';
 import { assignConversation as assign, mergeBrands, raiseConversation as raise, storeConfirmedBrand } from '../conversation/actors';
 import type { ContextArgs, EventArgs } from '../conversation/actions';
 import { DONE_CHIP, FIND_ANOTHER_CHIP, GUIDE_CHIP, READ_AGAIN_CHIP } from '../chips';
+import { shortProduct } from '../requestLines';
 import { playSound } from '../speech';
 import { haptics } from '../theme';
 import { partsText, thisIsLine, whereSentence } from '../guide/lines';
@@ -53,14 +54,14 @@ function shown(parts: SpeechPart[], context: ConversationContext): string {
 }
 
 function wayBack(context: ConversationContext): SpeechPart[] {
-  const target = context.guideTarget;
+  const target = context.shelfTarget;
   const request = context.pendingRequest ?? context.request;
   if (!target || !request || target.box.w <= 0) {
     return [];
   }
   const center = (target.box.x1 + target.box.x2) / 2;
   const dir: GuideDir = center < target.box.w / 2 ? 'left' : 'right';
-  return [{ text: whereSentence(request, dir, context.lang) }];
+  return [{ text: whereSentence(shortProduct(request), dir, context.lang) }];
 }
 
 function yesParts(label: string, context: ConversationContext): SpeechPart[] {
