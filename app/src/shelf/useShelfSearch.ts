@@ -15,6 +15,8 @@ import type { TrackPan } from 'ittro-sensors';
 import { classifySceneView, outlineShelf, fetchPackagePhrase, readShelfCrops } from '../relay';
 import type { ShelfCrop } from '../relay';
 import type { Language } from '../theme';
+import { speech } from '../theme';
+import { playSound } from '../speech';
 import { createShelfLoop } from './loop';
 import type { LoopPhoto, ShelfLoop } from './loopTypes';
 import { decodeBase64, ingestGrey } from './tracker';
@@ -74,6 +76,10 @@ function note(line: string): void {
   logIttro(line);
 }
 
+export function shouldTickForSearch(searching: boolean, guiding: boolean, confirming: boolean): boolean {
+  return searching && !guiding && !confirming;
+}
+
 export function useShelfSearch(
   camera: { current: SearchCamera | null },
   actor: { current: SearchActor | null },
@@ -131,10 +137,17 @@ export function useShelfSearch(
     const cloudTimer = setInterval(() => {
       void cloudTick();
     }, CLOUD_EVERY_MS);
+    const soundTimer = setInterval(() => {
+      const context = actor.current?.getSnapshot().context;
+      if (context && shouldTickForSearch(context.searching, context.guiding, context.confirming)) {
+        playSound('workingTick');
+      }
+    }, speech.workingTickEveryMs);
     void cloudTick();
     return () => {
       stopped = true;
       clearInterval(cloudTimer);
+      clearInterval(soundTimer);
       held.current.loop?.reset();
       held.current.loop = null;
     };

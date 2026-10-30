@@ -4,6 +4,7 @@
 // one about a hand that has since moved, finds the statechart
 // already elsewhere and is never spoken.
 import type { ContextArgs, EventArgs } from '../conversation/actions';
+import { raiseQuestion } from '../conversation/actions';
 import { raiseLinkKind } from '../conversation/link';
 import { logIttro } from '../log';
 import { REPEAT_MS } from '../guide/guideSay';
@@ -72,10 +73,10 @@ export const confirmRegion = {
       ...speakState(),
       after: { [NET_UPDATE_MS]: { target: 'checking', reenter: true } },
       on: {
-        CONFIRM_YES: { guard: freshConfirm, actions: [logVerdict, storeYes], target: 'yes' },
-        CONFIRM_NO: { guard: freshConfirm, actions: [logVerdict, storeNo], target: 'no' },
+        CONFIRM_YES: { guard: freshConfirm, actions: [logVerdict, storeYes, raiseQuestion], target: 'yes' },
+        CONFIRM_NO: { guard: freshConfirm, actions: [logVerdict, storeNo, raiseQuestion], target: 'no' },
         CONFIRM_UNSURE: { guard: freshConfirm, actions: [logVerdict, storeUnsure], target: 'unsure' },
-        CONFIRM_PICTURE: { guard: freshConfirm, actions: [logVerdict, storePicture], target: 'picture' },
+        CONFIRM_PICTURE: { guard: freshConfirm, actions: [logVerdict, storePicture, raiseQuestion], target: 'picture' },
         CONFIRM_MOVED: { guard: freshConfirm, actions: [storeMoved], target: 'checking', reenter: true },
         CONFIRM_FAILED: { actions: [raiseLinkKind] },
       },
@@ -84,13 +85,13 @@ export const confirmRegion = {
       entry: [chimeUnsure],
       ...speakState(),
       on: {
-        CONFIRM_YES: { guard: freshConfirm, actions: [logVerdict, storeYes], target: 'yes' },
-        CONFIRM_NO: { guard: freshConfirm, actions: [logVerdict, storeNo], target: 'no' },
+        CONFIRM_YES: { guard: freshConfirm, actions: [logVerdict, storeYes, raiseQuestion], target: 'yes' },
+        CONFIRM_NO: { guard: freshConfirm, actions: [logVerdict, storeNo, raiseQuestion], target: 'no' },
         CONFIRM_UNSURE: { guard: freshConfirm, actions: [noteUnsure] },
-        CONFIRM_PICTURE: { guard: freshConfirm, actions: [logVerdict, storePicture], target: 'picture' },
+        CONFIRM_PICTURE: { guard: freshConfirm, actions: [logVerdict, storePicture, raiseQuestion], target: 'picture' },
         CONFIRM_MOVED: { guard: freshConfirm, actions: [storeMoved], target: 'checking' },
         CONFIRM_FAILED: { actions: [] },
-        CONFIRM_GIVEUP: { actions: [storeGiveup], target: 'giveup' },
+        CONFIRM_GIVEUP: { actions: [storeGiveup, raiseQuestion], target: 'giveup' },
       },
     },
     yes: {
@@ -113,7 +114,7 @@ export const confirmRegion = {
       ...speakState(),
       after: { [NET_UPDATE_MS]: { target: 'readingDetail', reenter: true } },
       on: {
-        CONFIRM_DETAIL: { guard: freshConfirm, actions: [storeDetail], target: 'detail' },
+        CONFIRM_DETAIL: { guard: freshConfirm, actions: [storeDetail, raiseQuestion], target: 'detail' },
         CONFIRM_MOVED: { guard: freshConfirm, actions: [storeMoved], target: 'readingDetail', reenter: true },
         CONFIRM_FAILED: { actions: [raiseLinkKind] },
       },

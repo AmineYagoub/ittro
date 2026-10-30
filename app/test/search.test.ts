@@ -12,7 +12,7 @@ const BAGS = [
   { id: 1, frame: 0, box: { x1: 11, y1: 0, x2: 19, y2: 10, w: 20, h: 20, confidence: null } },
 ];
 
-test('outlines speak the reading line with the counted kind', async () => {
+test('outlines speak the reading line with the counted kind once answered', async () => {
   resetStorage();
   const driver = await startListening();
   try {
@@ -25,6 +25,8 @@ test('outlines speak the reading line with the counted kind', async () => {
     driver.send({ type: 'SHELF_OUTLINED', outlines: BAGS, kind: 'bags' });
     await driver.flush();
     assert.equal(driver.context().outlines.length, 2);
+    assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /Is that right/);
+    await driver.heard('Yes');
     assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /I see two bags\. Reading their labels/);
   } finally {
     driver.stop();
@@ -201,6 +203,8 @@ test('outlines heard mid-sentence wait until the answer is routed', async () => 
     release(answer({ intent: 'request_product', product_text: 'Masaad water' }));
     await heard;
     await driver.flush();
+    assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /Is that right/);
+    await driver.heard('Yes');
     assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /Reading their labels/);
   } finally {
     driver.stop();

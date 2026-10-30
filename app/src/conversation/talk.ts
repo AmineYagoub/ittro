@@ -41,6 +41,7 @@ import {
   raiseHeard,
   raiseQuestion,
   raiseTalkIdle,
+  repromptFree,
   returnSleeping,
   spawnStream,
   usePausedNote,
@@ -170,8 +171,8 @@ export const talkState = {
         STREAM_FAILED: { actions: [noteStreamDown, raiseLinkDown, sendStart] },
         MIC_FAILED: { guard: micDue, actions: [noteMicComplaint], target: 'saying' },
         ALERT: { guard: alertDue, actions: [noteAlert], target: 'saying' },
-        REPROMPT: { actions: [assignReprompt, logReprompt], target: 'sayingReprompt' },
-        HELP: { actions: [assignHelp, logHelp], target: 'sayingHelp' },
+        REPROMPT: { guard: repromptFree, actions: [assignReprompt, logReprompt], target: 'sayingReprompt' },
+        HELP: { guard: repromptFree, actions: [assignHelp, logHelp], target: 'sayingHelp' },
       },
     },
     translating: {

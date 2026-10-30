@@ -1,7 +1,9 @@
 // The conversation: one statechart for listening, understanding,
 // pausing and the silence timers. The mic stays live while Ittro
 // speaks, so the shopper can interrupt; a pause bumps the epoch so
-// nothing heard before it is acted on after.
+// nothing heard before it is acted on after. Silence re-arms through
+// a transient state, because a fired timer never reschedules on a
+// self transition: every re-arm enters waiting fresh.
 import { setup } from 'xstate';
 import { speakMany, speakParts, ticking, tourSequence, understandAnswer } from './actors';
 import { answerPoll, pairHelper, pairPoll, pulseTick, sendHelp } from '../helper/actors';
@@ -48,7 +50,10 @@ export const conversationMachine = setup({
                 [speech.askAgainMs]: { actions: [raiseReprompt] },
                 [speech.offerHelpMs]: { actions: [raiseHelp], target: 'reminding' },
               },
-              on: { QUESTION_ASKED: 'waiting', HEARD: 'quiet' },
+              on: { QUESTION_ASKED: 'arming', HEARD: 'quiet' },
+            },
+            arming: {
+              always: 'waiting',
             },
             reminding: {
               after: {

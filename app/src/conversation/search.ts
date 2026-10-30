@@ -160,10 +160,14 @@ export const sayQueuedStatus = assign({
   pendingSearch: ({ context }: ContextArgs) => context.pendingSearch.slice(1),
 });
 
-export const hasQueuedSearch = ({ context }: ContextArgs): boolean => context.pendingSearch.length > 0;
+export const speechFree = ({ context }: ContextArgs): boolean =>
+  context.pendingQuestion === null && !context.confirming && !context.guiding;
+
+export const hasQueuedSearch = ({ context }: ContextArgs): boolean =>
+  context.pendingSearch.length > 0 && speechFree({ context });
 
 export const hasQueuedAlternative = ({ context }: ContextArgs): boolean =>
-  context.pendingSearch[0]?.kind === 'alternative';
+  context.pendingSearch[0]?.kind === 'alternative' && speechFree({ context });
 
 export const wantsSearch = ({ context }: ContextArgs): boolean => context.searching;
 

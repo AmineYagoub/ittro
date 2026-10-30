@@ -181,6 +181,8 @@ export const logHelp = (): void => {
   logIttro('silence 20s, offering help');
 };
 
+export const repromptFree = ({ context }: ContextArgs): boolean => !context.confirming && !context.guiding;
+
 export const flLangLines = assign({
   step: 'language',
   pendingQuestion: null,
