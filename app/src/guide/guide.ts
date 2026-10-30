@@ -4,6 +4,7 @@
 // almost speaks once, reaching listens for contact, and the hand
 // states stop directing until the hand is back.
 import type { ContextArgs } from '../conversation/actions';
+import { noteVoice } from '../conversation/echo';
 import { logIttro } from '../log';
 import { raiseConfirmAuto } from '../confirm/confirmSay';
 import {
@@ -77,6 +78,7 @@ export const guideRegion = {
       on: { TALK_IDLE: { guard: armFree, actions: [sayFound], target: 'announcing' } },
     },
     announcing: {
+      entry: [noteVoice],
       invoke: {
         src: 'speakParts' as const,
         input: ({ context }: ContextArgs) => ({ parts: context.guideParts, lang: context.lang }),
@@ -95,6 +97,7 @@ export const guideRegion = {
       },
     },
     directing: {
+      entry: [noteVoice],
       ...speakState(),
       on: {
         GUIDE_CUE: [{ guard: sameCue, actions: [trackCue] }, { actions: [sayCue], target: 'directing', reenter: true }],
@@ -108,6 +111,7 @@ export const guideRegion = {
       after: { [REPEAT_MS]: { actions: [sayContinue], target: 'directing', reenter: true } },
     },
     almost: {
+      entry: [noteVoice],
       ...speakState(),
       on: {
         GUIDE_CUE: { actions: [sayCue], target: 'directing' },
@@ -119,7 +123,7 @@ export const guideRegion = {
       },
     },
     reaching: {
-      entry: [logHandOn],
+      entry: [logHandOn, noteVoice],
       ...speakState(),
       on: {
         GUIDE_GOT_IT: { actions: [sayPick], target: 'picking' },
@@ -133,7 +137,7 @@ export const guideRegion = {
       },
     },
     picking: {
-      entry: [sayPick],
+      entry: [sayPick, noteVoice],
       invoke: {
         src: 'speakParts' as const,
         input: ({ context }: ContextArgs) => ({ parts: context.guideParts, lang: context.lang }),
@@ -142,6 +146,7 @@ export const guideRegion = {
       },
     },
     noHand: {
+      entry: [noteVoice],
       ...speakState(),
       after: { [REPEAT_MS]: { target: 'noHand', reenter: true } },
       on: {
@@ -152,7 +157,7 @@ export const guideRegion = {
       },
     },
     handLost: {
-      entry: [lostSound],
+      entry: [lostSound, noteVoice],
       invoke: {
         src: 'speakParts' as const,
         input: ({ context }: ContextArgs) => ({ parts: context.guideParts, lang: context.lang }),
@@ -165,7 +170,7 @@ export const guideRegion = {
       },
     },
     wrongItem: {
-      entry: [buzzNo],
+      entry: [buzzNo, noteVoice],
       invoke: {
         src: 'speakParts' as const,
         input: ({ context }: ContextArgs) => ({ parts: context.guideParts, lang: context.lang }),
@@ -181,6 +186,7 @@ export const guideRegion = {
       },
     },
     targetLost: {
+      entry: [noteVoice],
       ...speakState(),
       after: { [REPEAT_MS]: { target: 'targetLost', reenter: true } },
       on: {

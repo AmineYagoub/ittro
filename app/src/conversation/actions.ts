@@ -47,6 +47,7 @@ export const raiseHelp = raise({ type: 'HELP' });
 export const noteSaid = assign({
   lastLine: ({ context }: ContextArgs) => context.pendingSay[context.pendingSay.length - 1]?.text ?? context.lastLine,
   lastChips: ({ context }: ContextArgs) => context.pendingSay[context.pendingSay.length - 1]?.chips ?? context.lastChips,
+  voiceAt: () => Date.now(),
   pendingSay: [],
 });
 

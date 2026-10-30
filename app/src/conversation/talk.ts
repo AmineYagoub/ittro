@@ -5,7 +5,7 @@
 import { speech } from '../theme';
 import { ensureStream, sendStart } from './streamCtl';
 import { bargeIn } from './bargeIn';
-import { echoFull, echoStripped } from './echo';
+import { echoFull, echoStripped, noteVoice } from './echo';
 import {
   alertDue,
   applyInitialRate,
@@ -74,7 +74,7 @@ import {
 function sayTo(target: 'listening' | 'sleeping' | 'over' | 'resumed' | 'routing' | 'translating', raiseClock: boolean) {
   const resolved = target === 'over' ? '#conversation.over' : target;
   return {
-    entry: [markTalkBusy],
+    entry: [markTalkBusy, noteVoice],
     invoke: {
       src: 'speakMany' as const,
       input: ({ context }: ContextArgs) => ({ lines: context.pendingSay, lang: context.lang }),
@@ -128,7 +128,7 @@ export const talkState = {
     sayingResume: sayTo('resumed', true),
     sayingFlLang: sayTo('listening', true),
     sayingFlPrivacy: {
-      entry: [markTalkBusy],
+      entry: [markTalkBusy, noteVoice],
       invoke: {
         src: 'speakMany' as const,
         input: ({ context }: ContextArgs) => ({ lines: context.pendingSay, lang: context.lang }),
@@ -139,7 +139,7 @@ export const talkState = {
       on: bargeIn,
     },
     sayingFlButtons: {
-      entry: [markTalkBusy],
+      entry: [markTalkBusy, noteVoice],
       invoke: {
         src: 'speakMany' as const,
         input: ({ context }: ContextArgs) => ({ lines: context.pendingSay, lang: context.lang }),
@@ -267,7 +267,7 @@ export const talkState = {
       },
     },
     touring: {
-      entry: [markTalkBusy],
+      entry: [markTalkBusy, noteVoice],
       invoke: {
         src: 'tourSequence' as const,
         input: ({ context }: ContextArgs) => ({ lang: context.lang }),
@@ -278,7 +278,7 @@ export const talkState = {
       on: bargeIn,
     },
     touringFl: {
-      entry: [markTalkBusy],
+      entry: [markTalkBusy, noteVoice],
       invoke: {
         src: 'tourSequence' as const,
         input: ({ context }: ContextArgs) => ({ lang: context.lang }),

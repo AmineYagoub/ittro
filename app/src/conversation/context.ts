@@ -31,6 +31,8 @@ export function initialContext({ input }: { input: MachineInput }): Conversation
     firstLaunchDone: input.prefs.firstLaunchDone,
     lastLine: '',
     lastChips: [],
+    voiceAt: 0,
+    voiceLog: [],
     pendingSay: [],
     routeAnswer: null,
     transcript: '',

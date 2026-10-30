@@ -16,6 +16,11 @@ export interface SpokenLine {
   chips: string[];
 }
 
+export interface VoiceEcho {
+  text: string;
+  at: number;
+}
+
 export type SpeechPart = { clip: string } | { text: string };
 
 export type GuidePosition = 'left' | 'middle' | 'right';
@@ -110,6 +115,8 @@ export interface ConversationContext {
   firstLaunchDone: boolean;
   lastLine: string;
   lastChips: string[];
+  voiceAt: number;
+  voiceLog: VoiceEcho[];
   pendingSay: SpokenLine[];
   routeAnswer: UnderstandAnswer | null;
   transcript: string;

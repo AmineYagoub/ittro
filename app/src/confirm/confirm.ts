@@ -5,6 +5,7 @@
 // already elsewhere and is never spoken.
 import type { ContextArgs, EventArgs } from '../conversation/actions';
 import { raiseQuestion } from '../conversation/actions';
+import { noteVoice } from '../conversation/echo';
 import { raiseLinkKind } from '../conversation/link';
 import { raiseSearchBegin, resumeGuideShelf } from '../conversation/search';
 import { logIttro } from '../log';
@@ -78,6 +79,7 @@ export const confirmRegion = {
       always: { guard: wantsCheck, target: 'checking' },
     },
     checking: {
+      entry: [noteVoice],
       ...speakState(),
       after: { [NET_UPDATE_MS]: { actions: [clearConfirmSpeech] } },
       on: {
@@ -90,7 +92,7 @@ export const confirmRegion = {
       },
     },
     unsure: {
-      entry: [chimeUnsure],
+      entry: [chimeUnsure, noteVoice],
       ...speakState(),
       on: {
         CONFIRM_YES: { guard: freshConfirm, actions: [logVerdict, storeYes, raiseQuestion], target: 'yes' },
@@ -103,11 +105,11 @@ export const confirmRegion = {
       },
     },
     yes: {
-      entry: [chimeYes],
+      entry: [chimeYes, noteVoice],
       ...speakState(),
     },
     no: {
-      entry: [chimeNo],
+      entry: [chimeNo, noteVoice],
       invoke: {
         src: 'speakParts' as const,
         input: ({ context }: ContextArgs) => ({ parts: context.confirmParts, lang: context.lang }),
@@ -130,13 +132,15 @@ export const confirmRegion = {
       },
     },
     picture: {
+      entry: [noteVoice],
       ...speakState(),
     },
     giveup: {
-      entry: [chimeUnsure],
+      entry: [chimeUnsure, noteVoice],
       ...speakState(),
     },
     readingDetail: {
+      entry: [noteVoice],
       ...speakState(),
       after: { [NET_UPDATE_MS]: { target: 'readingDetail', reenter: true } },
       on: {
@@ -146,6 +150,7 @@ export const confirmRegion = {
       },
     },
     detail: {
+      entry: [noteVoice],
       ...speakState(),
     },
   },
