@@ -99,6 +99,7 @@ export interface ConversationContext {
   specText: string | null;
   specAnswer: UnderstandAnswer | null;
   specEpoch: number;
+  lastPartialAt: number | null;
   request: string | null;
   requestLang: Language | null;
   translateSource: string | null;

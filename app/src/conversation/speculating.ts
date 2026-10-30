@@ -36,6 +36,8 @@ interface SpecArgs {
   event: ExpressionEvent;
 }
 
+const YES_STABLE_MS = 800;
+
 function heardText(event: ExpressionEvent): string | null {
   return event.type === 'PARTIAL_TEXT' || event.type === 'FINAL_TEXT' ? event.text : null;
 }
@@ -60,7 +62,26 @@ export const notePartial = assign({
   specText: ({ event }) => heardText(event),
   specAnswer: null,
   specEpoch: ({ context }) => context.epoch,
+  lastPartialAt: () => Date.now(),
 });
+
+export const specYesReady = ({ context }: ContextArgs): boolean =>
+  context.specAnswer !== null && context.specAnswer.intent === 'confirm_yes' && context.specEpoch === context.epoch;
+
+export const specYesStale = ({ context }: SpecArgs): boolean =>
+  specYesReady({ context }) && context.lastPartialAt !== null && Date.now() - context.lastPartialAt > YES_STABLE_MS;
+
+export const noteSpecEarly = assign({
+  transcript: ({ context }: ContextArgs) => context.specText ?? '',
+  routeAnswer: ({ context }: ContextArgs) => context.specAnswer,
+  misses: 0,
+  specText: null,
+  specAnswer: null,
+});
+
+export const logSpecEarly = ({ context }: ContextArgs): void => {
+  logIttro(`speculative early yes: ${JSON.stringify(context.specText)}`);
+};
 
 export const noteSpeculative = assign({
   specAnswer: ({ event }) =>
@@ -95,8 +116,14 @@ export const speculatingState = {
       pendingRequest: context.pendingRequest ?? context.request,
       lastLine: context.lastLine,
     }),
-    onDone: { actions: [noteSpeculative, raiseLinkOk] },
+    onDone: [
+      { guard: specYesStale, actions: [logSpecEarly, noteSpecEarly, raiseLinkOk], target: 'routing' },
+      { actions: [noteSpeculative, raiseLinkOk] },
+    ],
     onError: { actions: [noteSpecClear] },
+  },
+  after: {
+    [YES_STABLE_MS]: { guard: specYesReady, actions: [logSpecEarly, noteSpecEarly], target: 'routing' },
   },
   on: {
     FINAL_TEXT: [
@@ -109,7 +136,10 @@ export const speculatingState = {
       { guard: echoFull, actions: [logEchoDrop] },
       { guard: partialChanged, actions: [notePartial, raiseHeard], target: 'speculating' },
     ],
-    SPEECH_ENDED: { actions: [playHeard, raiseHeard] },
+    SPEECH_ENDED: [
+      { guard: specYesReady, actions: [playHeard, logSpecEarly, noteSpecEarly], target: 'routing' },
+      { actions: [playHeard, raiseHeard] },
+    ],
     STREAM_OPEN: { actions: [noteStreamOpen, raiseLinkOk] },
     STREAM_CLOSED: { actions: [noteStreamDown, sendStart] },
     STREAM_ERROR: { actions: [noteStreamDown, sendStart] },
