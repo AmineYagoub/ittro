@@ -190,8 +190,9 @@ test('no and cannot-tell answers say the next words', async () => {
   try {
     driver.send({ type: 'HELPER_ANSWER', verdict: 'no', note: null, helper: 'Sara' });
     await driver.flush();
-    assert.equal(driver.context().helperVerdict, 'no');
-    assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /Sara says no: this is not Masaad water\. Say guide me, or read again/);
+    assert.equal(driver.context().helperVerdict, null);
+    assert.equal(driver.search(), 'active');
+    assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /Sara says no: this is not Masaad water\. I'll look for it on the shelf/);
   } finally {
     driver.stop();
   }

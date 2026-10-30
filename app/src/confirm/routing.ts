@@ -6,6 +6,7 @@ import type { ConversationContext } from '../conversation/types';
 import { raiseQuestion } from '../conversation/actions';
 import { missLine } from '../conversation/answers';
 import type { Route } from '../conversation/routing';
+import { raiseGuideEnd } from '../guide/guideSay';
 import { raiseConfirmBegin, raiseConfirmDetailAsk, setDetailKind } from './confirmSay';
 
 function answerOf(context: ConversationContext): UnderstandAnswer | null {
@@ -51,9 +52,9 @@ const detailLost = ({ context }: { context: ConversationContext }): boolean =>
 
 export const confirmRoutes: Route[] = [
   { guard: checkBusy, target: 'listening' },
-  { guard: checkInHand, actions: [raiseConfirmBegin, raiseQuestion], target: 'listening' },
-  { guard: rereadInHand, actions: [raiseConfirmBegin, raiseQuestion], target: 'listening' },
-  { guard: detailInHand, actions: [setDetailKind, raiseConfirmDetailAsk, raiseQuestion], target: 'listening' },
+  { guard: checkInHand, actions: [raiseConfirmBegin, raiseGuideEnd, raiseQuestion], target: 'listening' },
+  { guard: rereadInHand, actions: [raiseConfirmBegin, raiseGuideEnd, raiseQuestion], target: 'listening' },
+  { guard: detailInHand, actions: [setDetailKind, raiseConfirmDetailAsk, raiseGuideEnd, raiseQuestion], target: 'listening' },
   { guard: checkLost, actions: [missLine], target: 'saying' },
   { guard: detailLost, actions: [missLine], target: 'saying' },
 ];

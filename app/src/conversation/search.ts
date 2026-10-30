@@ -56,6 +56,7 @@ function shelfSide(context: ConversationContext): GuidePosition {
 
 export const resumeGuideShelf = assign({
   guiding: true,
+  guideRestarting: true,
   guideTarget: ({ context }: ContextArgs) => context.shelfTarget,
   guideLabel: ({ context }: ContextArgs) => shortProduct(context.pendingRequest ?? context.request ?? ''),
   guidePosition: ({ context }: ContextArgs) => shelfSide(context),

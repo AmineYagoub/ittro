@@ -2,6 +2,7 @@
 // lines are DESIGN.md word for word where the design gives them;
 // Arabic and French await a native-speaker review.
 import type { Language } from '../theme';
+import { backToShelfLine } from '../confirm/lines';
 
 type Trilingual = Record<Language, string>;
 
@@ -206,6 +207,7 @@ export function answerLine(
   label: string,
   note: string | null,
   lang: Language,
+  shelfKnown = true,
 ): string {
   const notePart = note ? (lang === 'ar' ? ` ملاحظة: ${note}.` : lang === 'fr' ? ` Note : ${note}.` : ` Their note: ${note}.`) : '';
   if (verdict === 'yes') {
@@ -218,13 +220,14 @@ export function answerLine(
     return `${helper} says yes: this is ${label}.${notePart} Say find another, or done.`;
   }
   if (verdict === 'no') {
+    const tail = shelfKnown ? '' : ` ${backToShelfLine(lang)}`;
     if (lang === 'ar') {
-      return `${helper} يقول لا: هذا ليس ${label}.${notePart} قل أرشدني، أو اقرأ مرة أخرى.`;
+      return `${helper} يقول لا: هذا ليس ${label}.${notePart}${tail}`;
     }
     if (lang === 'fr') {
-      return `${helper} dit non : ce n’est pas ${label}.${notePart} Dites guidez-moi, ou relisez.`;
+      return `${helper} dit non : ce n’est pas ${label}.${notePart}${tail}`;
     }
-    return `${helper} says no: this is not ${label}.${notePart} Say guide me, or read again.`;
+    return `${helper} says no: this is not ${label}.${notePart}${tail}`;
   }
   if (lang === 'ar') {
     return `${helper} لا يستطيع التحديد من الصورة.${notePart} قل اقرأ مرة أخرى، أو اسأل مرة أخرى.`;

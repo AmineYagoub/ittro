@@ -35,7 +35,7 @@ The shopper can say these at any time, in the current language. Muse Spark under
 | is this the right one? / are you sure? | Reads the product in the hand again, from a new picture |
 | read the date / size / price / ingredients | Reads it exactly, or says which part it can't read (screen 11) |
 | got it / I'm touching it | After "Reach forward": the hand is on the product, so Ittro says "Pick it up." (screen 23) |
-| guide me | Goes back to guiding the hand |
+| guide me | Restarts guiding the hand; Ittro also guides on its own after a no, without waiting to be asked |
 | read again | Reads the product in the hand again |
 | keep looking | Continues searching after "I can't find it here" |
 | find another | Starts a new search |
@@ -332,8 +332,8 @@ PNG renders are in `screens/` at 2×, each next to an HTML file with the exact l
 
 - The whole screen turns red the moment an in-hand read says no. Three buzzes and the "no" chime.
 - A white circle with ✕ and "No"; a card with the crop that was read and its name.
-- Says: "No. This is Guedila water. Put it back. Masaad is to your right. Say guide me, or read again."
-- If the hand stays on it, the "no" and the way are said again, never only buzzed.
+- Says: "No. This is Guedila water. Put it back. Masaad is to your right." Then it guides to Masaad on its own: no step waits for "guide me".
+- If the hand stays on it, guidance to the right product carries on by itself, never only buzzed.
 
 ### 08 Not sure
 

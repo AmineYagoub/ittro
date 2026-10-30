@@ -25,14 +25,14 @@ export function yesNext(lang: Language): string {
   return 'Say find another, or done.';
 }
 
-export function noNext(lang: Language): string {
+export function backToShelfLine(lang: Language): string {
   if (lang === 'ar') {
-    return 'قل أرشدني، أو اقرأ مجددًا.';
+    return 'سأبحث عنه على الرف.';
   }
   if (lang === 'fr') {
-    return 'Dites guidez-moi, ou relisez.';
+    return 'Je vais le chercher dans le rayon.';
   }
-  return 'Say guide me, or read again.';
+  return "I'll look for it on the shelf.";
 }
 
 export function attrName(attr: ConfirmAttr, lang: Language): string {

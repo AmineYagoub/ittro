@@ -40,7 +40,7 @@ test('picking up starts a quiet check and stops the shelf search', async () => {
   driver.stop();
 });
 
-test('a no names the held product, the way back and the next words', async () => {
+test('a no names the held product and the way back, then guides on its own', async () => {
   const driver = await startListening({ request: 'Masaad water' });
   driver.send({ type: 'SHELF_FOUND', product: 'Masaad water', outline: TARGET, matches: 1, kind: 'bottles', position: 'middle' });
   await driver.flush();
@@ -48,20 +48,17 @@ test('a no names the held product, the way back and the next words', async () =>
   await driver.flush();
   driver.send({ type: 'CONFIRM_NO', epoch: 1, label: 'Guedila water', crop: CROP });
   await driver.flush();
-  assert.equal(driver.confirm(), 'no');
   assert.deepEqual(driver.parts.at(-1), [
     { clip: 'no' },
     { text: 'This is Guedila water.' },
     { clip: 'put_back' },
     { text: 'Masaad water is to your right.' },
-    { text: 'Say guide me, or read again.' },
   ]);
-  assert.equal(
-    driver.context().lastLine,
-    'No. This is Guedila water. Put it back. Masaad water is to your right. Say guide me, or read again.',
-  );
+  assert.equal(driver.context().lastLine, 'No. This is Guedila water. Put it back. Masaad water is to your right.');
   assert.deepEqual(driver.context().lastChips, ['guide me', 'read again']);
-  assert.equal(driver.context().step, 'verdict');
+  assert.equal(driver.context().step, 'welcome');
+  assert.equal(driver.confirm(), 'idle');
+  assert.equal(driver.guide(), 'directing');
   driver.stop();
 });
 
@@ -202,17 +199,6 @@ test('a turned label is a phone action, never a doubt', async () => {
   assert.equal(driver.confirm(), 'picture');
   assert.equal(driver.context().lastLine, 'Turn it so the label faces the phone.');
   assert.equal(driver.context().confirmVerdict, 'picture');
-  driver.stop();
-});
-
-test('a no repeats with the way every six seconds', async () => {
-  const driver = await checking();
-  driver.send({ type: 'CONFIRM_NO', epoch: 1, label: 'Guedila water', crop: CROP });
-  await driver.flush();
-  const said = driver.parts.length;
-  await driver.advance(6000);
-  assert.equal(driver.parts.length, said + 1);
-  assert.deepEqual(driver.parts.at(-1), driver.parts.at(-2));
   driver.stop();
 });
 

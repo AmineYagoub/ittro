@@ -20,6 +20,7 @@ import {
   timeoutLine,
 } from './lines';
 import { noteHelpersStored } from './helperSay';
+import { dropHelperNo, helperNoClear, helperNoGuide, helperNoSearch, resumeGuideNo, resumeSearchNo } from './resume';
 
 const WAIT_LATE_MS = 10000;
 
@@ -76,14 +77,14 @@ export const queueAnswer = assign({
   pendingQuestion: 'verdict_done',
   lastLine: ({ context, event }: EventArgs) =>
     event.type === 'HELPER_ANSWER'
-      ? answerLine(event.verdict, event.helper, answerLabel(context), event.note, context.lang)
+      ? answerLine(event.verdict, event.helper, answerLabel(context), event.note, context.lang, context.shelfTarget !== null)
       : context.lastLine,
   lastChips: ({ context, event }: EventArgs) =>
     event.type === 'HELPER_ANSWER' ? answerChips(event.verdict, context.lang) : context.lastChips,
   pendingHelper: ({ context, event }: EventArgs) =>
     event.type === 'HELPER_ANSWER'
       ? queueLine(context, {
-          text: answerLine(event.verdict, event.helper, answerLabel(context), event.note, context.lang),
+          text: answerLine(event.verdict, event.helper, answerLabel(context), event.note, context.lang, context.shelfTarget !== null),
           chips: answerChips(event.verdict, context.lang),
           kind: 'answer',
         })
@@ -277,6 +278,11 @@ export const helperRegion = {
     answered: {
       entry: [chimeHelper],
       on: {
+        TALK_IDLE: [
+          { guard: helperNoGuide, actions: resumeGuideNo },
+          { guard: helperNoSearch, actions: resumeSearchNo },
+          { guard: helperNoClear, actions: dropHelperNo },
+        ],
         HELPER_SENT: { target: 'waiting' },
         HELPER_CODE: { target: 'pairing' },
       },

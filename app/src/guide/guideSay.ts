@@ -213,12 +213,13 @@ export const sayWrong = assign({
 
 export const sayRestart = assign({
   guideWrong: null,
+  guideRestarting: false,
   guideParts: ({ context }: ContextArgs) => directParts(context, context.guideCue),
   lastLine: ({ context }: ContextArgs) => {
     const parts = directParts(context, context.guideCue);
     return parts.length > 0 ? shown(parts, context) : context.lastLine;
   },
-  lastChips: [],
+  lastChips: ({ context }: ContextArgs) => context.lastChips,
 });
 
 export const sayTargetLost = assign({
@@ -244,7 +245,8 @@ export const sameCue = ({ context, event }: EventArgs): boolean =>
 
 export const wantsResume = ({ context }: ContextArgs): boolean => context.guideResume && context.guideTarget !== null;
 
-export const readyToArm = ({ context }: ContextArgs): boolean => hasTarget({ context }) && confirmed({ context });
+export const readyToArm = ({ context }: ContextArgs): boolean =>
+  hasTarget({ context }) && confirmed({ context }) && !context.guideRestarting;
 
 export const queuesEmpty = ({ context }: ContextArgs): boolean =>
   context.pendingSearch.length === 0 && context.pendingHelper.length === 0 && context.linkLine === null;

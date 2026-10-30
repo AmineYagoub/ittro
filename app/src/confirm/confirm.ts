@@ -6,8 +6,9 @@
 import type { ContextArgs, EventArgs } from '../conversation/actions';
 import { raiseQuestion } from '../conversation/actions';
 import { raiseLinkKind } from '../conversation/link';
+import { raiseSearchBegin, resumeGuideShelf } from '../conversation/search';
 import { logIttro } from '../log';
-import { REPEAT_MS } from '../guide/guideSay';
+import { raiseGuideRestart } from '../guide/guideSay';
 import {
   NET_UPDATE_MS,
   beginConfirm,
@@ -19,7 +20,15 @@ import {
   clearConfirmSpeech,
   endConfirm,
   freshConfirm,
+  wantsCheck,
+  wantsDetail,
+} from './confirmSay';
+import {
+  hasShelfTarget,
+  logAutoGuideAfterNo,
+  logAutoSearchAfterNo,
   noteUnsure,
+  noteVerdictDone,
   storeDetail,
   storeGiveup,
   storeMoved,
@@ -27,9 +36,7 @@ import {
   storePicture,
   storeUnsure,
   storeYes,
-  wantsCheck,
-  wantsDetail,
-} from './confirmSay';
+} from './verdicts';
 
 function speakState() {
   return {
@@ -101,8 +108,26 @@ export const confirmRegion = {
     },
     no: {
       entry: [chimeNo],
-      ...speakState(),
-      after: { [REPEAT_MS]: { target: 'no', reenter: true } },
+      invoke: {
+        src: 'speakParts' as const,
+        input: ({ context }: ContextArgs) => ({ parts: context.confirmParts, lang: context.lang }),
+        onDone: [
+          {
+            guard: hasShelfTarget,
+            actions: [logAutoGuideAfterNo, endConfirm, noteVerdictDone, resumeGuideShelf, raiseGuideRestart, raiseSearchBegin],
+            target: 'idle',
+          },
+          { actions: [logAutoSearchAfterNo, endConfirm, noteVerdictDone, raiseSearchBegin], target: 'idle' },
+        ],
+        onError: [
+          {
+            guard: hasShelfTarget,
+            actions: [logAutoGuideAfterNo, endConfirm, noteVerdictDone, resumeGuideShelf, raiseGuideRestart, raiseSearchBegin],
+            target: 'idle',
+          },
+          { actions: [logAutoSearchAfterNo, endConfirm, noteVerdictDone, raiseSearchBegin], target: 'idle' },
+        ],
+      },
     },
     picture: {
       ...speakState(),

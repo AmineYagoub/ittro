@@ -144,6 +144,7 @@ export interface ConversationContext {
   guideFresh: boolean;
   guideWrong: string | null;
   guideResume: boolean;
+  guideRestarting: boolean;
   guideParts: SpeechPart[];
   guideReaching: boolean;
   earbuds: boolean;

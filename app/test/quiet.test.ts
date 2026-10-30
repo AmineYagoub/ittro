@@ -59,11 +59,11 @@ test('silence never re-asks during a check, and the verdict re-arms it', async (
       crop: 'crop',
     });
     await driver.flush();
-    const before = driver.spoken.at(-1) ?? '';
     assert.match(driver.context().lastLine, /No\. This is Guedila bottle/);
+    assert.equal(driver.search(), 'active');
+    assert.equal(driver.context().guiding, false);
     await driver.advance(9000);
-    assert.equal(driver.spoken.at(-1), driver.context().lastLine);
-    assert.notEqual(driver.spoken.at(-1), before);
+    assert.match(driver.spoken.at(-1) ?? '', /Still looking for Masaad water/);
   } finally {
     driver.stop();
   }
