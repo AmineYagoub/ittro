@@ -11,6 +11,7 @@ import type { HandFrame } from 'ittro-sensors';
 import { readShelfCrops } from '../relay';
 import { playSound } from '../speech';
 import { logIttro } from '../log';
+import { CROP_MARGIN, expandBox } from '../shelf/outlines';
 import type { ShotListeners } from '../shelf/useShelfSearch';
 import type { ConversationContext, ConversationEvent } from '../conversation/types';
 import { createFrameStats, handFixFromEvent, noteHandFix } from './frames';
@@ -60,7 +61,8 @@ export function useGuide(actor: { current: GuideActor | null }, active: boolean)
       },
       log: (line) => note(line),
       cutCrop: async (image, box) => {
-        const cut = await cropShelfPhoto(image, box.x1, box.y1, box.x2, box.y2);
+        const grown = expandBox(box, CROP_MARGIN);
+        const cut = await cropShelfPhoto(image, grown.x1, grown.y1, grown.x2, grown.y2);
         return cut ? { id: 'hand-rest', ...cut } : null;
       },
       read: (label, crops) => readShelfCrops(label, crops),

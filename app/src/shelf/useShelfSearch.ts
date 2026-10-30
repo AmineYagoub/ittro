@@ -21,6 +21,7 @@ import { createShelfLoop } from './loop';
 import type { LoopPhoto, ShelfLoop } from './loopTypes';
 import { decodeBase64, ingestGrey } from './tracker';
 import type { GreyFrame } from './tracker';
+import { CROP_MARGIN, expandBox } from './outlines';
 import type { ConversationContext, ConversationEvent } from '../conversation/types';
 import { logIttro } from '../log';
 
@@ -106,7 +107,8 @@ export function useShelfSearch(
       cutCrops: async (image, tracks) => {
         const crops: ShelfCrop[] = [];
         for (const entry of tracks) {
-          const cut = await cropShelfPhoto(image, entry.outline.box.x1, entry.outline.box.y1, entry.outline.box.x2, entry.outline.box.y2);
+          const grown = expandBox(entry.outline.box, CROP_MARGIN);
+          const cut = await cropShelfPhoto(image, grown.x1, grown.y1, grown.x2, grown.y2);
           if (cut) {
             crops.push({ id: `shelf-${entry.track}`, image: cut.image, mime: cut.mime });
           }

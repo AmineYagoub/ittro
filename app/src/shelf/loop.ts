@@ -13,6 +13,7 @@ import { QUIET_MS, maybeSwept, readBatch, reportEmpty, reportVerdicts } from './
 import type { LoopDeps, LoopPhoto, LoopState, LoopStats, ShelfLoop } from './loopTypes';
 
 const REFRESH_MS = 15000;
+const REREAD_MS = 2500;
 const EMPTY_BEFORE_CLEAR = 3;
 const PRIORITY_BATCH = 2;
 
@@ -25,6 +26,7 @@ function freshState(): LoopState {
     phrases: new Map(),
     cloudBusy: false,
     outlinedAt: null,
+    readAt: null,
     sceneChanged: false,
     lastSignature: '',
     lastScene: '',
@@ -43,6 +45,7 @@ function freshState(): LoopState {
 function searchReset(state: LoopState): void {
   state.tracks = [];
   state.outlinedAt = null;
+  state.readAt = null;
   state.sceneChanged = false;
   state.lastSignature = '';
   state.lastScene = '';
@@ -100,7 +103,12 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
       if (state.cloudBusy || state.request === '') {
         return false;
       }
-      return state.outlinedAt === null || state.sceneChanged || deps.now() - state.outlinedAt >= REFRESH_MS;
+      if (state.outlinedAt === null || state.sceneChanged || deps.now() - state.outlinedAt >= REFRESH_MS) {
+        return true;
+      }
+      return (
+        needsRead(state.tracks).length > 0 && (state.readAt === null || deps.now() - state.readAt >= REREAD_MS)
+      );
     },
 
     trackShift(dx: number, dy: number, changed: boolean, scale: number): void {

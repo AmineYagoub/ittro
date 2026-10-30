@@ -53,6 +53,7 @@ export interface LoopState {
   phrases: Map<string, string>;
   cloudBusy: boolean;
   outlinedAt: number | null;
+  readAt: number | null;
   sceneChanged: boolean;
   lastSignature: string;
   lastScene: string;

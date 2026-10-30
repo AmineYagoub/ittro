@@ -51,6 +51,7 @@ export async function readBatch(
   }
   state.stats.readCalls += 1;
   state.stats.readCrops += jobs.length;
+  state.readAt = deps.now();
   deps.log(`shelf read ${answer.readMs}ms verdicts ${answer.reads.map((read) => read.verdict).join(',')}`);
   for (const entry of batch) {
     const read = answer.reads.find((item) => item.id === `shelf-${entry.track}`) ?? null;

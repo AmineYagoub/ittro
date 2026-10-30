@@ -17,6 +17,20 @@ function clamp(value: number, max: number): number {
   return Math.min(max, Math.max(0, Math.round(value)));
 }
 
+export const CROP_MARGIN = 0.08;
+
+export function expandBox(box: ShelfBox, margin: number): ShelfBox {
+  const growW = (box.x2 - box.x1) * margin;
+  const growH = (box.y2 - box.y1) * margin;
+  return {
+    ...box,
+    x1: Math.max(0, box.x1 - growW),
+    y1: Math.max(0, box.y1 - growH),
+    x2: Math.min(box.w, box.x2 + growW),
+    y2: Math.min(box.h, box.y2 + growH),
+  };
+}
+
 export function moveBox(box: ShelfBox, shift: PanShift): ShelfBox {
   const dx = Math.round(shift.dx * shift.scale);
   const dy = Math.round(shift.dy * shift.scale);

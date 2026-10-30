@@ -3,7 +3,7 @@
 // shift, and one shelf pass with stubbed cloud calls.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { boxOverlap, mapBox, mapPoints, moveOutlines } from '../src/shelf/outlines';
+import { boxOverlap, expandBox, mapBox, mapPoints, moveOutlines } from '../src/shelf/outlines';
 import { decodeBase64, ingestGrey, pickSharpest, sharpness } from '../src/shelf/tracker';
 import type { GreyFrame } from '../src/shelf/tracker';
 import { createReadQueue, dropEpoch, enqueueRead, nextRead, queueSize } from '../src/shelf/queue';
@@ -66,6 +66,13 @@ test('outlines move with the pan and stay inside the frame', () => {
     { dx: 10, dy: -20, scale: 1 },
   );
   assert.deepEqual(moved[0]?.box, { x1: 20, y1: 0, x2: 100, y2: 20, w: 100, h: 100, confidence: null });
+});
+
+test('a crop box grows a margin but stays in frame', () => {
+  const grown = expandBox({ x1: 10, y1: 10, x2: 20, y2: 20, w: 100, h: 100, confidence: null }, 0.1);
+  assert.deepEqual(grown, { x1: 9, y1: 9, x2: 21, y2: 21, w: 100, h: 100, confidence: null });
+  const edge = expandBox({ x1: 0, y1: 0, x2: 5, y2: 5, w: 100, h: 100, confidence: null }, 0.5);
+  assert.deepEqual(edge, { x1: 0, y1: 0, x2: 7.5, y2: 7.5, w: 100, h: 100, confidence: null });
 });
 
 test('overlap is one for the same box and zero apart', () => {
