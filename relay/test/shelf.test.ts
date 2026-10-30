@@ -115,3 +115,18 @@ test('rejects a non-completed read instead of defaulting to unsure', async () =>
     /not completed/,
   );
 });
+
+test('a minimal read asks Meta with minimal effort', async () => {
+  let effort = '';
+  const record: typeof fetch = (async (_url: unknown, init: unknown) => {
+    const body = JSON.parse(String((init as { body: string }).body)) as { reasoning: { effort: string } };
+    effort = body.reasoning.effort;
+    return {
+      ok: true,
+      json: async () =>
+        completed({ reads: [{ id: 'shelf-0', brand_text: 'x', size_text: 'y', verdict: 'unsure', spoken: 'y' }] }),
+    };
+  }) as unknown as typeof fetch;
+  await readShelfLabels(record, 'https://example.invalid', 'key', { request: 'water', crops: [CROP], effort: 'minimal' });
+  assert.equal(effort, 'minimal');
+});

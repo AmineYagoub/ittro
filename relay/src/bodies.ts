@@ -18,6 +18,11 @@ export interface PhraseBody {
 export interface ReadBody {
   request?: unknown;
   crops?: unknown;
+  effort?: unknown;
+}
+
+export function effortField(value: unknown): string {
+  return value === 'low' ? 'low' : 'minimal';
 }
 
 export function textField(value: unknown): string | null {

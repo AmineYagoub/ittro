@@ -6,7 +6,7 @@
 // never advised on: no medicines identified, no safety judged.
 import { callSparkJson } from './spark.ts';
 import type { SparkSchema } from './spark.ts';
-import { mimeField, textField } from './bodies.ts';
+import { effortField, mimeField, textField } from './bodies.ts';
 import { recordSparkCost } from './gate.ts';
 import type { Env } from './gate.ts';
 
@@ -55,6 +55,7 @@ export interface ConfirmArgs {
   request: string;
   image: string;
   mime: string;
+  effort?: string;
 }
 
 export interface DetailArgs {
@@ -197,7 +198,7 @@ export async function confirmInHand(
     },
   ];
   const started = Date.now();
-  const read = await callSparkJson({ fetchImpl, apiBase, apiKey, input, effort: 'low', schema: CONFIRM_SCHEMA, guard: isConfirmRead });
+  const read = await callSparkJson({ fetchImpl, apiBase, apiKey, input, effort: args.effort ?? 'minimal', schema: CONFIRM_SCHEMA, guard: isConfirmRead });
   return { read, readMs: Date.now() - started };
 }
 
@@ -224,7 +225,7 @@ function detailField(value: unknown): DetailKind | null {
 }
 
 export async function confirmRoute(body: unknown, env: Env): Promise<Response> {
-  const record = (body ?? {}) as { request?: unknown; image?: unknown; mime?: unknown };
+  const record = (body ?? {}) as { request?: unknown; image?: unknown; mime?: unknown; effort?: unknown };
   const wanted = textField(record.request);
   const image = textField(record.image);
   if (!wanted || !image) {
@@ -235,6 +236,7 @@ export async function confirmRoute(body: unknown, env: Env): Promise<Response> {
       request: wanted,
       image,
       mime: mimeField(record.mime),
+      effort: effortField(record.effort),
     });
     await recordSparkCost(env);
     return Response.json({ ok: true, read: result.read, readMs: result.readMs });

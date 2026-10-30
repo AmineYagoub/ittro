@@ -166,3 +166,14 @@ test('the confirm instructions name the held product as brand plus kind', async 
   assert.match(system, /brand plus kind/);
   assert.match(system, /transliterated/);
 });
+
+test('a minimal check asks Meta with minimal effort', async () => {
+  let effort = '';
+  const record: typeof fetch = (async (_url: unknown, init: unknown) => {
+    const body = JSON.parse(String((init as { body: string }).body)) as { reasoning: { effort: string } };
+    effort = body.reasoning.effort;
+    return { ok: true, json: async () => completed({ verdict: 'unsure', picture_problem: null, asked: ASKED, read: { brand: 'El Taaounia', product: null, variant: null, size: null }, label_name: 'El Taaounia', unreadable: ['product', 'variant', 'size'] }) };
+  }) as unknown as typeof fetch;
+  await confirmInHand(record, 'https://example.invalid', 'key', { ...PHOTO, effort: 'minimal' });
+  assert.equal(effort, 'minimal');
+});

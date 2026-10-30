@@ -49,6 +49,7 @@ export interface PhraseArgs {
 export interface ReadArgs {
   request: string;
   crops: ShelfCrop[];
+  effort?: string;
 }
 
 const PHRASE_SCHEMA: SparkSchema = {
@@ -229,7 +230,7 @@ export async function readShelfLabels(
     { role: 'user', content },
   ];
   const started = Date.now();
-  const answer = await callSparkJson({ fetchImpl, apiBase, apiKey, input, effort: 'low', schema: READS_SCHEMA, guard: isReads });
+  const answer = await callSparkJson({ fetchImpl, apiBase, apiKey, input, effort: args.effort ?? 'minimal', schema: READS_SCHEMA, guard: isReads });
   const wanted = new Set(args.crops.map((crop) => crop.id));
   const seen = new Set(answer.reads.map((read) => read.id));
   if (seen.size !== answer.reads.length || wanted.size !== seen.size || [...wanted].some((id) => !seen.has(id))) {

@@ -10,7 +10,7 @@ import { classifyScene, pickPackagePhrase, readShelfLabels } from './shelf.ts';
 import { startRealtimeSession } from './realtime.ts';
 import { confirmRoute, detailRoute } from './confirm.ts';
 import { helperRoutes } from './helperRoutes.ts';
-import { mimeField, textField } from './bodies.ts';
+import { effortField, mimeField, textField } from './bodies.ts';
 import type { OutlineBody, PhraseBody, ReadBody } from './bodies.ts';
 import { wrapSocket } from './streamWire.ts';
 import { addSpendUsd, clientIp, codesEqual, gate, overRateLimit, recordSamCost, recordSparkCost, spendTodayUsd } from './gate.ts';
@@ -218,6 +218,7 @@ export default {
         const result = await readShelfLabels(fetch, env.META_API_BASE, env.META_API_KEY, {
           request: wanted,
           crops: checked,
+          effort: effortField(body.effort),
         });
         await recordSparkCost(env);
         return Response.json({ ok: true, reads: result.reads, readMs: result.readMs });
