@@ -4,6 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { say, sayClip } from '../src/speech';
+import { warmVoice } from '../src/speechWarm';
+import { setLogsOverride } from '../src/log';
 import {
   audioPlayers,
   resetSpeech,
@@ -12,6 +14,7 @@ import {
   setSpeechSpeaking,
   speechCalls,
   speechStops,
+  voiceQueries,
 } from './stubs.mjs';
 
 async function settles(promise: Promise<void>, ms: number): Promise<boolean> {
@@ -161,6 +164,46 @@ test('sayClip carries on when the clip never finishes', async () => {
   try {
     assert.equal(await settles(sayClip('testcue', 'en'), 11000), true);
   } finally {
+    resetSpeech();
+  }
+});
+
+test('say logs when speech starts', async () => {
+  resetSpeech();
+  const printed: string[] = [];
+  const realLog = console.log;
+  console.log = (...args: unknown[]): void => {
+    printed.push(args.map((part) => String(part)).join(' '));
+  };
+  try {
+    setLogsOverride(true);
+    assert.equal(await settles(say('hi', 'en'), 2000), true);
+  } finally {
+    console.log = realLog;
+    setLogsOverride(null);
+    resetSpeech();
+  }
+  assert.ok(printed.some((line) => /say started \d+ms/.test(line)));
+});
+
+test('warmVoice asks the engine for voices once per language', async () => {
+  resetSpeech();
+  const printed: string[] = [];
+  const realLog = console.log;
+  console.log = (...args: unknown[]): void => {
+    printed.push(args.map((part) => String(part)).join(' '));
+  };
+  try {
+    setLogsOverride(true);
+    warmVoice('ar');
+    warmVoice('ar');
+    warmVoice('en');
+    await sleep(50);
+    assert.equal(voiceQueries.length, 2);
+    assert.ok(printed.some((line) => /voice ready ar \(1 voices\)/.test(line)));
+  } finally {
+    console.log = realLog;
+    setLogsOverride(null);
     resetSpeech();
   }
 });

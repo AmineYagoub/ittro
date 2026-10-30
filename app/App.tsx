@@ -13,6 +13,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { createActor } from 'xstate';
 import * as Localization from 'expo-localization';
 import { initVoice, say, setSpeechRate, stopVoice } from './src/speech';
+import { warmVoice } from './src/speechWarm';
 import { logIttro } from './src/log';
 import { loadPrefs, loadSnapshot } from './src/store';
 import { relayConfig } from './src/relay';
@@ -196,6 +197,10 @@ export default function App(): React.JSX.Element {
       }
     }
   }, []);
+
+  useEffect(() => {
+    warmVoice(lang);
+  }, [lang]);
 
   const rtl = lang === 'ar';
   const shown = verdict === 'yes' || verdict === 'no' || verdict === 'unsure' ? verdict : null;

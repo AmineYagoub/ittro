@@ -93,6 +93,7 @@ function speakOnce(text: string, lang: Language): Promise<SpeakOutcome> {
   return new Promise((resolve) => {
     let done = false;
     let heardEngine = false;
+    const begun = Date.now();
     const finish = (outcome: SpeakOutcome): void => {
       if (!done) {
         done = true;
@@ -121,6 +122,7 @@ function speakOnce(text: string, lang: Language): Promise<SpeakOutcome> {
       Speech.speak(text, {
         language: SPEECH_LOCALE[lang],
         rate: speechRate,
+        onStart: () => logIttro(`say started ${Date.now() - begun}ms`),
         onDone: () => finish('done'),
         onStopped: () => finish('stopped'),
         onError: () => finish('error'),

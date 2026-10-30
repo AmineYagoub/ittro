@@ -126,6 +126,7 @@ export async function isSpeakingAsync() {
 export function resetSpeech() {
   speechCalls.length = 0;
   speechStops.length = 0;
+  voiceQueries.length = 0;
   speechHangs = false;
   speechScript = [];
   speechSpeaking = false;
@@ -136,10 +137,21 @@ export function speak(text, options) {
   speechCalls.push({ text, options });
   const next = speechScript.length > 0 ? speechScript.shift() : speechHangs ? 'hang' : 'ok';
   if (next === 'ok') {
+    options.onStart?.();
     options.onDone?.();
   } else if (next === 'error') {
     options.onError?.();
   }
+}
+
+export const voiceQueries = [];
+
+export async function getAvailableVoicesAsync() {
+  voiceQueries.push(Date.now());
+  return [
+    { identifier: 'en-1', name: 'English', quality: 'high', language: 'en-US' },
+    { identifier: 'ar-1', name: 'Arabic', quality: 'high', language: 'ar-SA' },
+  ];
 }
 
 export function stop() {
