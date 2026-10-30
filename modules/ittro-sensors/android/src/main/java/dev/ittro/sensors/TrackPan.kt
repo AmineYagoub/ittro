@@ -9,14 +9,18 @@ import kotlin.math.abs
 // plane is already grey, so it is sampled down to a 160 px upright
 // copy and matched against the previous copy, and outlines follow
 // the phone with no stills, no bridge bytes and no JavaScript math.
-// The search window (±8 px, every other pixel) and the scene-change
-// score (a mean difference above 25) mirror the tracker the app used
-// to run in JavaScript, which took seconds a frame on the phone.
+// The search window (±8 px, every other pixel) is searched coarse
+// to fine: the full window at stride two, then the neighbours of
+// the best shift. The scene-change score (a mean difference above
+// 25) mirrors the tracker the app used to run in JavaScript, which
+// took seconds a frame on the phone.
 private const val TRACK_WIDTH = 160
 
 private const val PAN_SHIFT = 8
 
 private const val PAN_STRIDE = 2
+
+private const val COARSE_STRIDE = 2
 
 private const val SCENE_SCORE = 25.0
 
@@ -41,13 +45,32 @@ class TrackPan {
     var bestDx = 0
     var bestDy = 0
     var best = Double.POSITIVE_INFINITY
-    for (dy in -PAN_SHIFT..PAN_SHIFT) {
-      for (dx in -PAN_SHIFT..PAN_SHIFT) {
+    var dy = -PAN_SHIFT
+    while (dy <= PAN_SHIFT) {
+      var dx = -PAN_SHIFT
+      while (dx <= PAN_SHIFT) {
         val score = frameDiff(previous, next, greyW, greyH, dx, dy)
         if (score < best) {
           best = score
           bestDx = dx
           bestDy = dy
+        }
+        dx += COARSE_STRIDE
+      }
+      dy += COARSE_STRIDE
+    }
+    for (ry in (bestDy - 1)..(bestDy + 1)) {
+      for (rx in (bestDx - 1)..(bestDx + 1)) {
+        val cx = rx.coerceIn(-PAN_SHIFT, PAN_SHIFT)
+        val cy = ry.coerceIn(-PAN_SHIFT, PAN_SHIFT)
+        if (cx == bestDx && cy == bestDy) {
+          continue
+        }
+        val score = frameDiff(previous, next, greyW, greyH, cx, cy)
+        if (score < best) {
+          best = score
+          bestDx = cx
+          bestDy = cy
         }
       }
     }

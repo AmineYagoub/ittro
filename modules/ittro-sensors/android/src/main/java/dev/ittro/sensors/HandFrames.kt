@@ -22,7 +22,7 @@ private const val NOMINAL_FRAME_MS = 1000.0 / 30.0
 
 private const val MAX_SKIP_ESTIMATE = 30
 
-private const val PAN_EVERY_MS = 250L
+private const val PAN_EVERY_MS = 200L
 
 class HandFrames(
   private val context: Context,
