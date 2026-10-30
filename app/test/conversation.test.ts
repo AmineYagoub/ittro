@@ -190,3 +190,21 @@ test('no with nothing standing is not understood', async () => {
     driver.stop();
   }
 });
+
+test('the caption shows the line when speech starts, not when it ends', async () => {
+  resetStorage();
+  const driver = await startListening();
+  try {
+    driver.setUnderstand(() => answer({ intent: 'request_product', product_text: 'Masaad water' }));
+    driver.holdSpeech(true);
+    await driver.heard('Masaad water');
+    assert.equal(driver.talk(), 'saying');
+    assert.equal(driver.context().lastLine, 'You asked for Masaad water. Is that right? Say yes or no.');
+    driver.holdSpeech(false);
+    await driver.flush();
+    assert.equal(driver.talk(), 'listening');
+    assert.equal(driver.context().lastLine, 'You asked for Masaad water. Is that right? Say yes or no.');
+  } finally {
+    driver.stop();
+  }
+});

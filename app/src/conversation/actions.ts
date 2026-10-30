@@ -51,6 +51,11 @@ export const noteSaid = assign({
   pendingSay: [],
 });
 
+export const noteSaying = assign({
+  lastLine: ({ context }: ContextArgs) => context.pendingSay[0]?.text ?? context.lastLine,
+  lastChips: ({ context }: ContextArgs) => context.pendingSay[0]?.chips ?? context.lastChips,
+});
+
 export const noteHeard = assign({
   transcript: ({ event }: EventArgs) => (event.type === 'FINAL_TEXT' ? event.text : ''),
   askedEpoch: ({ context }: ContextArgs) => context.epoch,
