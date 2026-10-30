@@ -2,13 +2,13 @@
 // together, buffering up to two seconds of 24 kHz frames until the
 // relay answers ready, then forwards live until Meta endpoints a
 // sentence. While Ittro speaks it sends silence, so the stream never
-// hears its echo. A socket that never gets ready fails loudly; one
-// the relay closes after ready restarts silently, and the log says
-// why it closed.
+// hears its echo. Restarts wait 1 s, 2 s, 4 s and on, and the log
+// says why the socket closed.
 import { fromCallback } from 'xstate';
 import { addAudioChunkListener, startAudioStream, stopAudioStream } from 'ittro-sensors';
 import type { StreamCommand, StreamEmitted, StreamInput } from './types';
-import { createMicStats } from './micStats';
+import { createMicStats, decodeChunk } from './micStats';
+import { createStreamRetry } from './streamRetry';
 import { logIttro } from '../log';
 
 const READY_TIMEOUT_MS = 12000;
@@ -36,19 +36,6 @@ interface SocketClosedEvent {
   reason: unknown;
 }
 
-function decodeChunk(base64: string): Uint8Array | null {
-  try {
-    const binary = atob(base64);
-    const out = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) {
-      out[i] = binary.charCodeAt(i);
-    }
-    return out;
-  } catch {
-    return null;
-  }
-}
-
 function note(line: string): void {
   logIttro(line);
 }
@@ -66,6 +53,7 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
     let readyTimer: ReturnType<typeof setTimeout> | null = null;
     let micTimer: ReturnType<typeof setTimeout> | null = null;
     let pending: Uint8Array[] = [];
+    const retry = createStreamRetry(input.retryBaseMs, note);
     const stats = createMicStats(() => Date.now());
 
     const silence = new Uint8Array(SILENCE_FRAME_BYTES);
@@ -97,6 +85,7 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
         clearTimeout(readyTimer);
         readyTimer = null;
       }
+      retry.cancel();
       ready = false;
       const current = socket;
       socket = null;
@@ -183,6 +172,7 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
       try {
         current = new WebSocket(`${input.url}/realtime?code=${input.code}`);
       } catch {
+        retry.failed();
         sendBack({ type: 'STREAM_FAILED', message: 'could not open the stream' });
         return;
       }
@@ -190,6 +180,7 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
       startMic();
       readyTimer = setTimeout(() => {
         if (!ready) {
+          retry.failed();
           sendBack({ type: 'STREAM_FAILED', message: 'the stream never answered' });
         }
       }, READY_TIMEOUT_MS);
@@ -212,6 +203,7 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
         }
         if (message.type === 'ready') {
           ready = true;
+          retry.ready();
           muted = heldByCommand;
           if (readyTimer) {
             clearTimeout(readyTimer);
@@ -248,6 +240,7 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
           return;
         }
         reported = true;
+        retry.failed();
         const wasReady = ready;
         const body = event as unknown as SocketClosedEvent;
         const code = typeof body.code === 'number' ? body.code : '?';
@@ -261,8 +254,7 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
       current.onclose = closed;
     };
 
-    const start = (nextKeywords: string[]): void => {
-      keywords = nextKeywords;
+    const reopen = (): void => {
       stopMic();
       closeSocket();
       muted = true;
@@ -270,7 +262,13 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
       openSocket();
     };
 
+    const start = (nextKeywords: string[]): void => {
+      keywords = nextKeywords;
+      retry.start(reopen);
+    };
+
     const stop = (): void => {
+      retry.stop();
       stopMic();
       closeSocket();
     };

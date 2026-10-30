@@ -255,6 +255,7 @@ export interface StreamInput {
   url: string;
   code: string;
   keywords: string[];
+  retryBaseMs?: number;
 }
 
 export interface SpeakInput {

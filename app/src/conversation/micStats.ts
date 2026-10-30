@@ -1,6 +1,18 @@
 // Mic stats behind the phone log line: chunk rate, arrival gaps,
-// sequence jumps, pre-ready drops and failed sends. Pure, so
-// recorded arrivals walk it on the Mac.
+// sequence jumps, pre-ready drops and failed sends, plus decoding
+// base64 mic chunks. Pure, so recorded arrivals walk it on the Mac.
+export function decodeChunk(base64: string): Uint8Array | null {
+  try {
+    const binary = atob(base64);
+    const out = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      out[i] = binary.charCodeAt(i);
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
 function percentile(sorted: number[], rank: number): number {
   if (sorted.length === 0) {
     return 0;
