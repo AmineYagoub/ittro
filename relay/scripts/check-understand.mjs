@@ -89,6 +89,7 @@ for (const row of cases) {
   }
   lastStart = Date.now();
   let intent = 'transport-error';
+  let product = '';
   try {
     const res = await withTimeout(
       call({
@@ -104,16 +105,19 @@ for (const row of cases) {
     const body = await res.json();
     if (body.ok && body.answer) {
       intent = body.answer.intent;
+      product = body.answer.product_text ?? '';
     }
   } catch {
     intent = 'transport-error';
   }
-  const ok = row.expect.includes(intent);
+  const productOk = row.want_product === undefined || product === row.want_product;
+  const ok = row.expect.includes(intent) && productOk;
   if (!ok) {
     failures += 1;
   }
   const ms = ((Date.now() - lastStart) / 1000).toFixed(2);
-  console.log(`${stamp()} ${ok ? 'PASS' : 'FAIL'} ${row.id} got=${intent} want=${row.expect.join('|')} ${ms}s`);
+  const productPart = row.want_product === undefined ? '' : ` product=${JSON.stringify(product)} want=${JSON.stringify(row.want_product)}`;
+  console.log(`${stamp()} ${ok ? 'PASS' : 'FAIL'} ${row.id} got=${intent} want=${row.expect.join('|')}${productPart} ${ms}s`);
 }
 console.log(`${stamp()} DONE failures=${failures}`);
 process.exit(failures === 0 ? 0 : 1);

@@ -422,6 +422,50 @@
       "pending_request": null,
       "last_line": "Hi, I'm Ittro. Tell me what you're looking for, or say help.",
       "expect": ["add_helper"]
+    },
+    {
+      "id": "ar-welcome-misspelled-bottle",
+      "transcript": "قرورة ماء مسعد",
+      "language": "ar",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": null,
+      "last_line": "What are you looking for?",
+      "expect": ["request_product"],
+      "want_product": "ماء مسعد"
+    },
+    {
+      "id": "en-welcome-wordy-bottle",
+      "transcript": "I want a bottle of Guedila water",
+      "language": "en",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": null,
+      "last_line": "Hi, I'm Ittro. Tell me what you're looking for, or say help.",
+      "expect": ["request_product"],
+      "want_product": "Guedila water"
+    },
+    {
+      "id": "ar-welcome-dialect-want",
+      "transcript": "بدي ماء مسعد",
+      "language": "ar",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": null,
+      "last_line": "What are you looking for?",
+      "expect": ["request_product"],
+      "want_product": "ماء مسعد"
+    },
+    {
+      "id": "fr-welcome-wordy-bottle",
+      "transcript": "Je veux une bouteille d'eau Guedila",
+      "language": "fr",
+      "step": "welcome",
+      "pending_question": null,
+      "pending_request": null,
+      "last_line": "Qu'est-ce que vous cherchez ?",
+      "expect": ["request_product"],
+      "want_product": "eau Guedila"
     }
   ]
 }
