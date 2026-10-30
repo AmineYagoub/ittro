@@ -265,7 +265,7 @@ The name is **Ittro**, set in Readex Pro. Ittro says its name on the Welcome scr
 | paper | `#F5F3EE` | Text on dark |
 | muted | `#A9B1BD` | Rarely used: nothing unspoken goes on screen |
 | brand | `#2A62F0` | Logo, the speaking indicator, direction arrows |
-| brandLight | `#7EA6FF` | Reading outlines, meter, the working dots, the search arrow |
+| brandLight | `#7EA6FF` | Meter, the working dots, the search arrow |
 | brandPale | `#B8CCFF` | The listening ring, chip microphones |
 | yes | `#2BD98A` | Found screen; the target's outline on the camera |
 | no | `#B3261E` | Wrong-product screen |
@@ -317,13 +317,13 @@ PNG renders are in `screens/` at 2×, each next to an HTML file with the exact l
 
 ### 05 Reading the shelf
 
-- Working indicator. Each product SAM 3.1 outlined gets a dashed brand-light outline (4 wide, dashes 10/8). The outlines carry no words.
+- Working indicator. Nothing is drawn on the products while reading: only the selected product ever gets an outline, once it is found.
 - Says: "I see two bottles. Reading their labels. Hold the phone steady."
 - Ticks every 2 s; at 4 s: "Still reading. One label left."
 
 ### 06 Guiding the hand
 
-- The target gets a solid yes-green outline (5 wide) over an ink halo (11 wide, 70%), a 12% green fill and a green name pill. The name is in the spoken line.
+- The target gets a solid yes-green outline (5 wide) over an ink halo (11 wide, 70%), a 12% green fill and a green name pill. The name is in the spoken line. The outline tracks the product at camera speed between shelf reads and never drifts off it.
 - A dashed brand-light arrow runs from the fingertip toward the target, only while a hand is tracked.
 - Panel: a brand-blue circle (64) with the direction arrow, then the line. Says: "Masaad is to your right. Move your hand right." The first sentence, with the name, is synthesised; every cue after it is a clip.
 - Proximity meter: 5 segments, filled as the fingertip gets closer. It mirrors the ticks you hear and feel. Close in, "Almost there." once, then only the ticks speak. When the fingertip covers the target, screen 23. "Pick it up." needs evidence of contact, never just a stop or an overlap.
@@ -440,7 +440,7 @@ PNG renders are in `screens/` at 2×, each next to an HTML file with the exact l
 
 ### 27 Close alternative
 
-- The asked-for size isn't on the shelf; the brand is. The alternative gets a dashed brand-light outline, not green, until the shopper says yes.
+- The asked-for size isn't on the shelf; the brand is. The alternative gets no outline until the shopper says yes; then it becomes the selected product.
 - Says: "Masaad 1.5 litres isn't here. I see Masaad 0.5 litres. Do you want that one?" Chips: yes, no.
 
 ### 28 Wrong shelf
@@ -449,7 +449,7 @@ PNG renders are in `screens/` at 2×, each next to an HTML file with the exact l
 
 ### 29 Several matches
 
-- The nearest gets the full green outline; the others a thin green line.
+- The nearest gets the full green outline; the others get nothing.
 - Says: "I see three Masaad bottles. Guiding you to the nearest one, in the middle."
 
 ### 30 Shopping list
