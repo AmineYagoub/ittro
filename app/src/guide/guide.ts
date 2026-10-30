@@ -10,12 +10,12 @@ import {
   AIM_TIMEOUT_MS,
   ARM_TIMEOUT_MS,
   REPEAT_MS,
+  armFree,
   buzzNo,
   endGuide,
   foundTarget,
   hasTarget,
   lostSound,
-  queuesEmpty,
   readyQuiet,
   readyToArm,
   sameCue,
@@ -68,8 +68,13 @@ export const guideRegion = {
       },
     },
     arming: {
-      after: { [ARM_TIMEOUT_MS]: { actions: [sayFound], target: 'announcing' } },
-      on: { TALK_IDLE: { guard: queuesEmpty, actions: [sayFound], target: 'announcing' } },
+      after: {
+        [ARM_TIMEOUT_MS]: [
+          { guard: armFree, actions: [sayFound], target: 'announcing' },
+          { target: 'arming', reenter: true },
+        ],
+      },
+      on: { TALK_IDLE: { guard: armFree, actions: [sayFound], target: 'announcing' } },
     },
     announcing: {
       invoke: {

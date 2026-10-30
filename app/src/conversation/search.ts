@@ -79,7 +79,7 @@ export const storeOutlined = assign({
   checkedCount: ({ context, event }: EventArgs) =>
     event.type === 'SHELF_OUTLINED' ? context.checkedCount + event.outlines.length : context.checkedCount,
   pendingSearch: ({ context, event }: EventArgs) =>
-    event.type === 'SHELF_OUTLINED'
+    event.type === 'SHELF_OUTLINED' && !(context.shelfTarget ?? context.guideTarget)
       ? queueLine(context, { text: readingLine(event.outlines.length, event.kind, context.lang), chips: [], kind: 'status' })
       : context.pendingSearch,
 });

@@ -57,7 +57,10 @@ function directParts(context: ConversationContext, cue: string | null): SpeechPa
 
 export const storeGuideTarget = assign({
   guiding: true,
-  pendingSearch: ({ context }: ContextArgs) => context.pendingSearch.filter((line) => line.kind === 'alternative'),
+  pendingSearch: [],
+  alternative: null,
+  step: ({ context }: ContextArgs) => (context.step === 'alternative' ? 'welcome' : context.step),
+  pendingQuestion: ({ context }: ContextArgs) => (context.step === 'alternative' ? null : context.pendingQuestion),
   guideTarget: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.outline : null),
   shelfTarget: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.outline : null),
   guideLabel: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? shortProduct(event.product) : ''),
@@ -248,5 +251,9 @@ export const queuesEmpty = ({ context }: ContextArgs): boolean =>
 
 export function readyQuiet({ context }: ContextArgs): boolean {
   return readyToArm({ context }) && !context.talkBusy && queuesEmpty({ context });
+}
+
+export function armFree({ context }: ContextArgs): boolean {
+  return !context.talkBusy && queuesEmpty({ context });
 }
 

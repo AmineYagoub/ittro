@@ -154,11 +154,15 @@ export const confirmRequestLine = assign({
   pendingItems: null,
   step: 'welcome',
   pendingQuestion: null,
-  pendingSay: ({ context }) => [{ text: searchingFor(context.pendingRequest ?? '', context.lang), chips: [] }],
+  pendingSay: ({ context }) =>
+    context.shelfTarget ?? context.guideTarget
+      ? []
+      : [{ text: searchingFor(context.pendingRequest ?? '', context.lang), chips: [] }],
 });
 
 export const logRequestConfirmed: Effect = ({ context }) => {
-  logIttro(`search request confirmed ${JSON.stringify(context.pendingRequest)}`);
+  const target = context.shelfTarget ?? context.guideTarget ? 'target known' : 'target pending';
+  logIttro(`search request confirmed ${JSON.stringify(context.pendingRequest)} ${target}`);
 };
 
 export const clearAsk = assign({
