@@ -1,6 +1,7 @@
 // Carrying a request across a language switch: the switch queues the
 // request for translation, and the translated answer replaces it.
 import { assignConversation as assign } from './actors';
+import type { ContextArgs } from './actions';
 import type { Language } from '../theme';
 import type { UnderstandAnswer } from '../relay';
 import { BACK_CHIP } from '../chips';
@@ -16,11 +17,24 @@ export function spokenLang(answer: UnderstandAnswer | null, fallback: Language):
   return spoken === 'en' || spoken === 'ar' || spoken === 'fr' ? spoken : fallback;
 }
 
+export function translateKeep({ context }: ContextArgs): boolean {
+  return context.translateNext === 'routing';
+}
+
+export function skipKeep({ context }: ContextArgs): boolean {
+  return (context.translateSource ?? '') === '' && context.translateNext === 'routing';
+}
+
+export function skipSay({ context }: ContextArgs): boolean {
+  return (context.translateSource ?? '') === '' && context.translateNext === 'saying';
+}
+
 export const switchCarry = assign({
   lang: ({ context }) => context.routeAnswer?.target_language as Language,
   translateSource: ({ context }) => context.pendingRequest ?? context.request,
   translateItems: ({ context }) => (context.pendingRequest === null ? null : context.pendingItems),
   translatePending: ({ context }) => context.pendingRequest !== null,
+  translateNext: 'saying',
   pendingSay: ({ context }) => {
     const target = context.routeAnswer?.target_language as Language;
     return [switchedLines(target, context.lang)];
@@ -54,7 +68,12 @@ export const applyTranslated = assign({
     return translated.items;
   },
   requestLang: ({ context, event }) => (translatedOutput(event) ? context.lang : context.requestLang),
+  routeAnswer: ({ context, event }) => {
+    const translated = translatedOutput(event);
+    return context.translatePending && translated ? translated : context.routeAnswer;
+  },
   translateSource: null,
   translateItems: null,
   translatePending: false,
+  translateNext: 'saying',
 });

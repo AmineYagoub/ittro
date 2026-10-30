@@ -49,7 +49,7 @@ import {
 import type { ContextArgs } from './actions';
 import { buttonsLines } from './answers';
 import { hasLinkLine, raiseLinkDown, raiseLinkForError, raiseLinkOk, sayLinkLine } from './link';
-import { applyTranslated } from './translation';
+import { applyTranslated, skipKeep, skipSay, translateKeep } from './translation';
 import { notePartial, partialWorthy, speculatingState } from './speculating';
 import { chainActions, routingTransitions } from './routing';
 import { earbudTalkOn, guideTalkOn, logButton, noteButton, stopSpokenVoice } from './buttons';
@@ -71,7 +71,7 @@ import {
   searchTalkOn,
 } from './search';
 
-function sayTo(target: 'listening' | 'sleeping' | 'over' | 'resumed' | 'routing', raiseClock: boolean) {
+function sayTo(target: 'listening' | 'sleeping' | 'over' | 'resumed' | 'routing' | 'translating', raiseClock: boolean) {
   const resolved = target === 'over' ? '#conversation.over' : target;
   return {
     entry: [markTalkBusy],
@@ -122,7 +122,7 @@ export const talkState = {
     saying: sayTo('listening', true),
     sayingReprompt: sayTo('listening', false),
     sayingHelp: sayTo('listening', false),
-    sayingKeep: sayTo('routing', false),
+    sayingKeep: sayTo('translating', false),
     sayingSleep: sayTo('sleeping', false),
     sayingOver: sayTo('over', false),
     sayingResume: sayTo('resumed', true),
@@ -178,6 +178,10 @@ export const talkState = {
     translating: {
       entry: [markTalkBusy],
       exit: [markTalkQuiet],
+      always: [
+        { guard: skipKeep, target: 'routing' },
+        { guard: skipSay, target: 'saying' },
+      ],
       invoke: {
         src: 'understandAnswer' as const,
         input: ({ context }: ContextArgs) => ({
@@ -188,8 +192,11 @@ export const talkState = {
           pendingRequest: context.translateSource,
           lastLine: '',
         }),
-        onDone: { actions: [applyTranslated], target: 'saying' },
-        onError: { target: 'saying' },
+        onDone: [
+          { guard: translateKeep, actions: [applyTranslated], target: 'routing' },
+          { actions: [applyTranslated], target: 'saying' },
+        ],
+        onError: [{ guard: translateKeep, target: 'routing' }, { target: 'saying' }],
       },
     },
     speculating: { ...speculatingState, entry: [markTalkBusy], exit: [markTalkQuiet] },

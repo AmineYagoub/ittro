@@ -26,6 +26,7 @@ export function initialContext({ input }: { input: MachineInput }): Conversation
     translateSource: null,
     translateItems: null,
     translatePending: false,
+    translateNext: 'saying',
     rate: input.prefs.rate,
     firstLaunchDone: input.prefs.firstLaunchDone,
     lastLine: '',

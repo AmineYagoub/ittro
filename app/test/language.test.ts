@@ -3,7 +3,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { answer, startListening } from './driver';
+import { styles } from '../src/appStyles';
 import { resetStorage } from './stubs.mjs';
+
+test('the spoken line pins its paragraph direction', () => {
+  assert.equal(styles.line.writingDirection, 'ltr');
+  assert.equal(styles.lineRtl.writingDirection, 'rtl');
+});
 
 test('switches to Arabic and back on command', async () => {
   resetStorage();
@@ -136,6 +142,82 @@ test('offers the new language, then carries on with yes', async () => {
     assert.equal(driver.context().lang, 'ar');
     assert.equal(driver.context().step, 'confirm');
     assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /هل هذا صحيح/);
+  } finally {
+    driver.stop();
+  }
+});
+
+test('a declined offer translates the request into the current language', async () => {
+  resetStorage();
+  const driver = await startListening();
+  try {
+    driver.setUnderstand((input) => {
+      if (input.step === 'translate') {
+        return answer({ intent: 'request_product', language_spoken: 'en', product_text: 'Masaad water' });
+      }
+      return input.transcript === 'لا'
+        ? answer({ intent: 'confirm_no', language_spoken: 'ar' })
+        : answer({ intent: 'request_product', language_spoken: 'ar', product_text: 'ماء مسعد' });
+    });
+    await driver.heard('أريد ماء مسعد');
+    assert.equal(driver.context().step, 'offer');
+    await driver.heard('لا');
+    assert.equal(driver.context().lang, 'en');
+    assert.equal(driver.context().step, 'confirm');
+    assert.equal(driver.context().pendingRequest, 'Masaad water');
+    assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /Masaad water/);
+    assert.doesNotMatch(driver.spoken[driver.spoken.length - 1] ?? '', /ماء/);
+  } finally {
+    driver.stop();
+  }
+});
+
+test('a declined offer without a request carries on without translating', async () => {
+  resetStorage();
+  const driver = await startListening();
+  try {
+    const steps: string[] = [];
+    driver.setUnderstand((input) => {
+      steps.push(input.step);
+      if (input.transcript.includes('Masaad')) {
+        return answer({ intent: 'request_product', product_text: 'Masaad water' });
+      }
+      return answer({ intent: 'confirm_yes', language_spoken: 'ar' });
+    });
+    await driver.heard("I'm looking for Masaad water");
+    assert.equal(driver.context().step, 'confirm');
+    await driver.heard('نعم');
+    assert.equal(driver.context().step, 'offer');
+    driver.setUnderstand((input) => {
+      steps.push(input.step);
+      return answer({ intent: 'confirm_no', language_spoken: 'en' });
+    });
+    await driver.heard('No');
+    assert.equal(driver.context().step, 'welcome');
+    assert.equal(driver.context().request, 'Masaad water');
+    assert.equal(steps.includes('translate'), false);
+  } finally {
+    driver.stop();
+  }
+});
+
+test('a declined offer carries the original on when translation fails', async () => {
+  resetStorage();
+  const driver = await startListening();
+  try {
+    driver.setUnderstand((input) => {
+      if (input.step === 'translate') {
+        throw new Error('relay down');
+      }
+      return input.transcript === 'لا'
+        ? answer({ intent: 'confirm_no', language_spoken: 'ar' })
+        : answer({ intent: 'request_product', language_spoken: 'ar', product_text: 'ماء مسعد' });
+    });
+    await driver.heard('أريد ماء مسعد');
+    await driver.heard('لا');
+    assert.equal(driver.context().lang, 'en');
+    assert.equal(driver.context().step, 'confirm');
+    assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /Is that right/);
   } finally {
     driver.stop();
   }

@@ -105,6 +105,7 @@ export interface ConversationContext {
   translateSource: string | null;
   translateItems: string[] | null;
   translatePending: boolean;
+  translateNext: 'saying' | 'routing';
   rate: number;
   firstLaunchDone: boolean;
   lastLine: string;

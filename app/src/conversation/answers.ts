@@ -109,6 +109,10 @@ export const declineOffer = assign({
   offerTarget: null,
   routeAnswer: ({ context }) => context.deferred,
   deferred: null,
+  translateSource: ({ context }) => context.deferred?.product_text ?? null,
+  translateItems: ({ context }) => context.deferred?.items ?? null,
+  translatePending: true,
+  translateNext: 'routing',
   pendingSay: ({ context }) => [{ text: keepSpeaking[context.lang], chips: [] }],
 });
 

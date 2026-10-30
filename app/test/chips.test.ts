@@ -208,7 +208,11 @@ test('a language offer takes yes or no', async () => {
   }
   const declined = await atOffer();
   try {
-    declined.setUnderstand(() => answer({ intent: 'confirm_no' }));
+    declined.setUnderstand((input) =>
+      input.step === 'translate'
+        ? answer({ intent: 'request_product', product_text: 'Masaad water' })
+        : answer({ intent: 'confirm_no' }),
+    );
     await declined.heard(NO_CHIP.ar);
     assert.equal(heardMiss(declined), false);
     assert.equal(declined.context().lang, 'en');
