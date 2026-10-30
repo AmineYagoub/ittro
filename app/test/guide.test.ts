@@ -278,3 +278,4 @@ test('guiding waits while the talk side is busy, then aims', async () => {
   assert.equal(driver.guide(), 'aiming');
   driver.stop();
 });
+

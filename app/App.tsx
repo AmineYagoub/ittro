@@ -19,11 +19,9 @@ import { relayConfig } from './src/relay';
 import { preparePhone, restPhone, watchAppState } from './src/phone';
 import { startPhoneWatch, trackState } from './src/phoneWatch';
 import { conversationMachine } from './src/conversation/machine';
-import { OutlineOverlay } from './src/shelf/OutlineOverlay';
 import { useShelfSearch } from './src/shelf/useShelfSearch';
 import { GuideOverlay } from './src/guide/GuideOverlay';
 import { useGuide } from './src/guide/useGuide';
-import { boxOverlap } from './src/shelf/outlines';
 import type { ShelfOutline } from './src/relay';
 import type { GuideHand, HelperPairing, HelperWaiting } from './src/conversation/types';
 import { HelperView } from './src/helper/HelperView';
@@ -46,7 +44,6 @@ export default function App(): React.JSX.Element {
   const [lang, setLang] = useState<Language>('en');
   const [cameraOn, setCameraOn] = useState(false);
   const [talkBack, setTalkBack] = useState(false);
-  const [outlines, setOutlines] = useState<ShelfOutline[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchRequest, setSearchRequest] = useState<string | null>(null);
   const [guiding, setGuiding] = useState(false);
@@ -162,7 +159,6 @@ export default function App(): React.JSX.Element {
           setChips(state.context.lastChips);
           setLang(state.context.lang);
           setCameraOn(live && state.context.cameraOn);
-          setOutlines(live ? state.context.outlines : []);
           setSearching(live && state.context.searching);
           setSearchRequest(state.context.pendingRequest ?? state.context.request);
           setGuiding(live && state.context.guiding);
@@ -227,13 +223,6 @@ export default function App(): React.JSX.Element {
             cameraReady.current = false;
             logIttro(`camera error: ${event.nativeEvent.message}`);
           }}
-        />
-      ) : null}
-      {cameraOn && outlines.length > 0 && viewSize.width > 0 ? (
-        <OutlineOverlay
-          outlines={guideTarget ? outlines.filter((outline) => boxOverlap(outline.box, guideTarget.box) < 0.5) : outlines}
-          width={viewSize.width}
-          height={viewSize.height}
         />
       ) : null}
       {cameraOn && guiding && guideTarget && viewSize.width > 0 ? (

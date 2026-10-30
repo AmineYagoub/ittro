@@ -148,6 +148,13 @@ export const storeNoShelf = assign({
 
 export const storeMoved = assign({
   outlines: ({ event }: EventArgs) => (event.type === 'OUTLINES_MOVED' ? event.outlines : []),
+  guideTarget: ({ context, event }: EventArgs) => {
+    if (event.type !== 'OUTLINES_MOVED' || !context.guideTarget) {
+      return context.guideTarget;
+    }
+    const target = context.guideTarget;
+    return event.outlines.find((outline) => outline.frame === target.frame && outline.id === target.id) ?? target;
+  },
 });
 
 export const storeTurn = assign({
