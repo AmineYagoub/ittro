@@ -25,7 +25,7 @@ test('a matching final routes on the speculated answer', async () => {
     await driver.heard('Yes.');
     assert.equal(calls, 2);
     assert.equal(driver.context().request, 'Masaad water');
-    assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /Searching the shelf/);
+    assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /searching the shelf for Masaad water/);
   } finally {
     driver.stop();
   }

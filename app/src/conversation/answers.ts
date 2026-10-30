@@ -18,7 +18,6 @@ import {
   notBuilt,
   offerLanguage,
   privacyLine,
-  searchNext,
   shorterAck,
   slowerAck,
   stopped,
@@ -29,7 +28,7 @@ import {
   welcomeBack,
   whatToFind,
 } from '../lines';
-import { confirmList, confirmRequest, declinedRequest, welcomeBackLooking } from '../requestLines';
+import { confirmList, confirmRequest, declinedRequest, searchingFor, welcomeBackLooking } from '../requestLines';
 import { applyRate, mergeBrands, persistSnapshot, storeBrief, storeConfirmedBrand, storeFirstLaunchDone, storeLanguage } from './actors';
 import { logIttro } from '../log';
 import { spokenLang, switchedLines } from './translation';
@@ -151,7 +150,7 @@ export const confirmRequestLine = assign({
   pendingItems: null,
   step: 'welcome',
   pendingQuestion: null,
-  pendingSay: ({ context }) => [{ text: searchNext[context.lang], chips: [] }],
+  pendingSay: ({ context }) => [{ text: searchingFor(context.pendingRequest ?? '', context.lang), chips: [] }],
 });
 
 export const logRequestConfirmed: Effect = ({ context }) => {

@@ -65,12 +65,6 @@ export const phoneHot: Trilingual = {
   fr: 'Le téléphone chauffe. Je vais ralentir un peu.',
 };
 
-export const searchNext: Trilingual = {
-  en: 'Yes. Searching the shelf comes next.',
-  ar: 'نعم. البحث في الرف هو الخطوة التالية.',
-  fr: 'Oui. La recherche dans le rayon vient ensuite.',
-};
-
 export const notBuilt: Trilingual = {
   en: "I can't do that yet.",
   ar: 'لا أستطيع فعل ذلك بعد.',

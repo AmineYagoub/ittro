@@ -103,6 +103,35 @@ test('a close match answered no keeps the standing request', async () => {
 });
 
 
+test('a found outline is announced at once with its place', async () => {
+  resetStorage();
+  const driver = await startListening();
+  try {
+    driver.setUnderstand((input) =>
+      input.transcript.includes('Masaad')
+        ? answer({ intent: 'request_product', product_text: 'Masaad water, the big bottle' })
+        : answer({ intent: 'confirm_yes' }),
+    );
+    await driver.heard("I'm looking for Masaad water, the big bottle");
+    await driver.heard('Yes');
+    assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /Yes\. I'm searching the shelf for Masaad water, the big bottle/);
+    driver.send({
+      type: 'SHELF_FOUND',
+      product: 'Masaad water, the big bottle',
+      outline: { id: 1, frame: 1, box: { x1: 0, y1: 0, x2: 10, y2: 10, w: 10, h: 10, confidence: null } },
+      matches: 1,
+      kind: 'bottles',
+      position: 'left',
+    });
+    await driver.flush();
+    assert.equal(driver.context().guideLabel, 'Masaad water');
+    assert.deepEqual(driver.parts[0], [{ text: 'I found Masaad water on the left.' }]);
+    assert.equal(driver.guide(), 'aiming');
+  } finally {
+    driver.stop();
+  }
+});
+
 test('a yes read on the shelf says it is found', async () => {
   resetStorage();
   const driver = await startListening();
@@ -116,7 +145,7 @@ test('a yes read on the shelf says it is found', async () => {
     await driver.heard('Yes');
     driver.send({ type: 'SHELF_FOUND', product: 'Masaad water', outline: null, matches: 1, kind: 'bottles', position: 'middle' });
     await driver.flush();
-    assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /I found Masaad water on the shelf/);
+    assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /I found Masaad water in the middle/);
   } finally {
     driver.stop();
   }

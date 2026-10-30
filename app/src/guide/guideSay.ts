@@ -9,6 +9,8 @@ import { playSound } from '../speech';
 import { haptics } from '../theme';
 import { continueIdFor } from './steer';
 import { firstSentence, outOfViewLine, partsText, severalPrefix, thisIsLine } from './lines';
+import { shortProduct } from '../requestLines';
+import { shelfFoundLine } from '../shelf/searchLines';
 import type { ConversationContext, SpeechPart } from '../conversation/types';
 
 export const raiseGuideEnd = raise({ type: 'GUIDE_END' });
@@ -57,7 +59,7 @@ export const storeGuideTarget = assign({
   guiding: true,
   pendingSearch: ({ context }: ContextArgs) => context.pendingSearch.filter((line) => line.kind === 'alternative'),
   guideTarget: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.outline : null),
-  guideLabel: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.product : ''),
+  guideLabel: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? shortProduct(event.product) : ''),
   guideKind: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.kind : ''),
   guideMatches: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.matches : 0),
   guidePosition: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.position : 'middle'),
@@ -67,6 +69,14 @@ export const storeGuideTarget = assign({
   guideProximity: 0,
   guideWrong: null,
   guideResume: false,
+});
+
+export const sayFound = assign({
+  guideParts: ({ context }: ContextArgs) => [
+    { text: shelfFoundLine(context.guideLabel, context.guidePosition, context.lang) },
+  ],
+  lastLine: ({ context }: ContextArgs) => shelfFoundLine(context.guideLabel, context.guidePosition, context.lang),
+  lastChips: [],
 });
 
 export const endGuide = assign({
@@ -232,7 +242,10 @@ export const wantsResume = ({ context }: ContextArgs): boolean => context.guideR
 
 export const readyToArm = ({ context }: ContextArgs): boolean => hasTarget({ context }) && confirmed({ context });
 
+export const queuesEmpty = ({ context }: ContextArgs): boolean =>
+  context.pendingSearch.length === 0 && context.pendingHelper.length === 0 && context.linkLine === null;
+
 export function readyQuiet({ context }: ContextArgs): boolean {
-  return readyToArm({ context }) && !context.talkBusy;
+  return readyToArm({ context }) && !context.talkBusy && queuesEmpty({ context });
 }
 

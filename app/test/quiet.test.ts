@@ -6,8 +6,10 @@ import assert from 'node:assert/strict';
 import { answer, startListening } from './driver';
 import { shouldTickForSearch } from '../src/shelf/useShelfSearch';
 import { holdPhoneLine } from '../src/shelf/searchLines';
-import { searchNext } from '../src/lines';
+import { searchingFor } from '../src/requestLines';
 import { resetStorage } from './stubs.mjs';
+
+const SEARCHING = searchingFor('Masaad water', 'en');
 
 async function confirmedDriver() {
   resetStorage();
@@ -49,7 +51,7 @@ test('silence never re-asks during a check, and the verdict re-arms it', async (
     await driver.heard('is this the right one');
     assert.equal(driver.context().confirming, true);
     await driver.advance(9000);
-    assert.equal(driver.spoken.at(-1), searchNext.en);
+    assert.equal(driver.spoken.at(-1), SEARCHING);
     driver.send({
       type: 'CONFIRM_NO',
       epoch: driver.context().confirmEpoch,
@@ -81,7 +83,7 @@ test('silence never re-asks while guiding', async () => {
     await driver.flush();
     assert.equal(driver.context().guiding, true);
     await driver.advance(9000);
-    assert.equal(driver.spoken.at(-1), searchNext.en);
+    assert.equal(driver.spoken.at(-1), SEARCHING);
   } finally {
     driver.stop();
   }

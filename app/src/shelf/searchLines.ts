@@ -2,8 +2,19 @@
 // are DESIGN.md word for word; counts are computed into them, never
 // fixed. Arabic and French await a native-speaker review.
 import type { Language } from '../theme';
+import type { GuidePosition } from '../conversation/types';
 
 type Direction = 'left' | 'right';
+
+function positionWords(position: GuidePosition, lang: Language): string {
+  if (lang === 'ar') {
+    return position === 'left' ? 'على اليسار' : position === 'right' ? 'على اليمين' : 'في الوسط';
+  }
+  if (lang === 'fr') {
+    return position === 'left' ? 'à gauche' : position === 'right' ? 'à droite' : 'au milieu';
+  }
+  return position === 'left' ? 'on the left' : position === 'right' ? 'on the right' : 'in the middle';
+}
 
 const COUNT_WORDS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 
@@ -122,12 +133,13 @@ export function checkingLine(lang: Language): string {
   return "I'm checking.";
 }
 
-export function shelfFoundLine(product: string, lang: Language): string {
+export function shelfFoundLine(product: string, position: GuidePosition, lang: Language): string {
+  const where = positionWords(position, lang);
   if (lang === 'ar') {
-    return `وجدت ${product} على الرف. إرشاد اليد هو الخطوة التالية.`;
+    return `وجدت ${product} ${where}.`;
   }
   if (lang === 'fr') {
-    return `J'ai trouvé ${product} dans le rayon. Guider votre main vient ensuite.`;
+    return `J’ai trouvé ${product} ${where}.`;
   }
-  return `I found ${product} on the shelf. Guiding your hand comes next.`;
+  return `I found ${product} ${where}.`;
 }

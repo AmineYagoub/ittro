@@ -15,12 +15,14 @@ import {
   foundTarget,
   hasTarget,
   lostSound,
+  queuesEmpty,
   readyQuiet,
   readyToArm,
   sameCue,
   sayAlmost,
   sayContinue,
   sayCue,
+  sayFound,
   sayLost,
   sayNoHand,
   sayPick,
@@ -57,17 +59,25 @@ export const guideRegion = {
   states: {
     idle: {
       always: [
-        { guard: readyQuiet, actions: [consumeResume], target: 'aiming' },
+        { guard: readyQuiet, actions: [consumeResume, sayFound], target: 'announcing' },
         { guard: readyToArm, target: 'arming' },
       ],
       on: {
         SHELF_FOUND: { guard: foundTarget, actions: [storeGuideTarget] },
-        TALK_IDLE: { guard: wantsResume, actions: [consumeResume], target: 'aiming' },
+        TALK_IDLE: { guard: wantsResume, actions: [consumeResume], target: 'arming' },
       },
     },
     arming: {
-      after: { [ARM_TIMEOUT_MS]: 'aiming' },
-      on: { TALK_IDLE: 'aiming' },
+      after: { [ARM_TIMEOUT_MS]: { actions: [sayFound], target: 'announcing' } },
+      on: { TALK_IDLE: { guard: queuesEmpty, actions: [sayFound], target: 'announcing' } },
+    },
+    announcing: {
+      invoke: {
+        src: 'speakParts' as const,
+        input: ({ context }: ContextArgs) => ({ parts: context.guideParts, lang: context.lang }),
+        onDone: 'aiming',
+        onError: 'aiming',
+      },
     },
     aiming: {
       after: { [AIM_TIMEOUT_MS]: { actions: [sayNoHand], target: 'noHand' } },

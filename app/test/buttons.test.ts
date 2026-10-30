@@ -27,7 +27,7 @@ test('a single press answers yes at a confirm question, like the word', async ()
     driver.send({ type: 'BUTTON_PRESS', gesture: 'single' });
     await driver.flush();
     assert.equal(driver.context().request, 'Masaad water');
-    assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /Searching the shelf/);
+    assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /searching the shelf for Masaad water/);
     assert.equal(driver.context().routeAnswer?.intent, 'confirm_yes');
   } finally {
     driver.stop();

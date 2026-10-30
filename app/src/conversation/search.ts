@@ -113,10 +113,13 @@ export const logOutlined = ({ context, event }: EventArgs): void => {
   }
 };
 
+export const foundWithoutOutline = ({ event }: EventArgs): boolean =>
+  event.type === 'SHELF_FOUND' && event.outline === null;
+
 export const storeFound = assign({
   pendingSearch: ({ context, event }: EventArgs) =>
     event.type === 'SHELF_FOUND'
-      ? queueLine(context, { text: shelfFoundLine(event.product, context.lang), chips: [], kind: 'status' })
+      ? queueLine(context, { text: shelfFoundLine(event.product, event.position, context.lang), chips: [], kind: 'status' })
       : context.pendingSearch,
 });
 
@@ -180,7 +183,7 @@ export const searchTalkOn = {
   CLOSE_MATCH: { actions: [storeCloseMatch] },
   HAND_HOLD: { actions: [storeHandHold] },
   SEARCH_FAILED: { actions: [raiseLinkKind] },
-  SHELF_FOUND: { actions: [storeFound] },
+  SHELF_FOUND: { guard: foundWithoutOutline, actions: [storeFound] },
   NO_SHELF: { actions: [storeNoShelf] },
   OUTLINES_MOVED: { actions: [storeMoved] },
   SHELF_TURN: { actions: [storeTurn] },

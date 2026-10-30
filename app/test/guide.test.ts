@@ -40,7 +40,10 @@ test('finding the product aims, then the first cue names it and the way', async 
   driver.send(cue('hand_right'));
   await driver.flush();
   assert.equal(driver.guide(), 'directing');
-  assert.deepEqual(driver.parts, [[{ text: 'Masaad water is to your right.' }, { clip: 'hand_right' }]]);
+  assert.deepEqual(driver.parts, [
+    [{ text: 'I found Masaad water in the middle.' }],
+    [{ text: 'Masaad water is to your right.' }, { clip: 'hand_right' }],
+  ]);
   assert.equal(driver.context().lastLine, 'Masaad water is to your right. Move your hand right.');
   driver.stop();
 });
@@ -52,6 +55,7 @@ test('several matches say how many and guide to the nearest one', async () => {
   driver.send(cue('hand_left'));
   await driver.flush();
   assert.deepEqual(driver.parts, [
+    [{ text: 'I found Masaad water in the middle.' }],
     [
       { text: 'I see three Masaad water bottles. Guiding you to the nearest one, in the middle. Masaad water is to your left.' },
       { clip: 'hand_left' },
@@ -64,19 +68,19 @@ test('a repeat of the same cue stays silent, a new cue speaks', async () => {
   const driver = await guiding();
   driver.send(cue('hand_right', 0.5));
   await driver.flush();
-  assert.equal(driver.parts.length, 1);
+  assert.equal(driver.parts.length, 2);
   driver.send(cue('hand_right_small', 0.7));
   await driver.flush();
-  assert.equal(driver.parts.length, 2);
-  assert.deepEqual(driver.parts[1], [{ clip: 'hand_right_small' }]);
+  assert.equal(driver.parts.length, 3);
+  assert.deepEqual(driver.parts[2], [{ clip: 'hand_right_small' }]);
   driver.stop();
 });
 
 test('an unchanged direction repeats as a continuation every six seconds', async () => {
   const driver = await guiding();
   await driver.advance(6000);
-  assert.equal(driver.parts.length, 2);
-  assert.deepEqual(driver.parts[1], [{ clip: 'hand_right_continue' }]);
+  assert.equal(driver.parts.length, 3);
+  assert.deepEqual(driver.parts[2], [{ clip: 'hand_right_continue' }]);
   driver.stop();
 });
 

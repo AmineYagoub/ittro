@@ -2,6 +2,22 @@
 // in the current language.
 import type { Language } from './theme';
 
+export function shortProduct(request: string): string {
+  const [head] = request.split(',');
+  const short = (head ?? '').trim();
+  return short.length > 0 ? short : request;
+}
+
+export function searchingFor(product: string, lang: Language): string {
+  if (lang === 'ar') {
+    return `نعم. أبحث عن ${product} على الرف.`;
+  }
+  if (lang === 'fr') {
+    return `Oui. Je cherche ${product} dans le rayon.`;
+  }
+  return `Yes. I'm searching the shelf for ${product}.`;
+}
+
 export function confirmRequest(product: string, lang: Language): string {
   if (lang === 'ar') {
     return `طلبت ${product}. هل هذا صحيح؟ قل نعم أو لا.`;
