@@ -8,7 +8,7 @@ import { mapBox, mapPoints } from '../shelf/outlines';
 import type { ShelfOutline } from '../relay';
 import type { GuideHand } from '../conversation/types';
 import { color, size } from '../theme';
-import { dirOfCue } from './lines';
+import { PILL_MAX_WIDTH, dirOfCue, pillBox } from './lines';
 import { meterSegments } from './steer';
 import type { GuideDir } from './types';
 
@@ -54,6 +54,7 @@ export function GuideOverlay({
   height: number;
 }): React.JSX.Element {
   const box = mapBox(target.box, width, height);
+  const pill = pillBox(box, width, height);
   const filled = meterSegments(proximity);
   const segments = [0, 1, 2, 3, 4];
   return (
@@ -61,8 +62,10 @@ export function GuideOverlay({
       <View style={[styles.halo, { left: box.left - 3, top: box.top - 3, width: box.width + 6, height: box.height + 6 }]} />
       <View style={[styles.target, { left: box.left, top: box.top, width: box.width, height: box.height }]} />
       {label.length > 0 ? (
-        <View style={[styles.pill, { left: box.left, top: Math.max(0, box.top - 40) }]}>
-          <Text style={styles.pillText}>{label}</Text>
+        <View style={[styles.pill, { left: pill.left, top: pill.top, maxWidth: Math.min(PILL_MAX_WIDTH, width - 16) }]}>
+          <Text style={styles.pillText} numberOfLines={1} ellipsizeMode="tail">
+            {label}
+          </Text>
         </View>
       ) : null}
       {hand ? <HandArrow hand={hand} target={target} width={width} height={height} /> : null}

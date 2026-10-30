@@ -19,6 +19,8 @@ import {
   shelfSweptLine,
   wrongShelfLine,
 } from '../shelf/searchLines';
+import { boxOverlap } from '../shelf/outlines';
+import type { ShelfOutline } from '../relay';
 import type { ConversationContext, GuidePosition, SearchAnnouncement } from './types';
 
 export const raiseSearchBegin = raise({ type: 'SEARCH_BEGIN' });
@@ -154,7 +156,20 @@ export const storeMoved = assign({
       return context.guideTarget;
     }
     const target = context.guideTarget;
-    return event.outlines.find((outline) => outline.frame === target.frame && outline.id === target.id) ?? target;
+    const exact = event.outlines.find((outline) => outline.frame === target.frame && outline.id === target.id);
+    if (exact) {
+      return exact;
+    }
+    let best: ShelfOutline | null = null;
+    let bestScore = 0.3;
+    for (const outline of event.outlines) {
+      const score = boxOverlap(target.box, outline.box);
+      if (score >= bestScore) {
+        bestScore = score;
+        best = outline;
+      }
+    }
+    return best ?? target;
   },
 });
 

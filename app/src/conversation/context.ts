@@ -68,6 +68,7 @@ export function initialContext({ input }: { input: MachineInput }): Conversation
     guideWrong: null,
     guideResume: false,
     guideRestarting: false,
+    guideOutOfView: false,
     guideParts: [],
     guideReaching: false,
     earbuds: false,

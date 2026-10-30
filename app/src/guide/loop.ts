@@ -56,6 +56,9 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
       }
     }
     if (best && bestIoU >= TARGET_MATCH_IOU) {
+      if (state.sentTargetLost) {
+        deps.log('guide target back in view');
+      }
       state.target = best;
       state.targetGone = 0;
       state.sentTargetLost = false;
@@ -64,6 +67,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
     state.targetGone += 1;
     if (state.targetGone >= TARGET_GONE_FRAMES && !state.sentTargetLost) {
       state.sentTargetLost = true;
+      deps.log('guide target out of view');
       const center = centerOf(state.target);
       const side = photoW > 0 && center.x < photoW / 2 ? 'left' : 'right';
       deps.send({ type: 'GUIDE_TARGET_LOST', cue: `phone_${side}_small` });

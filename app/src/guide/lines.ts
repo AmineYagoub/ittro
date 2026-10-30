@@ -6,6 +6,7 @@ import type { GuidePosition, SpeechPart } from '../conversation/types';
 import type { Language } from '../theme';
 import { cueText } from '../voiceClips';
 import { countWord } from '../shelf/searchLines';
+import type { ViewBox } from '../shelf/outlines';
 import type { GuideDir } from './types';
 
 const DIR_WORD: Record<GuideDir, Record<Language, string>> = {
@@ -91,4 +92,21 @@ export function partsText(parts: SpeechPart[], lang: Language): string {
     .map((part) => partText(part, lang))
     .filter((text) => text.length > 0)
     .join(' ');
+}
+
+export const PILL_MAX_WIDTH = 280;
+
+const PILL_MARGIN = 8;
+
+const PILL_ABOVE_GAP = 44;
+
+export interface PillBox {
+  left: number;
+  top: number;
+}
+
+export function pillBox(box: ViewBox, width: number, height: number): PillBox {
+  const left = Math.min(Math.max(PILL_MARGIN, box.left), Math.max(PILL_MARGIN, width - PILL_MAX_WIDTH - PILL_MARGIN));
+  const top = box.top >= PILL_ABOVE_GAP + 4 ? box.top - PILL_ABOVE_GAP : Math.min(height - 48, box.top + box.height + 8);
+  return { left, top };
 }

@@ -152,6 +152,7 @@ export interface ConversationContext {
   guideWrong: string | null;
   guideResume: boolean;
   guideRestarting: boolean;
+  guideOutOfView: boolean;
   guideParts: SpeechPart[];
   guideReaching: boolean;
   earbuds: boolean;

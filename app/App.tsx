@@ -48,6 +48,7 @@ export default function App(): React.JSX.Element {
   const [searchRequest, setSearchRequest] = useState<string | null>(null);
   const [guiding, setGuiding] = useState(false);
   const [guideTarget, setGuideTarget] = useState<ShelfOutline | null>(null);
+  const [guideHidden, setGuideHidden] = useState(false);
   const [guideHand, setGuideHand] = useState<GuideHand | null>(null);
   const [guideProximity, setGuideProximity] = useState(0);
   const [guideCue, setGuideCue] = useState<string | null>(null);
@@ -163,6 +164,7 @@ export default function App(): React.JSX.Element {
           setSearchRequest(state.context.pendingRequest ?? state.context.request);
           setGuiding(live && state.context.guiding);
           setGuideTarget(live ? state.context.guideTarget : null);
+          setGuideHidden(state.context.guideOutOfView);
           setGuideHand(live ? state.context.guideHand : null);
           setGuideProximity(state.context.guideProximity);
           setGuideCue(state.context.guideCue);
@@ -225,7 +227,7 @@ export default function App(): React.JSX.Element {
           }}
         />
       ) : null}
-      {cameraOn && guiding && guideTarget && viewSize.width > 0 ? (
+      {cameraOn && guiding && guideTarget && !guideHidden && viewSize.width > 0 ? (
         <GuideOverlay
           target={guideTarget}
           hand={guideHand}

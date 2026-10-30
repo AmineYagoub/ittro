@@ -73,6 +73,7 @@ export const storeGuideTarget = assign({
   guideProximity: 0,
   guideWrong: null,
   guideResume: false,
+  guideOutOfView: false,
 });
 
 export const sayFound = assign({
@@ -96,6 +97,7 @@ export const endGuide = assign({
   guideFresh: false,
   guideWrong: null,
   guideResume: false,
+  guideOutOfView: false,
   guideParts: [],
 });
 
@@ -120,6 +122,7 @@ export const sayCue = assign({
     event.type === 'GUIDE_CUE' ? shown(directParts(context, event.cue), context) : context.lastLine,
   lastChips: [],
   guideFresh: false,
+  guideOutOfView: false,
 });
 
 export const trackCue = assign({
@@ -147,6 +150,7 @@ export const sayAlmost = assign({
       : shown([{ clip: 'almost' }], context),
   lastChips: [],
   guideFresh: false,
+  guideOutOfView: false,
 });
 
 export const sayReach = assign({
@@ -156,6 +160,7 @@ export const sayReach = assign({
   lastLine: ({ context }: ContextArgs) => shown([{ clip: 'reach_forward' }], context),
   lastChips: [],
   guideFresh: false,
+  guideOutOfView: false,
 });
 
 export const sayPick = assign({
@@ -214,6 +219,7 @@ export const sayWrong = assign({
 export const sayRestart = assign({
   guideWrong: null,
   guideRestarting: false,
+  guideOutOfView: false,
   guideParts: ({ context }: ContextArgs) => directParts(context, context.guideCue),
   lastLine: ({ context }: ContextArgs) => {
     const parts = directParts(context, context.guideCue);
@@ -223,6 +229,7 @@ export const sayRestart = assign({
 });
 
 export const sayTargetLost = assign({
+  guideOutOfView: true,
   guideParts: ({ context, event }: EventArgs) =>
     event.type === 'GUIDE_TARGET_LOST'
       ? [{ text: outOfViewLine(context.guideLabel, context.lang) }, { clip: event.cue }]

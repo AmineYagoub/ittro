@@ -22,13 +22,16 @@ function fix(x: number, y: number, atMs: number): HandFix {
 
 function harness(reads: ShelfRead[] = []) {
   const sent: ConversationEvent[] = [];
+  const logs: string[] = [];
   let now = 10000;
   const deps: GuideLoopDeps = {
     now: () => now,
     send: (event) => {
       sent.push(event);
     },
-    log: () => undefined,
+    log: (line) => {
+      logs.push(line);
+    },
     cutCrop: async () => ({ id: 'hand-1', image: 'crop', mime: 'image/jpeg' }),
     read: async () => ({ reads, readMs: 5 }),
   };
@@ -37,6 +40,7 @@ function harness(reads: ShelfRead[] = []) {
   loop.setPhoto({ image: 'photo', mime: 'image/jpeg' });
   return {
     sent,
+    logs,
     loop,
     tick: (ms: number) => {
       now += ms;
@@ -228,4 +232,17 @@ test('a target leaving the view reports the way to turn the phone', async () => 
   const lost = env.sent.filter((event) => event.type === 'GUIDE_TARGET_LOST');
   assert.equal(lost.length, 1);
   assert.deepEqual(lost[0], { type: 'GUIDE_TARGET_LOST', cue: 'phone_left_small' });
+});
+
+test('a target leaving and returning logs both moments', async () => {
+  const env = harness();
+  await env.loop.handFrame(fix(300, 520, env.at()), [TARGET], 1280, 960);
+  env.tick(250);
+  await env.loop.handFrame(fix(300, 520, env.at()), [], 1280, 960);
+  env.tick(250);
+  await env.loop.handFrame(fix(300, 520, env.at()), [], 1280, 960);
+  assert.ok(env.logs.includes('guide target out of view'));
+  env.tick(250);
+  await env.loop.handFrame(fix(300, 520, env.at()), [TARGET], 1280, 960);
+  assert.ok(env.logs.includes('guide target back in view'));
 });
