@@ -37,7 +37,9 @@ export function useConfirm(
         }
         let uri: string | null = null;
         try {
+          const start = Date.now();
           uri = await eye.takeShot();
+          logIttro(`confirm capture ${Date.now() - start}ms`);
         } catch {
           return null;
         }

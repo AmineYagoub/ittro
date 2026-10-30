@@ -62,6 +62,7 @@ export interface LoopState {
   emptyPasses: number;
   emptyOutlines: number;
   fruitlessPasses: number;
+  blurrySkips: number;
   sweptEpoch: number;
   foundKey: string;
   turnRightNext: boolean;

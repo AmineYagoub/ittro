@@ -16,6 +16,8 @@ const REFRESH_MS = 15000;
 const REREAD_MS = 2500;
 const EMPTY_BEFORE_CLEAR = 3;
 const PRIORITY_BATCH = 2;
+const READ_MIN_SHARPNESS = 800;
+const BLURRY_SKIP_MAX = 2;
 
 function freshState(): LoopState {
   return {
@@ -35,6 +37,7 @@ function freshState(): LoopState {
     emptyPasses: 0,
     emptyOutlines: 0,
     fruitlessPasses: 0,
+    blurrySkips: 0,
     sweptEpoch: -1,
     foundKey: '',
     turnRightNext: true,
@@ -52,6 +55,7 @@ function searchReset(state: LoopState): void {
   state.emptyPasses = 0;
   state.emptyOutlines = 0;
   state.fruitlessPasses = 0;
+  state.blurrySkips = 0;
   state.turnRightNext = true;
 }
 
@@ -143,6 +147,13 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
       try {
         const sharpest = photos[pickSharpest(photos.map((frame) => frame.grey))] as LoopPhoto;
         const picked = sharpness(sharpest.grey);
+        const scored = sharpest.grey.data.length > 0;
+        if (scored && picked < READ_MIN_SHARPNESS && state.blurrySkips < BLURRY_SKIP_MAX) {
+          state.blurrySkips += 1;
+          deps.log(`shelf frame too blurry for a read (${Math.round(picked)}), waiting for a sharper one`);
+          return;
+        }
+        state.blurrySkips = 0;
         let phrase = state.phrases.get(request);
         if (!phrase) {
           phrase = await deps.fetchPhrase(request, sharpest.image, sharpest.mime);
