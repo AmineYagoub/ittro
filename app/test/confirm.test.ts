@@ -92,6 +92,21 @@ test('an unsure says what was and was not read, then a reread resolves', async (
   driver.stop();
 });
 
+test('an empty reread keeps the maybe screen photo and reading', async () => {
+  const driver = await checking();
+  driver.send({ type: 'CONFIRM_UNSURE', epoch: 1, label: 'Masaad', crop: CROP, read: ['Masaad'], missing: ['size'] });
+  await driver.flush();
+  driver.send({ type: 'CONFIRM_UNSURE', epoch: 1, label: '', crop: '', read: [], missing: [] });
+  await driver.flush();
+  assert.equal(driver.confirm(), 'unsure');
+  assert.equal(driver.context().confirmLabel, 'Masaad');
+  assert.equal(driver.context().confirmCrop, CROP);
+  assert.deepEqual(driver.context().confirmRead, ['Masaad']);
+  assert.deepEqual(driver.context().confirmMissing, ['size']);
+  assert.equal(driver.context().lastLine, 'I can’t confirm yet. I can read Masaad, but not the size. Turn it slowly.');
+  driver.stop();
+});
+
 test('a reread that stays unsure stays silent until it gives up', async () => {
   const driver = await checking();
   driver.send({ type: 'CONFIRM_UNSURE', epoch: 1, label: 'Masaad', crop: CROP, read: ['Masaad'], missing: ['size'] });

@@ -79,6 +79,14 @@ export function transcriptFate(transcript: string, own: string[]): TranscriptFat
       return { echo: true };
     }
   }
+  if (words(normRemainder).length >= 3) {
+    const phrase = ` ${normRemainder} `;
+    for (const sentence of ownSentences) {
+      if (` ${sentence} `.includes(phrase)) {
+        return { echo: true };
+      }
+    }
+  }
   return { echo: false, text: remainder, stripped: kept.length < sentences.length };
 }
 

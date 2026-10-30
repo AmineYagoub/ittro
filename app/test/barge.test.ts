@@ -21,6 +21,10 @@ test('an echo fragment covering half the line is dropped', () => {
   assert.deepEqual(transcriptFate("I can't confirm", ["I can't confirm yet."]), { echo: true });
 });
 
+test('an echo fragment inside a long line is dropped', () => {
+  assert.deepEqual(transcriptFate("I can't confirm", ['I can’t confirm yet. I can read Masaad, but not the size. Turn it slowly.']), { echo: true });
+});
+
 test('an echo with more after it is stripped to the rest', () => {
   const picture = pictureLine('blurry', 'en');
   const fate = transcriptFate(`${picture} Guide me.`, [picture]);

@@ -199,10 +199,10 @@ export const storeUnsure = assign({
 });
 
 export const noteUnsure = assign({
-  confirmLabel: ({ event }: EventArgs) => (event.type === 'CONFIRM_UNSURE' ? event.label : ''),
-  confirmCrop: ({ event }: EventArgs) => (event.type === 'CONFIRM_UNSURE' ? event.crop : null),
-  confirmRead: ({ event }: EventArgs) => (event.type === 'CONFIRM_UNSURE' ? event.read : []),
-  confirmMissing: ({ event }: EventArgs) => (event.type === 'CONFIRM_UNSURE' ? event.missing : []),
+  confirmLabel: ({ context, event }: EventArgs) => (event.type === 'CONFIRM_UNSURE' && event.label !== '' ? event.label : context.confirmLabel),
+  confirmCrop: ({ context, event }: EventArgs) => (event.type === 'CONFIRM_UNSURE' && event.crop !== '' ? event.crop : context.confirmCrop),
+  confirmRead: ({ context, event }: EventArgs) => (event.type === 'CONFIRM_UNSURE' && (event.read.length > 0 || event.missing.length > 0) ? event.read : context.confirmRead),
+  confirmMissing: ({ context, event }: EventArgs) => (event.type === 'CONFIRM_UNSURE' && (event.read.length > 0 || event.missing.length > 0) ? event.missing : context.confirmMissing),
 });
 
 export const storePicture = assign({
