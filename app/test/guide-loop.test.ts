@@ -82,6 +82,8 @@ test('a held cue keeps reporting proximity without changing the cue', async () =
 test('almost fires once per approach, covering after a second inside', async () => {
   const env = harness();
   await env.loop.handFrame(fix(595, 520, env.at()), [TARGET], 1280, 960);
+  env.tick(500);
+  await env.loop.handFrame(fix(595, 520, env.at()), [TARGET], 1280, 960);
   assert.equal(env.sent.filter((event) => event.type === 'GUIDE_ALIGNED').length, 1);
   env.tick(250);
   await env.loop.handFrame(fix(680, 520, env.at()), [TARGET], 1280, 960);
@@ -96,7 +98,7 @@ test('almost fires once per approach, covering after a second inside', async () 
 test('a sustained almost repeats its edge every two seconds', async () => {
   const env = harness();
   await env.loop.handFrame(fix(595, 520, env.at()), [TARGET], 1280, 960);
-  for (let step = 0; step < 8; step += 1) {
+  for (let step = 0; step < 12; step += 1) {
     env.tick(250);
     await env.loop.handFrame(fix(595, 520, env.at()), [TARGET], 1280, 960);
   }
@@ -106,9 +108,15 @@ test('a sustained almost repeats its edge every two seconds', async () => {
 test('drifting out of cover back to almost fires again', async () => {
   const env = harness();
   await env.loop.handFrame(fix(595, 520, env.at()), [TARGET], 1280, 960);
-  env.tick(250);
+  env.tick(500);
+  await env.loop.handFrame(fix(595, 520, env.at()), [TARGET], 1280, 960);
+  env.tick(500);
   await env.loop.handFrame(fix(680, 520, env.at()), [TARGET], 1280, 960);
-  env.tick(250);
+  env.tick(500);
+  await env.loop.handFrame(fix(680, 520, env.at()), [TARGET], 1280, 960);
+  env.tick(500);
+  await env.loop.handFrame(fix(595, 520, env.at()), [TARGET], 1280, 960);
+  env.tick(500);
   await env.loop.handFrame(fix(595, 520, env.at()), [TARGET], 1280, 960);
   assert.equal(env.sent.filter((event) => event.type === 'GUIDE_ALIGNED').length, 2);
 });
@@ -202,6 +210,8 @@ test('the target moving with a covering hand is contact', async () => {
     [680, 520, outline(7, 620, 400, 780, 640)],
     [700, 520, outline(7, 640, 400, 800, 640)],
     [720, 520, outline(7, 660, 400, 820, 640)],
+    [740, 520, outline(7, 680, 400, 840, 640)],
+    [760, 520, outline(7, 700, 400, 860, 640)],
   ];
   for (const [x, y, target] of frames) {
     await env.loop.handFrame(fix(x, y, env.at()), [target], 1280, 960);

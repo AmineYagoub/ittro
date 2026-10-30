@@ -3,7 +3,7 @@
 // and the name pill shows the short product name.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { startListening } from './driver';
+import { answer, startListening } from './driver';
 import { pillBox } from '../src/guide/lines';
 import type { ShelfOutline } from '../src/relay';
 
@@ -87,6 +87,25 @@ test('the name pill shows the short product name', async () => {
     driver.send({ ...found(), product: 'Masaad water, the big bottle' });
     await driver.flush();
     assert.equal(driver.context().guideLabel, 'Masaad water');
+  } finally {
+    driver.stop();
+  }
+});
+
+test('the find points from the hand when the hand is known', async () => {
+  const driver = await startListening({ request: 'Masaad water' });
+  try {
+    driver.setUnderstand(() => answer({ intent: 'where_is_it' }));
+    driver.holdSpeech(true);
+    await driver.heard('Where is it?');
+    driver.send({ ...found(), position: 'middle' });
+    await driver.flush();
+    assert.equal(driver.guide(), 'arming');
+    driver.send({ type: 'GUIDE_CUE', cue: 'hand_right', proximity: 0.4, hand: { x: 300, y: 520 } });
+    await driver.flush();
+    driver.holdSpeech(false);
+    await driver.flush();
+    assert.equal(driver.context().lastLine, 'I found Masaad water to your right.');
   } finally {
     driver.stop();
   }

@@ -15,6 +15,7 @@ import { freshGuideState } from './loopTypes';
 import type { GuideLoop, GuideLoopDeps, GuideLoopPhoto } from './loopTypes';
 
 const CUE_HOLD_MS = 400;
+const KIND_HOLD_MS = 500;
 const EDGE_HEARTBEAT_MS = 2000;
 const LOST_WITHIN_MS = 2000;
 const COVER_MS = 1000;
@@ -83,6 +84,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
     state.restAnchor = null;
     state.restRead = false;
     state.trail = [];
+    state.inputKind = null;
     const last = state.lastSeenAt;
     if (last === null || deps.now() - last >= LOST_WITHIN_MS) {
       if (!state.sentNoHand) {
@@ -206,6 +208,23 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
       const tip = { x: fix.x, y: fix.y };
       const proximity = proximityFor(tip, tracked, Math.hypot(photoW, photoH));
       const steer = steerFor(tip, tracked, fix.handWidth);
+      await restRead(tip, outlines, tracked, fix.handWidth);
+      if (steer.kind !== state.inputKind) {
+        state.inputKind = steer.kind;
+        state.kindSince = deps.now();
+      }
+      if (steer.kind !== state.kind) {
+        if (deps.now() - state.kindSince < KIND_HOLD_MS) {
+          return;
+        }
+        state.kind = steer.kind;
+        if (steer.kind === 'move') {
+          state.heldCue = cueIdFor(steer.dir, steer.small, false);
+          state.heldSince = state.kindSince;
+        } else if (steer.kind === 'covering') {
+          state.coverSince = state.kindSince;
+        }
+      }
       if (steer.kind === 'move') {
         state.sentAlmost = false;
         state.sentCovering = false;
@@ -247,7 +266,6 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
         }
         contact(tip, tracked);
       }
-      await restRead(tip, outlines, tracked, fix.handWidth);
     },
   };
 }

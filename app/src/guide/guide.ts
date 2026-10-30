@@ -75,7 +75,12 @@ export const guideRegion = {
           { target: 'arming', reenter: true },
         ],
       },
-      on: { TALK_IDLE: { guard: armFree, actions: [sayFound], target: 'announcing' } },
+      on: {
+        TALK_IDLE: { guard: armFree, actions: [sayFound], target: 'announcing' },
+        GUIDE_CUE: { actions: [trackCue] },
+        GUIDE_ALIGNED: { actions: [trackCue] },
+        GUIDE_COVERING: { actions: [trackCue] },
+      },
     },
     announcing: {
       entry: [noteVoice],
@@ -84,6 +89,11 @@ export const guideRegion = {
         input: ({ context }: ContextArgs) => ({ parts: context.guideParts, lang: context.lang }),
         onDone: 'aiming',
         onError: 'aiming',
+      },
+      on: {
+        GUIDE_CUE: { actions: [trackCue] },
+        GUIDE_ALIGNED: { actions: [trackCue] },
+        GUIDE_COVERING: { actions: [trackCue] },
       },
     },
     aiming: {

@@ -46,6 +46,9 @@ export interface GuideLoopState {
   trail: Array<{ tip: TipPoint; center: TipPoint }>;
   targetGone: number;
   sentTargetLost: boolean;
+  inputKind: 'move' | 'almost' | 'covering' | null;
+  kind: 'move' | 'almost' | 'covering' | null;
+  kindSince: number;
 }
 
 export function freshGuideState(): GuideLoopState {
@@ -70,5 +73,8 @@ export function freshGuideState(): GuideLoopState {
     trail: [],
     targetGone: 0,
     sentTargetLost: false,
+    inputKind: null,
+    kind: null,
+    kindSince: 0,
   };
 }

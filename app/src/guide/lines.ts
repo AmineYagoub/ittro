@@ -49,6 +49,16 @@ export function firstSentence(product: string, cue: string, lang: Language): str
   return whereSentence(product, dirOfCue(cue), lang);
 }
 
+export function foundToLine(product: string, dir: GuideDir, lang: Language): string {
+  if (lang === 'ar') {
+    return `وجدت ${product} ${DIR_WORD[dir].ar}.`;
+  }
+  if (lang === 'fr') {
+    return `J’ai trouvé ${product} ${DIR_WORD[dir].fr}.`;
+  }
+  return `I found ${product} ${DIR_WORD[dir].en}.`;
+}
+
 export function severalPrefix(count: number, product: string, kind: string, position: GuidePosition, lang: Language): string {
   const amount = countWord(count, lang);
   if (lang === 'ar') {

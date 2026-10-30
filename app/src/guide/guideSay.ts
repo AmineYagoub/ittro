@@ -8,9 +8,11 @@ import { GUIDE_CHIP, READ_AGAIN_CHIP } from '../chips';
 import { playSound } from '../speech';
 import { haptics } from '../theme';
 import { continueIdFor } from './steer';
-import { firstSentence, outOfViewLine, partsText, severalPrefix, thisIsLine } from './lines';
+import { firstSentence, foundToLine, outOfViewLine, partsText, severalPrefix, thisIsLine } from './lines';
 import { shortProduct } from '../requestLines';
 import { shelfFoundLine } from '../shelf/searchLines';
+import type { ShelfBox } from '../relay';
+import type { GuideDir } from './types';
 import type { ConversationContext, SpeechPart } from '../conversation/types';
 
 export const raiseGuideEnd = raise({ type: 'GUIDE_END' });
@@ -77,12 +79,32 @@ export const storeGuideTarget = assign({
 });
 
 export const sayFound = assign({
-  guideParts: ({ context }: ContextArgs) => [
-    { text: shelfFoundLine(context.guideLabel, context.guidePosition, context.lang) },
-  ],
-  lastLine: ({ context }: ContextArgs) => shelfFoundLine(context.guideLabel, context.guidePosition, context.lang),
+  guideParts: ({ context }: ContextArgs) => [{ text: foundLine(context) }],
+  lastLine: ({ context }: ContextArgs) => foundLine(context),
   lastChips: [],
 });
+
+function foundLine(context: ConversationContext): string {
+  const hand = context.guideHand;
+  const target = context.guideTarget;
+  const dir = hand && target ? handDir(hand, target.box) : null;
+  if (dir) {
+    return foundToLine(context.guideLabel, dir, context.lang);
+  }
+  return shelfFoundLine(context.guideLabel, context.guidePosition, context.lang);
+}
+
+function handDir(hand: { x: number; y: number }, box: ShelfBox): GuideDir | null {
+  if (hand.x >= box.x1 && hand.x <= box.x2 && hand.y >= box.y1 && hand.y <= box.y2) {
+    return null;
+  }
+  const dx = (box.x1 + box.x2) / 2 - hand.x;
+  const dy = (box.y1 + box.y2) / 2 - hand.y;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0 ? 'right' : 'left';
+  }
+  return dy >= 0 ? 'down' : 'up';
+}
 
 export const endGuide = assign({
   guiding: false,
