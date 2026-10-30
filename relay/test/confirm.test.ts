@@ -164,4 +164,5 @@ test('the confirm instructions name the held product as brand plus kind', async 
   }) as unknown as typeof fetch;
   await confirmInHand(record, 'https://example.invalid', 'key', PHOTO);
   assert.match(system, /brand plus kind/);
+  assert.match(system, /transliterated/);
 });
