@@ -4,6 +4,7 @@
 // views only; the crop is hidden from TalkBack and the spoken line
 // carries the screen.
 import { Image, StyleSheet, Text, View } from 'react-native';
+import { styles as root } from '../appStyles';
 import { color, font, size } from '../theme';
 
 type Shown = 'yes' | 'no' | 'unsure';
@@ -57,7 +58,7 @@ export function VerdictScreen({
           </View>
         ) : null}
         <View style={styles.spacer} />
-        <Text style={[styles.line, rtl && styles.lineRtl, { color: onVerdict }]}>{line}</Text>
+        <Text style={[root.line, rtl && root.lineRtl, { color: onVerdict }]}>{line}</Text>
         {chips.length > 0 ? (
           <View style={styles.chips}>
             {chips.map((chip) => (
@@ -138,17 +139,6 @@ const styles = StyleSheet.create({
   },
   spacer: {
     flexGrow: 1,
-  },
-  line: {
-    fontSize: font.spokenLine.size,
-    fontFamily: 'ReadexPro_600SemiBold',
-    lineHeight: font.spokenLine.size * font.spokenLine.lineHeight,
-    textAlign: 'left',
-  },
-  lineRtl: {
-    textAlign: 'right',
-    lineHeight: font.spokenLineArabic.size * font.spokenLineArabic.lineHeight,
-    fontSize: font.spokenLineArabic.size,
   },
   chips: {
     flexDirection: 'row',

@@ -201,3 +201,7 @@ export const cueClip = {
 };
 
 export const soundAsset = {};
+
+export const StyleSheet = {
+  create: (entries) => entries,
+};

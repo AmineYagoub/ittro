@@ -38,9 +38,11 @@ export const styles = StyleSheet.create({
     fontFamily: 'ReadexPro_600SemiBold',
     lineHeight: font.spokenLine.size * font.spokenLine.lineHeight,
     textAlign: 'left',
+    writingDirection: 'ltr',
   },
   lineRtl: {
     textAlign: 'right',
+    writingDirection: 'rtl',
     lineHeight: font.spokenLineArabic.size * font.spokenLineArabic.lineHeight,
     fontSize: font.spokenLineArabic.size,
   },
