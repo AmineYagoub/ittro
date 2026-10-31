@@ -2,8 +2,6 @@
 // calls Meta, and only with strict structured output. Every route except
 // /health needs the app access code, is rate-limited per visitor, and
 // stops for the day when the spending limit is reached.
-import { TRANSCRIBE_USD_PER_SECOND, transcribeClip, wavSeconds } from './transcribe.ts';
-import { callSpark } from './spark.ts';
 import { understandUtterance } from './understand.ts';
 import { outlineProducts } from './sam.ts';
 import { classifyScene, pickPackagePhrase, readShelfLabels } from './shelf.ts';
@@ -13,7 +11,7 @@ import { helperRoutes } from './helperRoutes.ts';
 import { effortField, mimeField, textField } from './bodies.ts';
 import type { OutlineBody, PhraseBody, ReadBody } from './bodies.ts';
 import { wrapSocket } from './streamWire.ts';
-import { addSpendUsd, clientIp, codesEqual, gate, overRateLimit, recordSamCost, recordSparkCost, spendTodayUsd } from './gate.ts';
+import { clientIp, codesEqual, gate, overRateLimit, recordSamCost, recordSparkCost, spendTodayUsd } from './gate.ts';
 import type { Env } from './gate.ts';
 import type { StreamBudget } from './realtime.ts';
 import type { StreamSocket } from './streamWire.ts';
@@ -60,56 +58,6 @@ export default {
     const helper = await helperRoutes(request, env);
     if (helper) {
       return helper;
-    }
-    if (request.method === 'POST' && url.pathname === '/spark') {
-      const blocked = await gate(request, env, Number(env.SPARK_COST_USD ?? '0.01'));
-      if (blocked) {
-        return blocked;
-      }
-      try {
-        const { input, effort } = (await request.json()) as { input: unknown; effort?: string };
-        const answer = await callSpark({
-          fetchImpl: fetch,
-          apiBase: env.META_API_BASE,
-          apiKey: env.META_API_KEY,
-          input,
-          effort,
-        });
-        await recordSparkCost(env);
-        return Response.json({ ok: true, answer });
-      } catch (err) {
-        return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
-      }
-    }
-    if (request.method === 'POST' && url.pathname === '/transcribe') {
-      try {
-        const { audio, language, keywords } = (await request.json()) as {
-          audio?: string;
-          language?: string;
-          keywords?: string[];
-        };
-        if (typeof audio !== 'string' || audio.length === 0) {
-          return Response.json({ ok: false, error: 'missing audio' }, { status: 400 });
-        }
-        const bytes = Uint8Array.from(atob(audio), (c) => c.charCodeAt(0));
-        const cost = wavSeconds(bytes.buffer) * TRANSCRIBE_USD_PER_SECOND;
-        const blocked = await gate(request, env, cost);
-        if (blocked) {
-          return blocked;
-        }
-        const text = await transcribeClip(
-          fetch,
-          env.META_API_BASE ?? '',
-          env.META_API_KEY ?? '',
-          bytes.buffer,
-          language ?? 'en-US',
-          Array.isArray(keywords) ? keywords : [],
-        );
-        await addSpendUsd(env, cost);
-        return Response.json({ ok: true, text });
-      } catch (err) {
-        return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
-      }
     }
     if (request.method === 'POST' && url.pathname === '/understand') {
       const blocked = await gate(request, env, Number(env.SPARK_COST_USD ?? '0.01'));

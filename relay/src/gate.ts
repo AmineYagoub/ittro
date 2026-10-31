@@ -1,7 +1,13 @@
 // The relay gate: every route except /health needs the app access
 // code, is rate-limited per visitor, and stops for the day when the
 // spending limit is reached. Costs are recorded before answering.
+// Counters are sharded: KV has no atomic increment, so each write
+// lands on one of four shards and reads sum them with the legacy
+// unsharded key. Same-shard races can still lose an increment;
+// the limits stay approximate by design.
 import type { KvBinding } from './helperStore.ts';
+
+const COUNTER_SHARDS = 4;
 
 export interface Limits {
   get(key: string): Promise<string | null>;
@@ -38,6 +44,20 @@ export function clientIp(request: Request): string {
   return request.headers.get('cf-connecting-ip') ?? 'unknown';
 }
 
+async function readCounter(store: Limits, key: string): Promise<number> {
+  const parts = await Promise.all(
+    [store.get(key), ...Array.from({ length: COUNTER_SHARDS }, (_, shard) => store.get(`${key}:${shard}`))],
+  );
+  return parts.reduce((sum, part) => sum + (Number(part ?? '0') || 0), 0);
+}
+
+async function addCounter(store: Limits, key: string, amount: number, ttl: number): Promise<void> {
+  const shard = Math.floor(Math.random() * COUNTER_SHARDS);
+  const shardKey = `${key}:${shard}`;
+  const current = Number((await store.get(shardKey)) ?? '0') || 0;
+  await store.put(shardKey, String(current + amount), { expirationTtl: ttl });
+}
+
 export async function overRateLimit(env: Env, ip: string): Promise<boolean> {
   if (!env.ITTRO_LIMITS) {
     return false;
@@ -45,11 +65,11 @@ export async function overRateLimit(env: Env, ip: string): Promise<boolean> {
   const perMinute = Number(env.RATE_LIMIT_PER_MINUTE ?? '30');
   const minute = Math.floor(Date.now() / 60000);
   const key = `rl:${ip}:${minute}`;
-  const current = Number((await env.ITTRO_LIMITS.get(key)) ?? '0');
+  const current = await readCounter(env.ITTRO_LIMITS, key);
   if (current >= perMinute) {
     return true;
   }
-  await env.ITTRO_LIMITS.put(key, String(current + 1), { expirationTtl: 120 });
+  await addCounter(env.ITTRO_LIMITS, key, 1, 120);
   return false;
 }
 
@@ -58,7 +78,7 @@ export async function spendTodayUsd(env: Env): Promise<number> {
     return 0;
   }
   const day = new Date().toISOString().slice(0, 10);
-  return Number((await env.ITTRO_LIMITS.get(`spend:${day}`)) ?? '0');
+  return readCounter(env.ITTRO_LIMITS, `spend:${day}`);
 }
 
 export async function addSpendUsd(env: Env, amount: number): Promise<void> {
@@ -66,9 +86,7 @@ export async function addSpendUsd(env: Env, amount: number): Promise<void> {
     return;
   }
   const day = new Date().toISOString().slice(0, 10);
-  const key = `spend:${day}`;
-  const current = Number((await env.ITTRO_LIMITS.get(key)) ?? '0');
-  await env.ITTRO_LIMITS.put(key, String(current + amount), { expirationTtl: 172800 });
+  await addCounter(env.ITTRO_LIMITS, `spend:${day}`, amount, 172800);
 }
 
 export async function gate(request: Request, env: Env, costUsd: number): Promise<Response | null> {
