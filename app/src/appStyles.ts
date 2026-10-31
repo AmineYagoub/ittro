@@ -2,6 +2,7 @@
 // chips. The verdict screens carry their own styles beside them.
 import { StyleSheet } from 'react-native';
 import { color, font, size } from './theme';
+import { GUIDE_CAPTION_GAP, GUIDE_CLUSTER_BOTTOM } from './guide/lines';
 
 export const styles = StyleSheet.create({
   container: {
@@ -31,6 +32,9 @@ export const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     paddingBottom: 48,
     paddingHorizontal: size.screenPadding,
+  },
+  overlayGuide: {
+    paddingBottom: GUIDE_CLUSTER_BOTTOM + size.directionCircle + GUIDE_CAPTION_GAP,
   },
   line: {
     color: color.paper,

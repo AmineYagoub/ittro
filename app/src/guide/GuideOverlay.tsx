@@ -8,7 +8,7 @@ import { mapBox, mapPoints } from '../shelf/outlines';
 import type { ShelfOutline } from '../relay';
 import type { GuideHand } from '../conversation/types';
 import { color, size } from '../theme';
-import { PILL_MAX_WIDTH, dirOfCue, pillBox } from './lines';
+import { GUIDE_CLUSTER_BOTTOM, PILL_MAX_WIDTH, dirOfCue, pillBox } from './lines';
 import { meterSegments } from './steer';
 import type { GuideDir } from './types';
 
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: size.screenPadding,
     right: size.screenPadding,
-    bottom: 150,
+    bottom: GUIDE_CLUSTER_BOTTOM,
     flexDirection: 'row',
     alignItems: 'center',
   },

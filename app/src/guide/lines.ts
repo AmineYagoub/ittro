@@ -9,6 +9,10 @@ import { countWord } from '../shelf/searchLines';
 import type { ViewBox } from '../shelf/outlines';
 import type { GuideDir } from './types';
 
+export const GUIDE_CLUSTER_BOTTOM = 150;
+
+export const GUIDE_CAPTION_GAP = 24;
+
 const DIR_WORD: Record<GuideDir, Record<Language, string>> = {
   right: { en: 'to your right', ar: 'إلى يمينك', fr: 'à votre droite' },
   left: { en: 'to your left', ar: 'إلى يسارك', fr: 'à votre gauche' },

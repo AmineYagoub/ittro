@@ -203,6 +203,8 @@ export default function App(): React.JSX.Element {
   }, [lang]);
 
   const rtl = lang === 'ar';
+  const guideCluster = cameraOn && guiding && guideTarget !== null && !guideHidden && viewSize.width > 0;
+  const captionStyle = !cameraOn ? styles.plain : guideCluster ? [styles.overlay, styles.overlayGuide] : styles.overlay;
   const shown = verdict === 'yes' || verdict === 'no' || verdict === 'unsure' ? verdict : null;
   const helperShown = !shown && helper.verdict ? helper.verdict : null;
   const helperCard = !shown && !helperShown && (helper.pairing || helper.waiting);
@@ -232,7 +234,7 @@ export default function App(): React.JSX.Element {
           }}
         />
       ) : null}
-      {cameraOn && guiding && guideTarget && !guideHidden && viewSize.width > 0 ? (
+      {guideCluster ? (
         <GuideOverlay
           target={guideTarget}
           hand={guideHand}
@@ -265,7 +267,7 @@ export default function App(): React.JSX.Element {
           cameraOn={cameraOn}
         />
       ) : (
-        <View style={cameraOn ? styles.overlay : styles.plain}>
+        <View style={captionStyle}>
           {detailShown && confirmCrop ? <DetailCrop crop={confirmCrop} /> : null}
           <Text
             style={[styles.line, rtl && styles.lineRtl]}
