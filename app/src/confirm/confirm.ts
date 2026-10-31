@@ -35,6 +35,7 @@ import {
   storeMoved,
   storeNo,
   storePicture,
+  storeTouchedYes,
   storeUnsure,
   storeYes,
 } from './verdicts';
@@ -65,12 +66,19 @@ function logVerdict({ event }: EventArgs): void {
   logIttro(`confirm verdict ${kind} epoch ${epoch}${label}`);
 }
 
+function logTouched({ event }: EventArgs): void {
+  if (event.type === 'CONFIRM_TOUCHED') {
+    logIttro(`confirm verdict yes by touch label ${JSON.stringify(event.label)}`);
+  }
+}
+
 export const confirmRegion = {
   id: 'confirm',
   initial: 'idle',
   on: {
     CONFIRM_BEGIN: { actions: [beginConfirm], target: '#confirm.checking' },
     CONFIRM_AUTO: { actions: [beginQuiet], target: '#confirm.checking' },
+    CONFIRM_TOUCHED: { actions: [beginQuiet, logTouched, storeTouchedYes, raiseQuestion], target: '#confirm.yes' },
     CONFIRM_DETAIL_ASK: { guard: wantsDetail, actions: [beginDetail], target: '#confirm.readingDetail' },
     CONFIRM_END: { actions: [endConfirm], target: '#confirm.idle' },
   },

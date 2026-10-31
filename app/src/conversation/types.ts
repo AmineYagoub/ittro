@@ -239,6 +239,7 @@ export type ConversationEvent =
   | { type: 'SHELF_TURN'; direction: 'left' | 'right' }
   | { type: 'CONFIRM_BEGIN' }
   | { type: 'CONFIRM_AUTO' }
+  | { type: 'CONFIRM_TOUCHED'; label: string }
   | { type: 'CONFIRM_YES'; epoch: number; label: string; crop: string }
   | { type: 'CONFIRM_NO'; epoch: number; label: string; crop: string }
   | { type: 'CONFIRM_UNSURE'; epoch: number; label: string; crop: string; read: string[]; missing: ConfirmAttr[] }

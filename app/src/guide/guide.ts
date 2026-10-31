@@ -6,7 +6,7 @@
 import type { ContextArgs } from '../conversation/actions';
 import { noteVoice } from '../conversation/echo';
 import { logIttro } from '../log';
-import { raiseConfirmAuto } from '../confirm/confirmSay';
+import { raiseConfirmAuto, raiseConfirmTouched } from '../confirm/confirmSay';
 import {
   AIM_TIMEOUT_MS,
   ARM_TIMEOUT_MS,
@@ -42,6 +42,9 @@ function speakState() {
 function logHandOn({ context }: ContextArgs): void {
   logIttro(`guide hand on product epoch ${context.searchEpoch}`);
 }
+
+// The fingertip held on the confirmed product this long is a touch.
+export const TOUCH_HOLD_MS = 600;
 
 export const guideRegion = {
   id: 'guide',
@@ -131,6 +134,7 @@ export const guideRegion = {
     reaching: {
       entry: [logHandOn, noteVoice],
       ...speakState(),
+      after: { [TOUCH_HOLD_MS]: { actions: [endGuide, raiseConfirmTouched], target: 'idle' } },
       on: {
         GUIDE_GOT_IT: { actions: [sayPick], target: 'picking' },
         GUIDE_CONTACT: { actions: [sayPick], target: 'picking' },

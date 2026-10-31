@@ -14,6 +14,14 @@ export const raiseConfirmBegin = raise({ type: 'CONFIRM_BEGIN' });
 
 export const raiseConfirmAuto = raise({ type: 'CONFIRM_AUTO' });
 
+// The fingertip resting on the product the shelf read confirmed is the
+// green yes at once, as in the 26 October project: the label was read
+// on the shelf, where the hand doesn't cover it.
+export const raiseConfirmTouched = raise(({ context }: ContextArgs) => ({
+  type: 'CONFIRM_TOUCHED' as const,
+  label: context.guideLabel || context.pendingRequest || context.request || '',
+}));
+
 export const raiseConfirmEnd = raise({ type: 'CONFIRM_END' });
 
 export const raiseConfirmDetailAsk = raise({ type: 'CONFIRM_DETAIL_ASK' });
