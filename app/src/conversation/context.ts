@@ -89,6 +89,7 @@ export function initialContext({ input }: { input: MachineInput }): Conversation
     confirmMissing: [],
     confirmProblem: null,
     confirmCrop: null,
+    confirmBox: null,
     confirmParts: [],
     confirmDetailKind: null,
     confirmDetailText: null,

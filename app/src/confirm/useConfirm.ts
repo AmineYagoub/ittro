@@ -11,6 +11,7 @@ import { logIttro } from '../log';
 import type { SearchActor, SearchCamera } from '../shelf/useShelfSearch';
 import { lastHandFix } from '../guide/frames';
 import type { HandFix } from '../guide/types';
+import type { ShelfBox } from '../relay';
 import { createConfirmLoop } from './loop';
 
 const TICK_EVERY_MS = 300;
@@ -23,7 +24,7 @@ export interface ConfirmCropBox {
   y2: number;
 }
 
-export function confirmCropBox(hand: HandFix | null, w: number, h: number): ConfirmCropBox | null {
+export function confirmCropBox(hand: HandFix | null, w: number, h: number, held: ShelfBox | null = null): ConfirmCropBox | null {
   if (!hand || !(w > 0) || !(h > 0)) {
     return null;
   }
@@ -31,11 +32,26 @@ export function confirmCropBox(hand: HandFix | null, w: number, h: number): Conf
   const half = side / 2;
   const cx = Math.min(Math.max(hand.x, half), w - half);
   const cy = Math.min(Math.max(hand.y, half), h - half);
+  let x1 = cx - half;
+  let y1 = cy - half;
+  let x2 = cx + half;
+  let y2 = cy + half;
+  if (held && held.w > 0 && held.h > 0) {
+    // The product's own box joins the hand's square: a hand on the cap
+    // still sends the whole label.
+    const sx = w / held.w;
+    const sy = h / held.h;
+    const pad = 0.08 * Math.max((held.x2 - held.x1) * sx, (held.y2 - held.y1) * sy);
+    x1 = Math.min(x1, held.x1 * sx - pad);
+    y1 = Math.min(y1, held.y1 * sy - pad);
+    x2 = Math.max(x2, held.x2 * sx + pad);
+    y2 = Math.max(y2, held.y2 * sy + pad);
+  }
   return {
-    x1: Math.max(0, Math.round(cx - half)),
-    y1: Math.max(0, Math.round(cy - half)),
-    x2: Math.min(w, Math.round(cx + half)),
-    y2: Math.min(h, Math.round(cy + half)),
+    x1: Math.max(0, Math.round(x1)),
+    y1: Math.max(0, Math.round(y1)),
+    x2: Math.min(w, Math.round(x2)),
+    y2: Math.min(h, Math.round(y2)),
   };
 }
 
@@ -75,7 +91,13 @@ export function useConfirm(
           return null;
         }
         const full = { image: prepared.photo, mime: 'image/jpeg', crop: `data:image/jpeg;base64,${prepared.photo}` };
-        const cut = confirmCropBox(lastHandFix(), prepared.w, prepared.h);
+        const context = actor.current?.getSnapshot().context;
+        if (context?.confirmVerdict === 'picture' || context?.confirmVerdict === 'unsure') {
+          logIttro(`confirm full frame after ${context.confirmVerdict}`);
+          return full;
+        }
+        const held = context?.confirmBox ?? null;
+        const cut = confirmCropBox(lastHandFix(), prepared.w, prepared.h, held);
         if (!cut) {
           logIttro('confirm full frame, no hand fix');
           return full;
@@ -86,7 +108,7 @@ export function useConfirm(
             logIttro('confirm crop failed, full frame');
             return full;
           }
-          logIttro(`confirm crop ${cut.x2 - cut.x1}x${cut.y2 - cut.y1} around hand`);
+          logIttro(`confirm crop ${cut.x2 - cut.x1}x${cut.y2 - cut.y1} around ${held ? 'product and hand' : 'hand'}`);
           return { image: cropped.image, mime: cropped.mime, crop: `data:${cropped.mime};base64,${cropped.image}` };
         } catch {
           logIttro('confirm crop failed, full frame');

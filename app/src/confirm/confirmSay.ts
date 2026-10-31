@@ -20,6 +20,11 @@ export const raiseConfirmDetailAsk = raise({ type: 'CONFIRM_DETAIL_ASK' });
 
 export const NET_UPDATE_MS = 8000;
 
+// The product's box when the check begins: the guided target, or the
+// shelf find when guiding has already ended. The check crops around
+// it, so a hand on the cap still sends the label.
+const heldBox = ({ context }: ContextArgs) => (context.guideTarget ?? context.shelfTarget)?.box ?? null;
+
 export const chimeYes = (): void => {
   Vibration.vibrate([...haptics.yes]);
   playSound('yes');
@@ -37,6 +42,7 @@ export const chimeUnsure = (): void => {
 
 export const beginConfirm = assign({
   confirming: true,
+  confirmBox: heldBox,
   searching: false,
   cameraOn: true,
   pendingSearch: [],
@@ -59,6 +65,7 @@ export const beginConfirm = assign({
 
 export const beginQuiet = assign({
   confirming: true,
+  confirmBox: heldBox,
   searching: false,
   cameraOn: true,
   pendingSearch: [],

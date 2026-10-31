@@ -5,7 +5,7 @@ import type { ActorRef, DoneActorEvent, ErrorActorEvent, Snapshot } from 'xstate
 import type { Language } from '../theme';
 import type { Prefs } from '../store';
 import type { LinkKind } from '../metaCall';
-import type { ConfirmAttr, DetailKind, DetailReason, PictureProblem, ShelfOutline, UnderstandAnswer } from '../relay';
+import type { ConfirmAttr, DetailKind, DetailReason, PictureProblem, ShelfBox, ShelfOutline, UnderstandAnswer } from '../relay';
 
 export type ConversationStep = 'welcome' | 'confirm' | 'offer' | 'sleep' | 'language' | 'tour' | 'translate' | 'alternative' | 'verdict' | 'helperName' | 'helperSend' | 'helperOffer';
 
@@ -173,6 +173,7 @@ export interface ConversationContext {
   confirmMissing: ConfirmAttr[];
   confirmProblem: PictureProblem | null;
   confirmCrop: string | null;
+  confirmBox: ShelfBox | null;
   confirmParts: SpeechPart[];
   confirmDetailKind: DetailKind | null;
   confirmDetailText: string | null;
