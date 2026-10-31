@@ -83,7 +83,7 @@ export function createFrameStats(now: () => number): FrameStats {
       if (frame.present) {
         detects.push(frame.detectMs);
       }
-      if (firstDropped < 0) {
+      if (firstDropped < 0 || frame.dropped < lastDropped) {
         firstDropped = frame.dropped;
       }
       lastDropped = frame.dropped;
@@ -107,7 +107,7 @@ export function createFrameStats(now: () => number): FrameStats {
         detectP50: percentile(ordered, 0.5),
         detectP95: percentile(ordered, 0.95),
         cueP50: percentile(cueOrdered, 0.5),
-        dropped: firstDropped < 0 ? 0 : lastDropped - firstDropped,
+        dropped: firstDropped < 0 ? 0 : Math.max(0, lastDropped - firstDropped),
       };
     },
     reset(): void {

@@ -145,6 +145,7 @@ export function useGuide(actor: { current: GuideActor | null }, active: boolean)
       if (held.current.targetKey !== '') {
         held.current.targetKey = '';
         held.current.loop?.reset();
+        held.current.stats?.reset();
       }
       if (held.current.heatTimer) {
         clearTimeout(held.current.heatTimer);

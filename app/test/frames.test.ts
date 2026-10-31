@@ -43,6 +43,20 @@ test('the frame size follows the target box, then the last photo', () => {
   assert.deepEqual(framePhotoSize({ w: 0, h: 0 }, { w: 960, h: 1280 }), { w: 960, h: 1280 });
 });
 
+test('a native counter restart rebases the dropped count', () => {
+  let now = 10000;
+  const stats = createFrameStats(() => now);
+  for (let at = 0; at < 20; at += 1) {
+    stats.noteFrame(frame({ frame: at + 1, dropped: 800 + at }));
+    now += 125;
+  }
+  for (let at = 0; at < 20; at += 1) {
+    stats.noteFrame(frame({ frame: 21 + at, dropped: at }));
+    now += 125;
+  }
+  assert.equal(stats.snapshot().dropped, 19);
+});
+
 test('recorded frames summarize rate, conversion, detection and drops', () => {
   let now = 10000;
   const stats = createFrameStats(() => now);
