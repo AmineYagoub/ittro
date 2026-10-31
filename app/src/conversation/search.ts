@@ -20,7 +20,7 @@ import {
   wrongShelfLine,
 } from '../shelf/searchLines';
 import type { ConversationContext, GuidePosition, SearchAnnouncement } from './types';
-import { followTarget } from './searchTarget';
+import { decideTarget } from './searchTarget';
 
 export const raiseSearchBegin = raise({ type: 'SEARCH_BEGIN' });
 
@@ -79,7 +79,13 @@ export const resumeSearch = assign({
 export const storeOutlined = assign({
   outlines: ({ event }: EventArgs) => (event.type === 'SHELF_OUTLINED' ? event.outlines : []),
   guideTarget: ({ context, event }: EventArgs) =>
-    event.type === 'SHELF_OUTLINED' ? followTarget(context.guideTarget, event.outlines) : context.guideTarget,
+    event.type === 'SHELF_OUTLINED'
+      ? decideTarget(context.guideTarget, event.outlines, context.guideHand).outline
+      : context.guideTarget,
+  guideRecheck: ({ context, event }: EventArgs) =>
+    event.type === 'SHELF_OUTLINED'
+      ? decideTarget(context.guideTarget, event.outlines, context.guideHand).recheck
+      : context.guideRecheck,
   checkedCount: ({ context, event }: EventArgs) =>
     event.type === 'SHELF_OUTLINED' ? context.checkedCount + event.outlines.length : context.checkedCount,
   pendingSearch: ({ context, event }: EventArgs) =>
@@ -153,7 +159,13 @@ export const storeNoShelf = assign({
 export const storeMoved = assign({
   outlines: ({ event }: EventArgs) => (event.type === 'OUTLINES_MOVED' ? event.outlines : []),
   guideTarget: ({ context, event }: EventArgs) =>
-    event.type === 'OUTLINES_MOVED' ? followTarget(context.guideTarget, event.outlines) : context.guideTarget,
+    event.type === 'OUTLINES_MOVED'
+      ? decideTarget(context.guideTarget, event.outlines, context.guideHand).outline
+      : context.guideTarget,
+  guideRecheck: ({ context, event }: EventArgs) =>
+    event.type === 'OUTLINES_MOVED'
+      ? decideTarget(context.guideTarget, event.outlines, context.guideHand).recheck
+      : context.guideRecheck,
 });
 
 export const storeTurn = assign({

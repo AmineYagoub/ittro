@@ -81,6 +81,37 @@ test('a fresh pass reusing the target id elsewhere does not drag the rectangle',
   }
 });
 
+test('a hand on the product holds the box when SAM shrinks it', async () => {
+  const driver = await guiding();
+  try {
+    driver.send({ type: 'GUIDE_CUE', cue: 'hand_right', proximity: 0.9, hand: { x: 680, y: 520 } });
+    await driver.flush();
+    driver.send({ type: 'OUTLINES_MOVED', outlines: [outline(9, 620, 500, 780, 640)] });
+    await driver.flush();
+    assert.equal(driver.context().guideTarget?.box.x1, 600);
+    assert.equal(driver.context().guideTarget?.box.y1, 400);
+    assert.equal(driver.context().guideRecheck, false);
+  } finally {
+    driver.stop();
+  }
+});
+
+test('a jumped box holds and asks for a recheck, a steady one follows', async () => {
+  const driver = await guiding();
+  try {
+    driver.send({ type: 'OUTLINES_MOVED', outlines: [outline(9, 620, 500, 780, 640)] });
+    await driver.flush();
+    assert.equal(driver.context().guideTarget?.box.x1, 600);
+    assert.equal(driver.context().guideRecheck, true);
+    driver.send({ type: 'OUTLINES_MOVED', outlines: [outline(9, 610, 400, 770, 640)] });
+    await driver.flush();
+    assert.equal(driver.context().guideTarget?.box.x1, 610);
+    assert.equal(driver.context().guideRecheck, false);
+  } finally {
+    driver.stop();
+  }
+});
+
 test('the overlay hides while the target is out of view', async () => {
   const driver = await guiding();
   try {

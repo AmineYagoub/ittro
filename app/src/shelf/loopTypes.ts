@@ -20,6 +20,7 @@ export interface LoopContext {
   alternative: string | null;
   checkedCount: number;
   guiding?: boolean;
+  handCovering?: boolean;
 }
 
 export interface LoopCut {

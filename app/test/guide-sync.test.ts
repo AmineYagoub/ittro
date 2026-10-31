@@ -94,6 +94,22 @@ test('out of view silences hand cues and repeats the phone cue', async () => {
   assert.equal(cuesOf(env.sent).length, 1, 'back in view, the hand cues resume');
 });
 
+test('a hand on the product holds the box instead of losing it', async () => {
+  const env = harness();
+  await env.loop.handFrame(fix(680, 520, env.at()), [TARGET], 1280, 960);
+  for (let step = 0; step < 4; step += 1) {
+    env.tick(250);
+    await env.loop.handFrame(fix(680, 520, env.at()), [], 1280, 960);
+  }
+  assert.equal(env.sent.filter((event) => event.type === 'GUIDE_TARGET_LOST').length, 0);
+  assert.ok(env.logs.includes('guide target under hand, holding box'));
+  env.tick(250);
+  await env.loop.handFrame(fix(300, 520, env.at()), [], 1280, 960);
+  env.tick(250);
+  await env.loop.handFrame(fix(300, 520, env.at()), [], 1280, 960);
+  assert.equal(env.sent.filter((event) => event.type === 'GUIDE_TARGET_LOST').length, 1);
+});
+
 test('a cue logs its tip, box and hand once', async () => {
   const env = harness();
   for (let step = 0; step < 4; step += 1) {
@@ -119,13 +135,24 @@ test('a target leaving the view reports the way to turn the phone', async () => 
   env.loop.setTarget(left);
   await env.loop.handFrame(fix(150, 520, env.at()), [left], 1280, 960);
   env.tick(250);
-  await env.loop.handFrame(fix(300, 520, env.at()), [], 1280, 960);
+  await env.loop.handFrame(fix(150, 520, env.at()), [], 1280, 960);
   assert.equal(env.sent.filter((event) => event.type === 'GUIDE_TARGET_LOST').length, 0);
   env.tick(250);
-  await env.loop.handFrame(fix(300, 520, env.at()), [], 1280, 960);
+  await env.loop.handFrame(fix(150, 520, env.at()), [], 1280, 960);
   const lost = env.sent.filter((event) => event.type === 'GUIDE_TARGET_LOST');
   assert.equal(lost.length, 1);
   assert.deepEqual(lost[0], { type: 'GUIDE_TARGET_LOST', cue: 'phone_left_small' });
+});
+
+test('a covered product still reports when it stays gone past the patience', async () => {
+  const env = harness();
+  await env.loop.handFrame(fix(680, 520, env.at()), [TARGET], 1280, 960);
+  for (let step = 0; step < 12; step += 1) {
+    env.tick(250);
+    await env.loop.handFrame(fix(680, 520, env.at()), [], 1280, 960);
+  }
+  assert.ok(env.logs.includes('guide target under hand, holding box'));
+  assert.equal(env.sent.filter((event) => event.type === 'GUIDE_TARGET_LOST').length, 1);
 });
 
 test('a target leaving and returning logs both moments', async () => {

@@ -20,7 +20,7 @@ function photo(): LoopPhoto {
   return { image: 'frame', mime: 'image/jpeg', w: 112, h: 96, grey: { data: new Uint8Array(0), w: 0, h: 0 } };
 }
 
-function rig(guiding: boolean): { loop: ShelfLoop; sent: ConversationEvent[]; logs: string[]; reads: () => number } {
+function rig(guiding: boolean, handCovering = false): { loop: ShelfLoop; sent: ConversationEvent[]; logs: string[]; reads: () => number } {
   const sent: ConversationEvent[] = [];
   const logs: string[] = [];
   let reads = 0;
@@ -36,7 +36,7 @@ function rig(guiding: boolean): { loop: ShelfLoop; sent: ConversationEvent[]; lo
     },
     classify: async () => ({ scene: 'shelf', kinds: ['bags'], aisle_hint: null }),
     cutCrops: async (_image, tracks) => tracks.map((entry) => ({ id: `shelf-${entry.track}`, image: 'crop', mime: 'image/jpeg' })),
-    readContext: () => ({ lang: 'en', alternative: null, checkedCount: 2, guiding }),
+    readContext: () => ({ lang: 'en', alternative: null, checkedCount: 2, guiding, handCovering }),
     send: (event) => {
       sent.push(event);
     },
@@ -62,4 +62,12 @@ test('a pass while searching still reads', async () => {
   const rigged = rig(false);
   await rigged.loop.cloudPass([photo()]);
   assert.ok(rigged.reads() >= 1);
+});
+
+test('a pass with the hand on the product holds without reading', async () => {
+  const rigged = rig(true, true);
+  await rigged.loop.cloudPass([photo()]);
+  assert.ok(rigged.sent.some((event) => event.type === 'SHELF_OUTLINED'));
+  assert.equal(rigged.reads(), 0);
+  assert.ok(rigged.logs.includes('shelf target held under hand'));
 });

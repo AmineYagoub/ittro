@@ -74,6 +74,7 @@ export const storeGuideTarget = assign({
   guideHand: null,
   guideProximity: 0,
   guideWrong: null,
+  guideRecheck: false,
   guideOutOfView: false,
 });
 
@@ -117,6 +118,7 @@ export const endGuide = assign({
   guideCue: null,
   guideFresh: false,
   guideWrong: null,
+  guideRecheck: false,
   guideOutOfView: false,
   guideParts: [],
 });

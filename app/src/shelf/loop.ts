@@ -211,6 +211,11 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
           deps.log(`shelf hand read ${answer.readMs}ms verdict ${verdict}`);
         }
         if (context.guiding) {
+          if (context.handCovering) {
+            deps.log('shelf target held under hand');
+            deps.send({ type: 'LINK_OK' });
+            return;
+          }
           // The product is found and the hand is being guided: the
           // outlines still refresh, but settled labels are not read
           // again every pass (13 reads in 40 s on the phone, each

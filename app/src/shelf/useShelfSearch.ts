@@ -23,6 +23,7 @@ import { decodeBase64, ingestGrey } from './tracker';
 import type { GreyFrame } from './tracker';
 import { CROP_MARGIN, expandBox } from './outlines';
 import type { ConversationContext, ConversationEvent } from '../conversation/types';
+import { handCoversTarget } from '../conversation/searchTarget';
 import { lastHandFix } from '../guide/frames';
 import type { HandFix } from '../guide/types';
 import { logIttro } from '../log';
@@ -131,6 +132,7 @@ export function useShelfSearch(
           alternative: context?.alternative ?? null,
           checkedCount: context?.checkedCount ?? 0,
           guiding: context?.guiding ?? false,
+          handCovering: handCoversTarget(context?.guideHand ?? null, context?.guideTarget?.box ?? null),
         };
       },
       send: (event) => {

@@ -50,6 +50,8 @@ export interface GuideLoopState {
   targetGone: number;
   sentTargetLost: boolean;
   sentTargetLostAt: number;
+  heldUnderHand: boolean;
+  coveredNoOverlapSince: number | null;
   loggedCue: string | null;
   inputKind: 'move' | 'almost' | 'covering' | null;
   kind: 'move' | 'almost' | 'covering' | null;
@@ -81,6 +83,8 @@ export function freshGuideState(): GuideLoopState {
     targetGone: 0,
     sentTargetLost: false,
     sentTargetLostAt: 0,
+    heldUnderHand: false,
+    coveredNoOverlapSince: null,
     loggedCue: null,
     inputKind: null,
     kind: null,

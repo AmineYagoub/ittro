@@ -14,6 +14,7 @@ import type { ShelfBox, ShelfOutline } from '../relay';
 import { boxOverlap } from '../shelf/outlines';
 import { centerOf, cueIdFor, proximityFor, steerFor } from './steer';
 import type { HandFix, TipPoint } from './types';
+import { handCoversTarget } from '../conversation/searchTarget';
 import { cosine, describeCue, sameBox } from './loopMath';
 import { restRead } from './loopRest';
 import { freshGuideState } from './loopTypes';
@@ -26,6 +27,7 @@ const LOST_WITHIN_MS = 2000;
 const COVER_MS = 1000;
 const TARGET_MATCH_IOU = 0.3;
 const TARGET_GONE_FRAMES = 2;
+const COVERED_LOST_MS = 2500;
 const CONTACT_POINTS = 4;
 const CONTACT_SHIFT_PX = 6;
 const CONTACT_ALIGN = 0.7;
@@ -46,8 +48,11 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
   }
 
   // In view or out of view, by overlap with the live outlines. The
-  // box itself never changes here: it follows the statechart's.
-  function trackTarget(outlines: ShelfOutline[], photoW: number): void {
+  // box itself never changes here: it follows the statechart's. A
+  // hand on the product holds the box, because SAM cuts the box
+  // short under a hand and the cut must never read as a loss; the
+  // hold lasts a patience, then a truly gone product still reports.
+  function trackTarget(outlines: ShelfOutline[], photoW: number, covered: boolean): void {
     const target = state.target;
     if (!target) {
       return;
@@ -55,6 +60,28 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
     let bestIoU = 0;
     for (const outline of outlines) {
       bestIoU = Math.max(bestIoU, boxOverlap(target, outline.box));
+    }
+    if (covered && bestIoU < TARGET_MATCH_IOU) {
+      if (!state.heldUnderHand) {
+        state.heldUnderHand = true;
+        deps.log('guide target under hand, holding box');
+      }
+      if (state.coveredNoOverlapSince === null) {
+        state.coveredNoOverlapSince = deps.now();
+      }
+      if (deps.now() - state.coveredNoOverlapSince < COVERED_LOST_MS) {
+        state.targetGone = 0;
+        return;
+      }
+    } else if (covered) {
+      if (!state.heldUnderHand) {
+        state.heldUnderHand = true;
+        deps.log('guide target under hand, holding box');
+      }
+      state.coveredNoOverlapSince = null;
+    } else {
+      state.heldUnderHand = false;
+      state.coveredNoOverlapSince = null;
     }
     if (bestIoU >= TARGET_MATCH_IOU) {
       if (state.sentTargetLost) {
@@ -138,6 +165,8 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
       state.targetGone = 0;
       state.sentTargetLost = false;
       state.sentTargetLostAt = 0;
+      state.heldUnderHand = false;
+      state.coveredNoOverlapSince = null;
       state.coverSince = null;
       state.sentCovering = false;
       state.sentContact = false;
@@ -163,7 +192,8 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
       if (!target) {
         return;
       }
-      trackTarget(outlines, photoW);
+      const seen = fix && fix.confidence >= MIN_CONFIDENCE ? { x: fix.x, y: fix.y } : null;
+      trackTarget(outlines, photoW, handCoversTarget(seen, target));
       const tracked = state.target as ShelfBox;
       if (!fix || fix.confidence < MIN_CONFIDENCE) {
         miss();
