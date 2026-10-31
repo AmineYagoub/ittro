@@ -141,6 +141,9 @@ export function speak(text, options) {
     options.onDone?.();
   } else if (next === 'error') {
     options.onError?.();
+  } else if (next === 'late') {
+    options.onDone?.();
+    setTimeout(() => options.onStart?.(), 20);
   }
 }
 

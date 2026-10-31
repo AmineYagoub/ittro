@@ -11,6 +11,7 @@ import { cueClip, cueText } from './voiceClips';
 import { soundAsset } from './soundBank';
 import { logIttro } from './log';
 import { speakWithRetry, speechBudgetMs } from './speechEngine';
+import { openVoice } from './voiceGate';
 
 const CLIP_TIMEOUT_MS = 8000;
 
@@ -22,33 +23,6 @@ let generation = 0;
 let talkBack = false;
 let activePlayer: AudioPlayer | null = null;
 let speechRate = 1;
-
-// The voice gate: while a line or a clip plays, and for a short tail
-// after it, the microphone uplink carries silence instead of the
-// room, so nothing Ittro says can come back as a transcript. Sounds
-// (ticks, chimes) never close the gate. The design's own fallback
-// (DESIGN.md, "Interrupting"); the earbud button still interrupts.
-export const VOICE_TAIL_MS = 300;
-
-let speakingCount = 0;
-let voiceTailUntil = 0;
-
-export function voiceGateClosed(now: number = Date.now()): boolean {
-  return speakingCount > 0 || now < voiceTailUntil;
-}
-
-function openVoice(): () => void {
-  speakingCount += 1;
-  let released = false;
-  return () => {
-    if (released) {
-      return;
-    }
-    released = true;
-    speakingCount -= 1;
-    voiceTailUntil = Date.now() + VOICE_TAIL_MS;
-  };
-}
 
 export async function initVoice(): Promise<void> {
   talkBack = await AccessibilityInfo.isScreenReaderEnabled();
@@ -129,10 +103,12 @@ function stopPlayer(): void {
 function playFile(source: unknown, rate: number, voice: boolean): Promise<void> {
   const g = ++generation;
   stopPlayer();
+  const release = voice ? openVoice() : null;
   let player: AudioPlayer;
   try {
     player = createAudioPlayer(source as number);
   } catch {
+    release?.();
     return Promise.resolve();
   }
   activePlayer = player;
@@ -146,9 +122,9 @@ function playFile(source: unknown, rate: number, voice: boolean): Promise<void> 
     } catch {
       // Nothing plays; the line still shows.
     }
+    release?.();
     return Promise.resolve();
   }
-  const release = voice ? openVoice() : null;
   return new Promise((resolve) => {
     let done = false;
     const started = Date.now();

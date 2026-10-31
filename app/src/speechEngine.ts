@@ -6,6 +6,7 @@
 import * as Speech from 'expo-speech';
 import type { Language } from './theme';
 import { logIttro } from './log';
+import { noteAudioEnd, noteAudioStart } from './voiceGate';
 
 const SPEECH_LOCALE: Record<Language, string> = { en: 'en-US', ar: 'ar-SA', fr: 'fr-FR' };
 
@@ -61,10 +62,22 @@ function speakOnce(text: string, lang: Language, rate: number): Promise<SpeakOut
       Speech.speak(text, {
         language: SPEECH_LOCALE[lang],
         rate,
-        onStart: () => logIttro(`say started ${Date.now() - begun}ms`),
-        onDone: () => finish('done'),
-        onStopped: () => finish('stopped'),
-        onError: () => finish('error'),
+        onStart: () => {
+          noteAudioStart(speechBudgetMs(text));
+          logIttro(`say started ${Date.now() - begun}ms`);
+        },
+        onDone: () => {
+          noteAudioEnd();
+          finish('done');
+        },
+        onStopped: () => {
+          noteAudioEnd();
+          finish('stopped');
+        },
+        onError: () => {
+          noteAudioEnd();
+          finish('error');
+        },
       });
     } catch {
       finish('error');

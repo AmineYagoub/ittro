@@ -12,7 +12,7 @@ import { addAudioChunkListener, startAudioStream, stopAudioStream } from 'ittro-
 import type { StreamCommand, StreamEmitted, StreamInput } from './types';
 import { createMicStats, decodeChunk, uplinkFrame } from './micStats';
 import { createStreamRetry } from './streamRetry';
-import { voiceGateClosed } from '../speech';
+import { voiceGateClosed } from '../voiceGate';
 import { logIttro } from '../log';
 
 const READY_TIMEOUT_MS = 12000;
