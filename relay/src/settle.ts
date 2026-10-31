@@ -54,11 +54,22 @@ function sizeMatches(asked: string, read: string): boolean {
   return !want.unit || !got.unit || sameUnit(want.unit, got.unit);
 }
 
+// Words match when one holds the other: "water" and "mineral water",
+// "Masaad" and "Masaad water" name the same thing.
+function wordsMatch(asked: string, read: string): boolean {
+  const want = norm(asked);
+  const got = norm(read);
+  if (want === got) {
+    return true;
+  }
+  return want.length >= 2 && got.length >= 2 && (want.includes(got) || got.includes(want));
+}
+
 function attrMatches(attr: ConfirmAttr, asked: string, read: string): boolean {
   if (attr === 'size') {
     return sizeMatches(asked, read);
   }
-  return norm(asked) === norm(read);
+  return wordsMatch(asked, read);
 }
 
 export function settleConfirm(read: ConfirmRead): ConfirmRead {

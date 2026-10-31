@@ -215,6 +215,7 @@ test('the confirm instructions name the held product as brand plus kind', async 
   await confirmInHand(record, 'https://example.invalid', 'key', PHOTO);
   assert.match(system, /brand plus kind/);
   assert.match(system, /transliterated/);
+  assert.match(system, /plainly is/);
 });
 
 test('a minimal check asks Meta with minimal effort', async () => {
@@ -226,4 +227,37 @@ test('a minimal check asks Meta with minimal effort', async () => {
   }) as unknown as typeof fetch;
   await confirmInHand(record, 'https://example.invalid', 'key', { ...PHOTO, effort: 'minimal' });
   assert.equal(effort, 'minimal');
+});
+
+test('a kind the label does not print may be judged from the item itself (t7: Masaad water stuck on maybe)', async () => {
+  const result = await confirmInHand(okFetch(completed({
+    verdict: 'yes',
+    picture_problem: null,
+    asked: { brand: 'مسعد', product: 'ماء', variant: null, size: null },
+    read: { brand: 'مسعد', product: 'ماء معدني', variant: null, size: null },
+    label_name: 'ماء مسعد',
+    unreadable: [],
+  })), 'https://example.invalid', 'key', PHOTO);
+  assert.equal(result.read.verdict, 'yes');
+});
+
+test('a brand read inside a longer name still matches, a different brand never does', async () => {
+  const yes = await confirmInHand(okFetch(completed({
+    verdict: 'yes',
+    picture_problem: null,
+    asked: { brand: 'Masaad', product: 'water', variant: null, size: null },
+    read: { brand: 'Masaad', product: 'mineral water', variant: null, size: null },
+    label_name: 'Masaad water',
+    unreadable: [],
+  })), 'https://example.invalid', 'key', PHOTO);
+  assert.equal(yes.read.verdict, 'yes');
+  const no = await confirmInHand(okFetch(completed({
+    verdict: 'yes',
+    picture_problem: null,
+    asked: { brand: 'Masaad', product: 'water', variant: null, size: null },
+    read: { brand: 'Guedila', product: 'water', variant: null, size: null },
+    label_name: 'Guedila water',
+    unreadable: [],
+  })), 'https://example.invalid', 'key', PHOTO);
+  assert.equal(no.read.verdict, 'no');
 });
