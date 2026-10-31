@@ -52,15 +52,28 @@ export function shelfSweptLine(checked: number, product: string, lang: Language)
   return `I checked ${count} products. ${product} isn't here. Say keep looking, or find another.`;
 }
 
+// Arabic counts agree with the noun: one and two have their own
+// forms, 3 to 10 take the plural, 11 and up the singular accusative.
+function arabicProducts(count: number): string {
+  if (count === 1) {
+    return 'منتجًا واحدًا';
+  }
+  if (count === 2) {
+    return 'منتجين';
+  }
+  return count <= 10 ? `${count} منتجات` : `${count} منتجًا`;
+}
+
 export function readingLine(count: number, kind: string, lang: Language): string {
   const amount = countWord(count, lang);
   if (lang === 'ar') {
-    return `أرى ${amount} ${kind}. أقرأ ملصقاتها. ثبت الهاتف.`;
+    return `أرى ${arabicProducts(count)}. ${count === 1 ? 'أقرأ ملصقه' : 'أقرأ ملصقاتها'}. ثبت الهاتف.`;
   }
   if (lang === 'fr') {
-    return `Je vois ${amount} ${kind}. Je lis leurs étiquettes. Tenez le téléphone immobile.`;
+    return `Je vois ${amount} ${count === 1 ? 'produit' : kind}. ${count === 1 ? 'Je lis son étiquette' : 'Je lis leurs étiquettes'}. Tenez le téléphone immobile.`;
   }
-  return `I see ${amount} ${kind}. Reading their labels. Hold the phone steady.`;
+  const one = kind.endsWith('s') ? kind.slice(0, -1) : kind;
+  return `I see ${amount} ${count === 1 ? one : kind}. ${count === 1 ? 'Reading its label' : 'Reading their labels'}. Hold the phone steady.`;
 }
 
 export function stillReadingLine(remaining: number, lang: Language): string {
