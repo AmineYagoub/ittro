@@ -96,3 +96,11 @@ export function createMicStats(now: () => number): MicStats {
     },
   };
 }
+// The frame that goes up the wire: the room, or silence while the
+// voice gate is closed or the chunk failed to decode.
+export function uplinkFrame(heard: Uint8Array | null, silence: Uint8Array, gateClosed: boolean): Uint8Array {
+  if (gateClosed || !heard) {
+    return silence;
+  }
+  return heard;
+}

@@ -57,6 +57,9 @@ export function startRealtimeSession(
     finish();
   };
 
+  // Each charge also re-reads the day's spend: a stream that is
+  // open when the budget runs out ends there, instead of streaming
+  // on until the phone reconnects.
   const charge = (nowMs: number): void => {
     if (nowMs > processedMs) {
       processedMs = nowMs;
@@ -64,7 +67,15 @@ export function startRealtimeSession(
     if (processedMs - chargedMs >= CHARGE_EVERY_MS) {
       const due = processedMsToUsd(processedMs - chargedMs);
       chargedMs = processedMs;
-      void budget.addSpend(due);
+      void budget
+        .addSpend(due)
+        .then(() => budget.spendToday())
+        .then((spent) => {
+          if (!settled && spent > budget.budget()) {
+            fail('daily budget reached, back tomorrow');
+          }
+        })
+        .catch(() => undefined);
     }
   };
 

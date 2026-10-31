@@ -19,6 +19,7 @@ export interface LoopContext {
   lang: Language;
   alternative: string | null;
   checkedCount: number;
+  guiding?: boolean;
 }
 
 export interface LoopCut {

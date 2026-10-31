@@ -1,15 +1,18 @@
 // The mic-and-socket stream: opens the relay socket and the mic
 // together, buffering up to two seconds of 24 kHz frames until the
 // relay answers ready, then forwards live until Meta endpoints a
-// sentence. The mic stays live while Ittro speaks, so the shopper
-// can interrupt; the statechart drops transcripts of Ittro's own
-// voice instead. Restarts wait 1 s, 2 s, 4 s and on, and the log
-// says why the socket closed.
+// sentence. While Ittro speaks (and 300 ms after), the uplink
+// carries silence frames instead of the room: the stream and its
+// endpointing stay alive, but nothing Ittro says can come back as a
+// transcript. The earbud button interrupts a line; the text echo
+// check in the statechart stays as a second net. Restarts wait 1 s,
+// 2 s, 4 s and on, and the log says why the socket closed.
 import { fromCallback } from 'xstate';
 import { addAudioChunkListener, startAudioStream, stopAudioStream } from 'ittro-sensors';
 import type { StreamCommand, StreamEmitted, StreamInput } from './types';
-import { createMicStats, decodeChunk } from './micStats';
+import { createMicStats, decodeChunk, uplinkFrame } from './micStats';
 import { createStreamRetry } from './streamRetry';
+import { voiceGateClosed } from '../speech';
 import { logIttro } from '../log';
 
 const READY_TIMEOUT_MS = 12000;
@@ -53,12 +56,14 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
     const stats = createMicStats(() => Date.now());
 
     const silence = new Uint8Array(SILENCE_FRAME_BYTES);
+    let gated = 0;
 
     const summarizeMic = (): void => {
       const summary = stats.snapshot();
       note(
-        `mic ${summary.ratePerSecond.toFixed(1)}/s gap p50 ${summary.gapP50}ms p95 ${summary.gapP95}ms max ${summary.gapMax}ms seqgaps ${summary.seqGaps} notready ${summary.notReady} senderr ${summary.sendErr}`,
+        `mic ${summary.ratePerSecond.toFixed(1)}/s gap p50 ${summary.gapP50}ms p95 ${summary.gapP95}ms max ${summary.gapMax}ms seqgaps ${summary.seqGaps} notready ${summary.notReady} senderr ${summary.sendErr} gated ${gated}`,
       );
+      gated = 0;
       stats.reset();
     };
 
@@ -132,7 +137,12 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
           if (stats.count() >= MIC_SUMMARY_EVERY) {
             summarizeMic();
           }
-          const frame = decodeChunk(event.chunk) ?? silence;
+          const heard = decodeChunk(event.chunk);
+          const closed = voiceGateClosed();
+          if (closed && heard) {
+            gated += 1;
+          }
+          const frame = uplinkFrame(heard, silence, closed);
           if (ready) {
             sendFrame(frame);
           } else {

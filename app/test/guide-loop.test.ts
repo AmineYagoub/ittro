@@ -214,45 +214,9 @@ test('the target moving with a covering hand is contact', async () => {
     [760, 520, outline(7, 700, 400, 860, 640)],
   ];
   for (const [x, y, target] of frames) {
+    env.loop.syncTarget(target.box);
     await env.loop.handFrame(fix(x, y, env.at()), [target], 1280, 960);
     env.tick(250);
   }
   assert.equal(env.sent.filter((event) => event.type === 'GUIDE_CONTACT').length, 1);
-});
-
-test('a still hand over the target is not contact', async () => {
-  const env = harness();
-  for (let step = 0; step < 6; step += 1) {
-    await env.loop.handFrame(fix(680, 520, env.at()), [TARGET], 1280, 960);
-    env.tick(250);
-  }
-  assert.equal(env.sent.filter((event) => event.type === 'GUIDE_CONTACT').length, 0);
-});
-
-test('a target leaving the view reports the way to turn the phone', async () => {
-  const env = harness();
-  const left = outline(7, 300, 400, 460, 640);
-  env.loop.setTarget(left);
-  await env.loop.handFrame(fix(150, 520, env.at()), [left], 1280, 960);
-  env.tick(250);
-  await env.loop.handFrame(fix(300, 520, env.at()), [], 1280, 960);
-  assert.equal(env.sent.filter((event) => event.type === 'GUIDE_TARGET_LOST').length, 0);
-  env.tick(250);
-  await env.loop.handFrame(fix(300, 520, env.at()), [], 1280, 960);
-  const lost = env.sent.filter((event) => event.type === 'GUIDE_TARGET_LOST');
-  assert.equal(lost.length, 1);
-  assert.deepEqual(lost[0], { type: 'GUIDE_TARGET_LOST', cue: 'phone_left_small' });
-});
-
-test('a target leaving and returning logs both moments', async () => {
-  const env = harness();
-  await env.loop.handFrame(fix(300, 520, env.at()), [TARGET], 1280, 960);
-  env.tick(250);
-  await env.loop.handFrame(fix(300, 520, env.at()), [], 1280, 960);
-  env.tick(250);
-  await env.loop.handFrame(fix(300, 520, env.at()), [], 1280, 960);
-  assert.ok(env.logs.includes('guide target out of view'));
-  env.tick(250);
-  await env.loop.handFrame(fix(300, 520, env.at()), [TARGET], 1280, 960);
-  assert.ok(env.logs.includes('guide target back in view'));
 });

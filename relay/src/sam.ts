@@ -5,6 +5,7 @@
 // JavaScript decode that froze the test project's screen.
 import { parseImageStream, recordsOfKind, ResponsesStreamError } from '@meta-sam/parser';
 import { traceMaskOutline } from './masks.ts';
+import { metaDeadline } from './spark.ts';
 
 export interface SamBox {
   x1: number;
@@ -170,6 +171,7 @@ export async function outlineProducts(
       stream: true,
       metadata: { mask_encoding: 'one_bit' },
     }),
+    signal: metaDeadline(),
   });
   if (!res.ok) {
     throw new Error(`sam http ${res.status}`);

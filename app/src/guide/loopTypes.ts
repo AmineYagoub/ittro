@@ -20,6 +20,7 @@ export interface GuideLoopDeps {
 
 export interface GuideLoop {
   setTarget: (outline: ShelfOutline, label?: string) => void;
+  syncTarget: (box: ShelfBox) => void;
   setPhoto: (photo: GuideLoopPhoto) => void;
   reset: () => void;
   handFrame: (fix: HandFix | null, outlines: ShelfOutline[], photoW: number, photoH: number) => Promise<void>;
@@ -31,7 +32,9 @@ export interface GuideLoopState {
   photo: GuideLoopPhoto | null;
   lastSeenAt: number | null;
   sentLost: boolean;
+  sentLostAt: number;
   sentNoHand: boolean;
+  sentNoHandAt: number;
   heldCue: string | null;
   heldSince: number;
   sentAlmost: boolean;
@@ -46,6 +49,8 @@ export interface GuideLoopState {
   trail: Array<{ tip: TipPoint; center: TipPoint }>;
   targetGone: number;
   sentTargetLost: boolean;
+  sentTargetLostAt: number;
+  loggedCue: string | null;
   inputKind: 'move' | 'almost' | 'covering' | null;
   kind: 'move' | 'almost' | 'covering' | null;
   kindSince: number;
@@ -58,7 +63,9 @@ export function freshGuideState(): GuideLoopState {
     photo: null,
     lastSeenAt: null,
     sentLost: false,
+    sentLostAt: 0,
     sentNoHand: false,
+    sentNoHandAt: 0,
     heldCue: null,
     heldSince: 0,
     sentAlmost: false,
@@ -73,6 +80,8 @@ export function freshGuideState(): GuideLoopState {
     trail: [],
     targetGone: 0,
     sentTargetLost: false,
+    sentTargetLostAt: 0,
+    loggedCue: null,
     inputKind: null,
     kind: null,
     kindSince: 0,

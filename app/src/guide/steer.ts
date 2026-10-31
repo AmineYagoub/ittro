@@ -1,15 +1,24 @@
 // Steering, pure: one axis at a time, left or right before up or
-// down, a small correction under one hand width, the almost ring at
-// the outline, covering inside it. Proximity 0 far to 1 touching
-// drives the tick gap and the five meter segments.
+// down, a small correction under one box width, the almost ring at
+// the outline, covering inside it. The ring and the small threshold
+// scale with the product box, never with the hand: a hand near the
+// lens is wider than the product, and a hand-sized ring swallowed
+// the box. Proximity 0 far to 1 touching drives the tick gap and the
+// five meter segments.
 import type { ShelfBox } from '../relay';
 import type { GuidePosition } from '../conversation/types';
 import type { GuideDir, SteerVerdict, TipPoint } from './types';
 
-const ALMOST_MARGIN = 0.3;
+const ALMOST_MARGIN = 0.25;
 
-export function steerFor(tip: TipPoint, box: ShelfBox, handWidth: number): SteerVerdict {
-  const margin = Math.max(1, ALMOST_MARGIN * handWidth);
+export function almostMargin(box: ShelfBox): number {
+  const short = Math.min(box.x2 - box.x1, box.y2 - box.y1);
+  return Math.max(1, ALMOST_MARGIN * short);
+}
+
+export function steerFor(tip: TipPoint, box: ShelfBox): SteerVerdict {
+  const margin = almostMargin(box);
+  const boxWidth = Math.max(1, box.x2 - box.x1);
   const insideInner =
     tip.x >= box.x1 + margin && tip.x <= box.x2 - margin && tip.y >= box.y1 + margin && tip.y <= box.y2 - margin;
   if (insideInner) {
@@ -22,10 +31,10 @@ export function steerFor(tip: TipPoint, box: ShelfBox, handWidth: number): Steer
   const gapX = tip.x < box.x1 ? box.x1 - tip.x : tip.x > box.x2 ? tip.x - box.x2 : 0;
   const gapY = tip.y < box.y1 ? box.y1 - tip.y : tip.y > box.y2 ? tip.y - box.y2 : 0;
   if (gapX > margin) {
-    return { kind: 'move', dir: tip.x < box.x1 ? 'right' : 'left', small: gapX < handWidth };
+    return { kind: 'move', dir: tip.x < box.x1 ? 'right' : 'left', small: gapX < boxWidth };
   }
   if (gapY > margin) {
-    return { kind: 'move', dir: tip.y < box.y1 ? 'down' : 'up', small: gapY < handWidth };
+    return { kind: 'move', dir: tip.y < box.y1 ? 'down' : 'up', small: gapY < boxWidth };
   }
   return { kind: 'almost' };
 }

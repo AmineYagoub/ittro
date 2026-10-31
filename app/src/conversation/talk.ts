@@ -47,9 +47,11 @@ import {
   spawnStream,
   usePausedNote,
 } from './actions';
+import { consumedFinal, logConsumedFinal } from './consumed';
 import type { ContextArgs } from './actions';
 import { buttonsLines } from './answers';
-import { hasLinkLine, raiseLinkDown, raiseLinkForError, raiseLinkOk, sayLinkLine } from './link';
+import { UNDERSTAND_TIMEOUT_MS, hasLinkLine, raiseLinkDown, raiseLinkForError, raiseLinkOk, sayLinkLine, understandTimedOut } from './link';
+import { sayTo } from './sayTo';
 import { applyTranslated, skipKeep, skipSay, translateKeep } from './translation';
 import { notePartial, partialWorthy, speculatingState } from './speculating';
 import { chainActions, routingTransitions } from './routing';
@@ -72,23 +74,9 @@ import {
   searchTalkOn,
 } from './search';
 
-function sayTo(target: 'listening' | 'sleeping' | 'over' | 'resumed' | 'routing' | 'translating', raiseClock: boolean) {
-  const resolved = target === 'over' ? '#conversation.over' : target;
-  return {
-    entry: [markTalkBusy, noteVoice, noteSaying],
-    invoke: {
-      src: 'speakMany' as const,
-      input: ({ context }: ContextArgs) => ({ lines: context.pendingSay, lang: context.lang }),
-      onDone: { actions: raiseClock ? [noteSaid, raiseQuestion] : [noteSaid], target: resolved },
-      onError: { actions: [noteSaid], target: resolved },
-    },
-    exit: [markTalkQuiet],
-    on: bargeIn,
-  };
-}
-
 const listeningShared = {
   FINAL_TEXT: [
+    { guard: consumedFinal, actions: [logConsumedFinal] },
     { guard: echoFull, actions: [logEchoDrop] },
     { guard: echoStripped, actions: [noteHeardStripped, logHeardStripped, raiseHeard], target: 'understanding' },
     { guard: nonEmptyFinal, actions: [noteHeard, logHeard, raiseHeard], target: 'understanding' },
@@ -223,6 +211,7 @@ export const talkState = {
         },
         { src: 'ticking' as const, input: { everyMs: speech.workingTickEveryMs } },
       ],
+      after: { [UNDERSTAND_TIMEOUT_MS]: { actions: understandTimedOut, target: 'listening' } },
     },
     routing: {
       always: routingTransitions,

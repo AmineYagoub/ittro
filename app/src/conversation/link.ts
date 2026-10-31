@@ -9,10 +9,24 @@ import { linkKindFor } from '../metaCall';
 import type { LinkKind } from '../metaCall';
 import { linkBroken, linkDown, linkLimited } from '../lines';
 import type { ConversationEvent } from './types';
+import { logIttro } from '../log';
 
 export const raiseLinkOk = raise({ type: 'LINK_OK' });
 
 export const raiseLinkDown = raise({ type: 'LINK_DOWN' });
+
+export const raiseLinkBroken = raise({ type: 'LINK_BROKEN' });
+
+// Understanding never waits forever: past this, the relay is taken
+// as broken, the link line queues, and listening resumes.
+export const UNDERSTAND_TIMEOUT_MS = 20000;
+
+export const understandTimedOut = [
+  (): void => {
+    logIttro(`understand timed out after ${UNDERSTAND_TIMEOUT_MS}ms`);
+  },
+  raiseLinkBroken,
+];
 
 export function linkEvent(kind: LinkKind): ConversationEvent {
   if (kind === 'down') {

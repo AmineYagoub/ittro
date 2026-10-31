@@ -23,6 +23,8 @@ import { decodeBase64, ingestGrey } from './tracker';
 import type { GreyFrame } from './tracker';
 import { CROP_MARGIN, expandBox } from './outlines';
 import type { ConversationContext, ConversationEvent } from '../conversation/types';
+import { lastHandFix } from '../guide/frames';
+import type { HandFix } from '../guide/types';
 import { logIttro } from '../log';
 
 export interface SearchCamera {
@@ -47,7 +49,14 @@ interface PanStats {
   panMs: number[];
   applied: number;
   scenes: number;
+  frozen: number;
   start: number;
+}
+
+export const HAND_PAN_FREEZE_MS = 500;
+
+export function panFrozenByHand(hand: HandFix | null, now: number): boolean {
+  return hand !== null && now - hand.atMs <= HAND_PAN_FREEZE_MS;
 }
 
 interface HeldSearch {
@@ -63,7 +72,7 @@ const CLOUD_EVERY_MS = 500;
 const TRACK_SUMMARY_EVERY = 40;
 
 function freshStats(): PanStats {
-  return { count: 0, panMs: [], applied: 0, scenes: 0, start: Date.now() };
+  return { count: 0, panMs: [], applied: 0, scenes: 0, frozen: 0, start: Date.now() };
 }
 
 function percentile(sorted: number[], rank: number): number {
@@ -121,6 +130,7 @@ export function useShelfSearch(
           lang: (context?.lang ?? 'en') as Language,
           alternative: context?.alternative ?? null,
           checkedCount: context?.checkedCount ?? 0,
+          guiding: context?.guiding ?? false,
         };
       },
       send: (event) => {
@@ -211,7 +221,7 @@ export function useShelfSearch(
       const ordered = [...stats.panMs].sort((a, b) => a - b);
       const heat = thermalStatus();
       note(
-        `track ${(stats.count / Math.max(1, secs)).toFixed(1)}/s pan p50 ${percentile(ordered, 0.5)}ms p95 ${percentile(ordered, 0.95)}ms applied ${stats.applied} scene ${stats.scenes} photo ${held.current.photoW} thermal ${heat === null ? 'unknown' : heat}`,
+        `track ${(stats.count / Math.max(1, secs)).toFixed(1)}/s pan p50 ${percentile(ordered, 0.5)}ms p95 ${percentile(ordered, 0.95)}ms applied ${stats.applied} frozen ${stats.frozen} scene ${stats.scenes} photo ${held.current.photoW} thermal ${heat === null ? 'unknown' : heat}`,
       );
       held.current.stats = freshStats();
     }
@@ -232,6 +242,15 @@ export function useShelfSearch(
         const stats = held.current.stats;
         stats.count += 1;
         stats.panMs.push(pan.panMs);
+        if (panFrozenByHand(lastHandFix(), Date.now())) {
+          // The pan is measured on the whole frame, and a hand near
+          // the lens is most of it: its motion read as the shelf
+          // moving and dragged every outline after the hand. While
+          // a hand is in view the outlines hold; the next SAM pass
+          // re-anchors them.
+          stats.frozen += 1;
+          return;
+        }
         if (pan.changed) {
           stats.scenes += 1;
         } else if (pan.dx !== 0 || pan.dy !== 0) {

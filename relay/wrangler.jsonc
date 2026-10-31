@@ -14,11 +14,15 @@
     { "binding": "ITTRO_LIMITS", "id": "7f63a9ce59ad44dca7d465d1a8f61e68" },
     { "binding": "ITTRO_HELPERS", "id": "00000000000000000000000000000000" }
   ],
+  // One live session makes 26 to 29 relay calls a minute and about
+  // 44 Spark calls per 3 minutes (phone run 3), so the old 30 a
+  // minute and $3 a day refused a demo after about 20 minutes of
+  // rehearsal. These hold a demo day; lower them again after.
   "vars": {
     "META_API_BASE": "https://api.meta.ai/v1",
-    "DAILY_BUDGET_USD": "3",
+    "DAILY_BUDGET_USD": "15",
     "SPARK_COST_USD": "0.01",
     "SAM_COST_USD": "0.0025",
-    "RATE_LIMIT_PER_MINUTE": "30"
+    "RATE_LIMIT_PER_MINUTE": "120"
   }
 }

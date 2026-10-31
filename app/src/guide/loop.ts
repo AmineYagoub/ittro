@@ -2,21 +2,27 @@
 // at most one guide event. A new cue holds 0.4 s before it speaks,
 // almost and covering are edges, a recent dropout is lost while a
 // long absence is no hand, a rest on another product reads it, and
-// contact needs the target moving with the hand. The clock, the
-// photo and the cloud read are injected, so tests walk it with
-// scripted frames and the phone drives it with live stills.
+// contact needs the target moving with the hand. The target box is
+// the statechart's: syncTarget carries every move, so the loop and
+// the green rectangle never steer toward two different boxes; the
+// loop only tells in view from out of view. Out of view, lost and
+// no hand repeat every two seconds, so a dropped event never leaves
+// the shopper without the next one. The clock, the photo and the
+// cloud read are injected, so tests walk it with scripted frames and
+// the phone drives it with live stills.
 import type { ShelfBox, ShelfOutline } from '../relay';
 import { linkKindFor } from '../metaCall';
 import { linkEvent } from '../conversation/link';
 import { boxOverlap } from '../shelf/outlines';
 import { centerOf, cueIdFor, proximityFor, steerFor } from './steer';
 import type { HandFix, TipPoint } from './types';
+import { cosine, describeCue, inside, sameBox } from './loopMath';
 import { freshGuideState } from './loopTypes';
 import type { GuideLoop, GuideLoopDeps, GuideLoopPhoto } from './loopTypes';
 
 const CUE_HOLD_MS = 400;
 const KIND_HOLD_MS = 500;
-const EDGE_HEARTBEAT_MS = 2000;
+export const EDGE_HEARTBEAT_MS = 2000;
 const LOST_WITHIN_MS = 2000;
 const COVER_MS = 1000;
 const REST_MS = 500;
@@ -28,54 +34,55 @@ const CONTACT_SHIFT_PX = 6;
 const CONTACT_ALIGN = 0.7;
 const MIN_CONFIDENCE = 0.3;
 
-function inside(tip: TipPoint, box: ShelfBox): boolean {
-  return tip.x >= box.x1 && tip.x <= box.x2 && tip.y >= box.y1 && tip.y <= box.y2;
-}
-
-function cosine(a: TipPoint, b: TipPoint): number {
-  const lengths = Math.hypot(a.x, a.y) * Math.hypot(b.x, b.y);
-  if (lengths <= 0) {
-    return 0;
-  }
-  return (a.x * b.x + a.y * b.y) / lengths;
-}
-
 export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
   const state = freshGuideState();
 
+  function due(sent: boolean, at: number): boolean {
+    return !sent || deps.now() - at >= EDGE_HEARTBEAT_MS;
+  }
+
+  function logCue(id: string, tip: TipPoint, box: ShelfBox, handWidth: number): void {
+    if (state.loggedCue !== id) {
+      state.loggedCue = id;
+      deps.log(describeCue(id, tip, box, handWidth));
+    }
+  }
+
+  // In view or out of view, by overlap with the live outlines. The
+  // box itself never changes here: it follows the statechart's.
   function trackTarget(outlines: ShelfOutline[], photoW: number): void {
-    if (!state.target) {
+    const target = state.target;
+    if (!target) {
       return;
     }
-    let best: ShelfBox | null = null;
     let bestIoU = 0;
     for (const outline of outlines) {
-      const score = boxOverlap(state.target, outline.box);
-      if (score > bestIoU) {
-        bestIoU = score;
-        best = outline.box;
-      }
+      bestIoU = Math.max(bestIoU, boxOverlap(target, outline.box));
     }
-    if (best && bestIoU >= TARGET_MATCH_IOU) {
+    if (bestIoU >= TARGET_MATCH_IOU) {
       if (state.sentTargetLost) {
         deps.log('guide target back in view');
+        state.loggedCue = null;
       }
-      state.target = best;
       state.targetGone = 0;
       state.sentTargetLost = false;
       return;
     }
     state.targetGone += 1;
-    if (state.targetGone >= TARGET_GONE_FRAMES && !state.sentTargetLost) {
-      state.sentTargetLost = true;
-      deps.log('guide target out of view');
-      const center = centerOf(state.target);
-      const side = photoW > 0 && center.x < photoW / 2 ? 'left' : 'right';
-      deps.send({ type: 'GUIDE_TARGET_LOST', cue: `phone_${side}_small` });
+    if (state.targetGone < TARGET_GONE_FRAMES || !due(state.sentTargetLost, state.sentTargetLostAt)) {
+      return;
     }
+    if (!state.sentTargetLost) {
+      deps.log('guide target out of view');
+    }
+    state.sentTargetLost = true;
+    state.sentTargetLostAt = deps.now();
+    const center = centerOf(target);
+    const side = photoW > 0 && center.x < photoW / 2 ? 'left' : 'right';
+    deps.send({ type: 'GUIDE_TARGET_LOST', cue: `phone_${side}_small` });
   }
 
-  function miss(): void {
+  function clearApproach(): void {
     state.heldCue = null;
     state.sentAlmost = false;
     state.coverSince = null;
@@ -85,17 +92,23 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
     state.restRead = false;
     state.trail = [];
     state.inputKind = null;
+  }
+
+  function miss(): void {
+    clearApproach();
     const last = state.lastSeenAt;
     if (last === null || deps.now() - last >= LOST_WITHIN_MS) {
-      if (!state.sentNoHand) {
+      if (due(state.sentNoHand, state.sentNoHandAt)) {
         state.sentNoHand = true;
+        state.sentNoHandAt = deps.now();
         state.sentLost = false;
         deps.send({ type: 'GUIDE_NOHAND' });
       }
       return;
     }
-    if (!state.sentLost) {
+    if (due(state.sentLost, state.sentLostAt)) {
       state.sentLost = true;
+      state.sentLostAt = deps.now();
       state.sentNoHand = false;
       deps.send({ type: 'GUIDE_LOST' });
     }
@@ -142,7 +155,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
         return;
       }
       const label = [verdict.brand_text, verdict.size_text].filter((part) => part && part.length > 0).join(' ') || verdict.spoken;
-      const steer = steerFor(tip, target, handWidth);
+      const steer = steerFor(tip, target);
       const cue = steer.kind === 'move' ? cueIdFor(steer.dir, steer.small, false) : cueToward(tip, target);
       deps.log(`guide rest read ${answer.readMs}ms verdict no label ${label}`);
       deps.send({ type: 'GUIDE_WRONG', label, cue });
@@ -178,9 +191,17 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
       state.label = label;
       state.targetGone = 0;
       state.sentTargetLost = false;
+      state.sentTargetLostAt = 0;
       state.coverSince = null;
       state.sentCovering = false;
       state.sentContact = false;
+      state.loggedCue = null;
+    },
+
+    syncTarget(box: ShelfBox): void {
+      if (state.target && !sameBox(state.target, box)) {
+        state.target = { ...box };
+      }
     },
 
     setPhoto(photo: GuideLoopPhoto): void {
@@ -205,9 +226,16 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
       state.lastSeenAt = deps.now();
       state.sentLost = false;
       state.sentNoHand = false;
+      if (state.sentTargetLost) {
+        // No hand cue against a box the camera cannot see: the
+        // phone cue is the one that counts until the target is back.
+        clearApproach();
+        state.kind = null;
+        return;
+      }
       const tip = { x: fix.x, y: fix.y };
       const proximity = proximityFor(tip, tracked, Math.hypot(photoW, photoH));
-      const steer = steerFor(tip, tracked, fix.handWidth);
+      const steer = steerFor(tip, tracked);
       await restRead(tip, outlines, tracked, fix.handWidth);
       if (steer.kind !== state.inputKind) {
         state.inputKind = steer.kind;
@@ -237,6 +265,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
           state.heldSince = deps.now();
         }
         if (deps.now() - state.heldSince >= CUE_HOLD_MS) {
+          logCue(id, tip, tracked, fix.handWidth);
           deps.send({ type: 'GUIDE_CUE', cue: id, proximity, hand: { x: tip.x, y: tip.y } });
         }
       } else if (steer.kind === 'almost') {
@@ -245,9 +274,10 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
         state.sentCovering = false;
         state.sentContact = false;
         state.trail = [];
-        if (!state.sentAlmost || deps.now() - state.sentAlmostAt >= EDGE_HEARTBEAT_MS) {
+        if (due(state.sentAlmost, state.sentAlmostAt)) {
           state.sentAlmost = true;
           state.sentAlmostAt = deps.now();
+          logCue('almost', tip, tracked, fix.handWidth);
           deps.send({ type: 'GUIDE_ALIGNED', proximity, hand: { x: tip.x, y: tip.y } });
         }
       } else {
@@ -256,12 +286,10 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
         if (state.coverSince === null) {
           state.coverSince = deps.now();
         }
-        if (
-          deps.now() - state.coverSince >= COVER_MS &&
-          (!state.sentCovering || deps.now() - state.sentCoveringAt >= EDGE_HEARTBEAT_MS)
-        ) {
+        if (deps.now() - state.coverSince >= COVER_MS && due(state.sentCovering, state.sentCoveringAt)) {
           state.sentCovering = true;
           state.sentCoveringAt = deps.now();
+          logCue('covering', tip, tracked, fix.handWidth);
           deps.send({ type: 'GUIDE_COVERING', proximity, hand: { x: tip.x, y: tip.y } });
         }
         contact(tip, tracked);

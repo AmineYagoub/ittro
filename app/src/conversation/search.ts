@@ -79,6 +79,8 @@ export const resumeSearch = assign({
 
 export const storeOutlined = assign({
   outlines: ({ event }: EventArgs) => (event.type === 'SHELF_OUTLINED' ? event.outlines : []),
+  guideTarget: ({ context, event }: EventArgs) =>
+    event.type === 'SHELF_OUTLINED' ? followTarget(context.guideTarget, event.outlines) : context.guideTarget,
   checkedCount: ({ context, event }: EventArgs) =>
     event.type === 'SHELF_OUTLINED' ? context.checkedCount + event.outlines.length : context.checkedCount,
   pendingSearch: ({ context, event }: EventArgs) =>
@@ -149,28 +151,33 @@ export const storeNoShelf = assign({
       : context.pendingSearch,
 });
 
+// The found target follows the outline that overlaps it best, and
+// only that: SAM numbers its objects per response, so an id says
+// nothing across passes, and matching by id dragged the rectangle to
+// another product while the loop still steered to the old box. When
+// nothing overlaps, the last box holds until the product is back.
+export const TARGET_FOLLOW_IOU = 0.3;
+
+export function followTarget(target: ShelfOutline | null, outlines: ShelfOutline[]): ShelfOutline | null {
+  if (!target) {
+    return null;
+  }
+  let best: ShelfOutline | null = null;
+  let bestScore = TARGET_FOLLOW_IOU;
+  for (const outline of outlines) {
+    const score = boxOverlap(target.box, outline.box);
+    if (score >= bestScore) {
+      bestScore = score;
+      best = outline;
+    }
+  }
+  return best ?? target;
+}
+
 export const storeMoved = assign({
   outlines: ({ event }: EventArgs) => (event.type === 'OUTLINES_MOVED' ? event.outlines : []),
-  guideTarget: ({ context, event }: EventArgs) => {
-    if (event.type !== 'OUTLINES_MOVED' || !context.guideTarget) {
-      return context.guideTarget;
-    }
-    const target = context.guideTarget;
-    const exact = event.outlines.find((outline) => outline.frame === target.frame && outline.id === target.id);
-    if (exact) {
-      return exact;
-    }
-    let best: ShelfOutline | null = null;
-    let bestScore = 0.3;
-    for (const outline of event.outlines) {
-      const score = boxOverlap(target.box, outline.box);
-      if (score >= bestScore) {
-        bestScore = score;
-        best = outline;
-      }
-    }
-    return best ?? target;
-  },
+  guideTarget: ({ context, event }: EventArgs) =>
+    event.type === 'OUTLINES_MOVED' ? followTarget(context.guideTarget, event.outlines) : context.guideTarget,
 });
 
 export const storeTurn = assign({

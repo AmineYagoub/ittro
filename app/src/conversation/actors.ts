@@ -46,8 +46,15 @@ export const enqueueConversation = rawEnqueue<
   never
 >;
 
-export const speakMany = fromPromise<void, SpeakInput>(async ({ input }) => {
+// A speaking actor stops with its state: the promise outlives the
+// invoke, so each part checks the actor's abort signal first.
+// Without that, a left-over sequence kept playing its next clip over
+// the state that had replaced it, and cut that state's clip short.
+export const speakMany = fromPromise<void, SpeakInput>(async ({ input, signal }) => {
   for (const line of input.lines) {
+    if (signal.aborted) {
+      return;
+    }
     logIttro(`say: ${JSON.stringify(line.text)}`);
     const started = Date.now();
     await say(line.text, input.lang);
@@ -55,8 +62,11 @@ export const speakMany = fromPromise<void, SpeakInput>(async ({ input }) => {
   }
 });
 
-export const speakParts = fromPromise<void, SpeakPartsInput>(async ({ input }) => {
+export const speakParts = fromPromise<void, SpeakPartsInput>(async ({ input, signal }) => {
   for (const part of input.parts) {
+    if (signal.aborted) {
+      return;
+    }
     if ('clip' in part) {
       logIttro(`clip: ${part.clip}`);
       await sayClip(part.clip, input.lang);
@@ -92,12 +102,11 @@ function cacheStore(key: string, value: UnderstandAnswer): void {
   }
 }
 
-export const understandAnswer = fromPromise(async ({ input }: { input: UnderstandInput }) => {
-  const cached = understandCache.get(fullCacheKey(input)) ?? understandCache.get(shortCacheKey(input));
-  if (cached) {
-    logIttro(`understand cached: ${JSON.stringify(input.transcript)}`);
-    return cached;
-  }
+// One relay call per sentence: a final that equals the partial still
+// in flight joins that call instead of sending a second one.
+const understandInFlight = new Map<string, Promise<UnderstandAnswer>>();
+
+async function fetchUnderstand(input: UnderstandInput): Promise<UnderstandAnswer> {
   logIttro(`understand sent: ${JSON.stringify(input.transcript)}`);
   const answer = await understandUtterance({
     transcript: input.transcript,
@@ -114,6 +123,25 @@ export const understandAnswer = fromPromise(async ({ input }: { input: Understan
     cacheStore(shortCacheKey(input), answer);
   }
   return answer;
+}
+
+export const understandAnswer = fromPromise(async ({ input }: { input: UnderstandInput }) => {
+  const cached = understandCache.get(fullCacheKey(input)) ?? understandCache.get(shortCacheKey(input));
+  if (cached) {
+    logIttro(`understand cached: ${JSON.stringify(input.transcript)}`);
+    return cached;
+  }
+  const key = fullCacheKey(input);
+  const running = understandInFlight.get(key);
+  if (running) {
+    logIttro(`understand joined: ${JSON.stringify(input.transcript)}`);
+    return running;
+  }
+  const call = fetchUnderstand(input).finally(() => {
+    understandInFlight.delete(key);
+  });
+  understandInFlight.set(key, call);
+  return call;
 });
 
 export const tourSequence = fromPromise<void, TourInput>(async ({ input }) => {

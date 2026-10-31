@@ -21,6 +21,8 @@ export function initialContext({ input }: { input: MachineInput }): Conversation
     specAnswer: null,
     specEpoch: 0,
     lastPartialAt: null,
+    consumedText: null,
+    consumedAt: 0,
     request: input.snapshot.request,
     requestLang: null,
     translateSource: null,

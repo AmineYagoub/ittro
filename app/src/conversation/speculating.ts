@@ -3,6 +3,7 @@
 // matches what was speculated, its answer routes at once.
 import { assignConversation as assign } from './actors';
 import type { ContextArgs } from './actions';
+import { consumedFinal, logConsumedFinal } from './consumed';
 import {
   alertDue,
   assignHelp,
@@ -71,10 +72,15 @@ export const specYesReady = ({ context }: ContextArgs): boolean =>
 export const specYesStale = ({ context }: SpecArgs): boolean =>
   specYesReady({ context }) && context.lastPartialAt !== null && Date.now() - context.lastPartialAt > YES_STABLE_MS;
 
+// An early route remembers the text it routed: the final of that
+// same sentence lands a moment later, and must not be understood a
+// second time (it said "I didn't catch that" twice, 30 ms apart).
 export const noteSpecEarly = assign({
   transcript: ({ context }: ContextArgs) => context.specText ?? '',
   routeAnswer: ({ context }: ContextArgs) => context.specAnswer,
   misses: 0,
+  consumedText: ({ context }: ContextArgs) => context.specText,
+  consumedAt: () => Date.now(),
   specText: null,
   specAnswer: null,
 });
@@ -127,6 +133,7 @@ export const speculatingState = {
   },
   on: {
     FINAL_TEXT: [
+      { guard: consumedFinal, actions: [logConsumedFinal] },
       { guard: finalMatch, actions: [noteSpecHit], target: 'routing' },
       { guard: echoFull, actions: [logEchoDrop] },
       { guard: echoStripped, actions: [noteHeardStripped, logHeardStripped, raiseHeard], target: 'understanding' },

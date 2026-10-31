@@ -126,3 +126,17 @@ test('a second yes in the conversation needs no new call', async () => {
     fetch.restore();
   }
 });
+
+test('two understandings of the same sentence in flight share one relay call', async () => {
+  resetStorage();
+  const fetched = stubFetch(() => answer({ intent: 'confirm_yes' }));
+  try {
+    const input = inputFor('Yes that is the one in flight', 'Masaad water');
+    const [first, second] = await Promise.all([ask(input), ask(input)]);
+    assert.equal(fetched.calls, 1);
+    assert.equal(first.intent, 'confirm_yes');
+    assert.equal(second.intent, 'confirm_yes');
+  } finally {
+    fetched.restore();
+  }
+});

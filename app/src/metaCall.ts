@@ -36,10 +36,17 @@ export function relayEndpoint(): { url: string; accessCode: string } {
   };
 }
 
+// No call waits forever: a relay that never answers counts as down
+// after this long, so the statechart says so and moves on instead of
+// ticking in silence.
+export const RELAY_TIMEOUT_MS = 15000;
+
 async function sendMeta<T>(name: string, path: string, method: string, payload: unknown): Promise<T> {
   const { url, accessCode } = relayEndpoint();
   const started = Date.now();
   noteMeta(`${name} sent`);
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), RELAY_TIMEOUT_MS);
   let res: Response;
   try {
     res = await fetch(`${url}${path}`, {
@@ -49,10 +56,14 @@ async function sendMeta<T>(name: string, path: string, method: string, payload: 
         authorization: `Bearer ${accessCode}`,
       },
       body: method === 'GET' ? undefined : JSON.stringify(payload),
+      signal: abort.signal,
     });
   } catch (error) {
-    noteMeta(`${name} failed down ${Date.now() - started}ms`);
-    throw new RelayError('down', null, `no route to the relay: ${String((error as Error)?.message ?? error)}`);
+    const why = abort.signal.aborted ? `timed out after ${RELAY_TIMEOUT_MS}ms` : String((error as Error)?.message ?? error);
+    noteMeta(`${name} failed down ${Date.now() - started}ms ${abort.signal.aborted ? 'timeout' : ''}`.trimEnd());
+    throw new RelayError('down', null, `no route to the relay: ${why}`);
+  } finally {
+    clearTimeout(timer);
   }
   const elapsed = Date.now() - started;
   if (res.status === 429 || res.status === 402) {

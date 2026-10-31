@@ -10,8 +10,7 @@ import { soundFile } from './theme';
 import { cueClip, cueText } from './voiceClips';
 import { soundAsset } from './soundBank';
 import { logIttro } from './log';
-
-const SPEECH_LOCALE: Record<Language, string> = { en: 'en-US', ar: 'ar-SA', fr: 'fr-FR' };
+import { speakWithRetry, speechBudgetMs } from './speechEngine';
 
 const CLIP_TIMEOUT_MS = 8000;
 
@@ -23,6 +22,33 @@ let generation = 0;
 let talkBack = false;
 let activePlayer: AudioPlayer | null = null;
 let speechRate = 1;
+
+// The voice gate: while a line or a clip plays, and for a short tail
+// after it, the microphone uplink carries silence instead of the
+// room, so nothing Ittro says can come back as a transcript. Sounds
+// (ticks, chimes) never close the gate. The design's own fallback
+// (DESIGN.md, "Interrupting"); the earbud button still interrupts.
+export const VOICE_TAIL_MS = 300;
+
+let speakingCount = 0;
+let voiceTailUntil = 0;
+
+export function voiceGateClosed(now: number = Date.now()): boolean {
+  return speakingCount > 0 || now < voiceTailUntil;
+}
+
+function openVoice(): () => void {
+  speakingCount += 1;
+  let released = false;
+  return () => {
+    if (released) {
+      return;
+    }
+    released = true;
+    speakingCount -= 1;
+    voiceTailUntil = Date.now() + VOICE_TAIL_MS;
+  };
+}
 
 export async function initVoice(): Promise<void> {
   talkBack = await AccessibilityInfo.isScreenReaderEnabled();
@@ -55,11 +81,6 @@ function alive(g: number): boolean {
   return g === generation;
 }
 
-function speechBudgetMs(text: string): number {
-  const words = text.split(/\s+/).length;
-  return 600 + (words / 2.5) * 1000;
-}
-
 function waitEstimate(text: string, g: number): Promise<void> {
   const budgetMs = speechBudgetMs(text);
   const started = Date.now();
@@ -75,127 +96,21 @@ function waitEstimate(text: string, g: number): Promise<void> {
   });
 }
 
-type SpeakOutcome = 'done' | 'stopped' | 'error' | 'slow' | 'unacked' | 'dropped';
-
-async function engineSpeaking(): Promise<boolean> {
-  try {
-    return await Speech.isSpeakingAsync();
-  } catch {
-    return false;
-  }
-}
-
-function sleepMs(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function speakOnce(text: string, lang: Language): Promise<SpeakOutcome> {
-  return new Promise((resolve) => {
-    let done = false;
-    let heardEngine = false;
-    const begun = Date.now();
-    const finish = (outcome: SpeakOutcome): void => {
-      if (!done) {
-        done = true;
-        clearTimeout(timer);
-        clearInterval(probe);
-        resolve(outcome);
-      }
-    };
-    const probe = setInterval(() => {
-      void engineSpeaking().then((speaking) => {
-        heardEngine = heardEngine || speaking;
-      });
-    }, 200);
-    const timer = setTimeout(() => {
-      void engineSpeaking().then((speaking) => {
-        if (speaking) {
-          finish('slow');
-        } else if (heardEngine) {
-          finish('unacked');
-        } else {
-          finish('dropped');
-        }
-      });
-    }, speechBudgetMs(text));
-    try {
-      Speech.speak(text, {
-        language: SPEECH_LOCALE[lang],
-        rate: speechRate,
-        onStart: () => logIttro(`say started ${Date.now() - begun}ms`),
-        onDone: () => finish('done'),
-        onStopped: () => finish('stopped'),
-        onError: () => finish('error'),
-      });
-    } catch {
-      finish('error');
-    }
-  });
-}
-
-async function waitForEngine(text: string, g: number): Promise<void> {
-  const budgetMs = speechBudgetMs(text);
-  const started = Date.now();
-  for (;;) {
-    if (!alive(g) || !(await engineSpeaking())) {
-      return;
-    }
-    if (Date.now() - started >= budgetMs) {
-      void Speech.stop();
-      return;
-    }
-    await sleepMs(200);
-  }
-}
-
-function retryLog(outcome: 'error' | 'dropped', again: boolean): string {
-  if (outcome === 'dropped') {
-    return again ? 'say dropped, saying again' : 'say dropped twice, carrying on';
-  }
-  return again ? 'say failed, saying again' : 'say failed twice, carrying on';
-}
-
-async function speakWithRetry(text: string, lang: Language, g: number): Promise<void> {
-  const first = await speakOnce(text, lang);
-  if (!alive(g) || first === 'done' || first === 'stopped') {
-    return;
-  }
-  if (first === 'slow') {
-    logIttro('say slow, waiting for the engine');
-    await waitForEngine(text, g);
-    return;
-  }
-  if (first === 'unacked') {
-    logIttro('say ended without its callback, carrying on');
-    return;
-  }
-  logIttro(retryLog(first, true));
-  void Speech.stop();
-  const second = await speakOnce(text, lang);
-  if (!alive(g) || second === 'done' || second === 'stopped') {
-    return;
-  }
-  if (second === 'slow') {
-    await waitForEngine(text, g);
-    return;
-  }
-  if (second === 'unacked') {
-    logIttro('say ended without its callback, carrying on');
-    return;
-  }
-  logIttro(retryLog(second, false));
-  void Speech.stop();
-}
-
-export function say(text: string, lang: Language): Promise<void> {
+export async function say(text: string, lang: Language): Promise<void> {
   const g = ++generation;
   stopPlayer();
   void Speech.stop();
-  if (talkBack) {
-    AccessibilityInfo.announceForAccessibility(text);
-    return waitEstimate(text, g);
+  const release = openVoice();
+  try {
+    if (talkBack) {
+      AccessibilityInfo.announceForAccessibility(text);
+      await waitEstimate(text, g);
+      return;
+    }
+    await speakWithRetry(text, lang, speechRate, () => alive(g));
+  } finally {
+    release();
   }
-  return speakWithRetry(text, lang, g);
 }
 
 function stopPlayer(): void {
@@ -211,7 +126,7 @@ function stopPlayer(): void {
   }
 }
 
-function playFile(source: unknown, rate: number): Promise<void> {
+function playFile(source: unknown, rate: number, voice: boolean): Promise<void> {
   const g = ++generation;
   stopPlayer();
   let player: AudioPlayer;
@@ -233,6 +148,7 @@ function playFile(source: unknown, rate: number): Promise<void> {
     }
     return Promise.resolve();
   }
+  const release = voice ? openVoice() : null;
   return new Promise((resolve) => {
     let done = false;
     const started = Date.now();
@@ -248,6 +164,7 @@ function playFile(source: unknown, rate: number): Promise<void> {
         activePlayer = null;
       }
       player.remove();
+      release?.();
       resolve();
     };
     const timer = setTimeout(() => {
@@ -288,13 +205,13 @@ export function sayClip(id: string, lang: Language): Promise<void> {
   if (!clip) {
     return say(cue[lang], lang);
   }
-  return playFile(clip, speechRate);
+  return playFile(clip, speechRate, true);
 }
 
 export function playSound(name: SoundName): void {
   const stem = soundFile[name].replace(/\.wav$/, '');
   const asset = (soundAsset as Record<string, unknown>)[stem];
   if (asset) {
-    void playFile(asset, 1);
+    void playFile(asset, 1, false);
   }
 }

@@ -11,6 +11,7 @@ import {
   noteHeardStripped,
   raiseHeard,
 } from './actions';
+import { consumedFinal, logConsumedFinal } from './consumed';
 import { notePartial, partialWorthy } from './speculating';
 import { stopSpokenVoice } from './buttons';
 
@@ -20,6 +21,7 @@ export const bargeIn = {
     { guard: partialWorthy, actions: [stopSpokenVoice, notePartial, raiseHeard], target: 'speculating' },
   ],
   FINAL_TEXT: [
+    { guard: consumedFinal, actions: [logConsumedFinal] },
     { guard: echoFull, actions: [logEchoDrop] },
     { guard: echoStripped, actions: [stopSpokenVoice, noteHeardStripped, logHeardStripped, raiseHeard], target: 'understanding' },
     { guard: nonEmptyFinal, actions: [stopSpokenVoice, noteHeard, logHeard, raiseHeard], target: 'understanding' },

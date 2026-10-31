@@ -66,6 +66,21 @@ test('the found target follows its box across a fresh shelf pass', async () => {
   }
 });
 
+test('a fresh pass reusing the target id elsewhere does not drag the rectangle', async () => {
+  const driver = await guiding();
+  try {
+    driver.send({
+      type: 'OUTLINES_MOVED',
+      outlines: [outline(7, 100, 100, 200, 260), outline(9, 610, 400, 770, 640)],
+    });
+    await driver.flush();
+    assert.equal(driver.context().guideTarget?.box.x1, 610);
+    assert.equal(driver.context().guideTarget?.id, 9);
+  } finally {
+    driver.stop();
+  }
+});
+
 test('the overlay hides while the target is out of view', async () => {
   const driver = await guiding();
   try {

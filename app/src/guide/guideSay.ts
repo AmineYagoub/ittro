@@ -269,8 +269,12 @@ export const foundTarget = ({ event }: EventArgs): boolean => event.type === 'SH
 
 export const confirmed = ({ context }: ContextArgs): boolean => context.request !== null && context.pendingRequest === null;
 
+function withoutContinue(cue: string): string {
+  return cue.replace(/_continue$/, '');
+}
+
 export const sameCue = ({ context, event }: EventArgs): boolean =>
-  event.type === 'GUIDE_CUE' && context.guideCue !== null && event.cue === context.guideCue;
+  event.type === 'GUIDE_CUE' && context.guideCue !== null && withoutContinue(event.cue) === withoutContinue(context.guideCue);
 
 export const wantsResume = ({ context }: ContextArgs): boolean => context.guideResume && context.guideTarget !== null;
 

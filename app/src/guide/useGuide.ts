@@ -173,11 +173,16 @@ export function useGuide(actor: { current: GuideActor | null }, active: boolean)
         if (!target) {
           return;
         }
-        const key = `${target.frame}:${target.id}`;
+        // One approach per search, not per SAM pass: a fresh pass
+        // stamps new ids on the same shelf, and the loop must not
+        // restart its hold or forget the target for that. The box
+        // follows the statechart's every frame.
+        const key = `${context.searchEpoch}:${context.guideLabel}`;
         if (held.current.targetKey !== key) {
           held.current.targetKey = key;
           loop.setTarget(target, context.guideLabel);
         }
+        loop.syncTarget(target.box);
         heatWatch();
         stats.noteFrame(frame);
         const photoW = target.box.w;

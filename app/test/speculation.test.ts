@@ -139,6 +139,32 @@ test('a short yes routes before the final arrives', async () => {
   }
 });
 
+test('the final of an early-routed yes is not understood twice', async () => {
+  resetStorage();
+  const driver = await startListening();
+  try {
+    let calls = 0;
+    driver.setUnderstand((input) => {
+      calls += 1;
+      if (input.transcript.includes('Masaad')) {
+        return answer({ intent: 'request_product', product_text: 'Masaad water' });
+      }
+      return answer({ intent: 'confirm_yes' });
+    });
+    await driver.heard("I'm looking for Masaad water");
+    await driver.partial('Yes,');
+    await driver.advance(900);
+    assert.equal(calls, 2);
+    const said = driver.spoken.length;
+    await driver.heard('Yes,');
+    assert.equal(calls, 2, 'the same final is dropped');
+    assert.equal(driver.spoken.length, said);
+    assert.equal(driver.context().request, 'Masaad water');
+  } finally {
+    driver.stop();
+  }
+});
+
 test('a no waits for the final, so corrections survive', async () => {
   resetStorage();
   const driver = await startListening();

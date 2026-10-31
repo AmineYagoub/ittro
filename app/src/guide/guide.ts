@@ -104,6 +104,7 @@ export const guideRegion = {
         GUIDE_COVERING: { actions: [sayReach], target: 'reaching' },
         GUIDE_NOHAND: { actions: [sayNoHand], target: 'noHand' },
         GUIDE_LOST: { actions: [sayLost], target: 'handLost' },
+        GUIDE_TARGET_LOST: { actions: [sayTargetLost], target: 'targetLost' },
       },
     },
     directing: {
@@ -164,6 +165,7 @@ export const guideRegion = {
         GUIDE_ALIGNED: { actions: [sayAlmost], target: 'almost' },
         GUIDE_COVERING: { actions: [sayReach], target: 'reaching' },
         GUIDE_LOST: { actions: [sayLost], target: 'handLost' },
+        GUIDE_TARGET_LOST: { actions: [sayTargetLost], target: 'targetLost' },
       },
     },
     handLost: {
@@ -177,6 +179,7 @@ export const guideRegion = {
         GUIDE_ALIGNED: { actions: [sayAlmost], target: 'almost' },
         GUIDE_COVERING: { actions: [sayReach], target: 'reaching' },
         GUIDE_NOHAND: { actions: [sayNoHand], target: 'noHand' },
+        GUIDE_TARGET_LOST: { actions: [sayTargetLost], target: 'targetLost' },
       },
     },
     wrongItem: {
@@ -193,6 +196,7 @@ export const guideRegion = {
         GUIDE_NOHAND: { actions: [sayNoHand], target: 'noHand' },
         GUIDE_LOST: { actions: [sayLost], target: 'handLost' },
         GUIDE_WRONG: { actions: [sayWrong], target: 'wrongItem', reenter: true },
+        GUIDE_TARGET_LOST: { actions: [sayTargetLost], target: 'targetLost' },
       },
     },
     targetLost: {

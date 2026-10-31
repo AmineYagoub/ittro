@@ -119,6 +119,16 @@ interface SparkJsonCall<T> extends SparkCall {
   guard: (value: unknown) => value is T;
 }
 
+// Every call toward Meta carries a deadline, so a hung upstream
+// answers the phone with an error it can speak instead of hanging
+// the request until the platform kills it.
+export const META_TIMEOUT_MS = 25000;
+
+export function metaDeadline(): AbortSignal | undefined {
+  const factory = (AbortSignal as unknown as { timeout?: (ms: number) => AbortSignal }).timeout;
+  return typeof factory === 'function' ? factory(META_TIMEOUT_MS) : undefined;
+}
+
 export async function callSparkJson<T>({ fetchImpl, apiBase, apiKey, input, effort = 'low', schema, guard }: SparkJsonCall<T>): Promise<T> {
   if (!apiBase) throw new Error('relay not configured: META_API_BASE');
   if (!apiKey) throw new Error('relay not configured: META_API_KEY');
@@ -135,6 +145,7 @@ export async function callSparkJson<T>({ fetchImpl, apiBase, apiKey, input, effo
       input,
       text: { format: { type: 'json_schema', ...schema } as JsonSchemaFormat },
     }),
+    signal: metaDeadline(),
   });
 
   if (!res.ok) {

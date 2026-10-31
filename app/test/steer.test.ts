@@ -1,6 +1,8 @@
 // Steering policy checks: one axis at a time with left/right first,
-// small corrections under one hand width, the almost ring at the
-// outline, covering inside it, and the proximity behind the ticks.
+// small corrections under one box width, the almost ring a quarter
+// of the box's short side wide, covering inside it, and the
+// proximity behind the ticks. Margins come from the box, not the
+// hand: a hand near the lens is wider than the whole product.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cueIdFor, continueIdFor, meterSegments, positionFor, proximityFor, steerFor, tickGapMs } from '../src/guide/steer';
@@ -11,38 +13,37 @@ function box(x1: number, y1: number, x2: number, y2: number): ShelfBox {
 }
 
 const TARGET = box(600, 400, 760, 640);
-const HAND = 120;
 
 test('a hand far left of the target moves right', () => {
-  assert.deepEqual(steerFor({ x: 300, y: 520 }, TARGET, HAND), { kind: 'move', dir: 'right', small: false });
+  assert.deepEqual(steerFor({ x: 300, y: 520 }, TARGET), { kind: 'move', dir: 'right', small: false });
 });
 
 test('a hand far right of the target moves left', () => {
-  assert.deepEqual(steerFor({ x: 1100, y: 520 }, TARGET, HAND), { kind: 'move', dir: 'left', small: false });
+  assert.deepEqual(steerFor({ x: 1100, y: 520 }, TARGET), { kind: 'move', dir: 'left', small: false });
 });
 
 test('left and right win over up and down', () => {
-  assert.deepEqual(steerFor({ x: 300, y: 100 }, TARGET, HAND), { kind: 'move', dir: 'right', small: false });
-  assert.deepEqual(steerFor({ x: 680, y: 100 }, TARGET, HAND), { kind: 'move', dir: 'down', small: false });
-  assert.deepEqual(steerFor({ x: 680, y: 900 }, TARGET, HAND), { kind: 'move', dir: 'up', small: false });
+  assert.deepEqual(steerFor({ x: 300, y: 100 }, TARGET), { kind: 'move', dir: 'right', small: false });
+  assert.deepEqual(steerFor({ x: 680, y: 100 }, TARGET), { kind: 'move', dir: 'down', small: false });
+  assert.deepEqual(steerFor({ x: 680, y: 900 }, TARGET), { kind: 'move', dir: 'up', small: false });
 });
 
 test('a gap under one hand width is a small correction', () => {
-  assert.deepEqual(steerFor({ x: 540, y: 520 }, TARGET, HAND), { kind: 'move', dir: 'right', small: true });
-  assert.deepEqual(steerFor({ x: 680, y: 700 }, TARGET, HAND), { kind: 'move', dir: 'up', small: true });
+  assert.deepEqual(steerFor({ x: 540, y: 520 }, TARGET), { kind: 'move', dir: 'right', small: true });
+  assert.deepEqual(steerFor({ x: 680, y: 700 }, TARGET), { kind: 'move', dir: 'up', small: true });
 });
 
 test('the fingertip at the outline is almost there', () => {
-  assert.deepEqual(steerFor({ x: 595, y: 520 }, TARGET, HAND), { kind: 'almost' });
-  assert.deepEqual(steerFor({ x: 680, y: 645 }, TARGET, HAND), { kind: 'almost' });
+  assert.deepEqual(steerFor({ x: 595, y: 520 }, TARGET), { kind: 'almost' });
+  assert.deepEqual(steerFor({ x: 680, y: 645 }, TARGET), { kind: 'almost' });
 });
 
 test('the fingertip inside the outline covers the target', () => {
-  assert.deepEqual(steerFor({ x: 680, y: 520 }, TARGET, HAND), { kind: 'covering' });
+  assert.deepEqual(steerFor({ x: 680, y: 520 }, TARGET), { kind: 'covering' });
 });
 
 test('a reach from the left walks right, small, almost, covering', () => {
-  const path = [200, 350, 500, 555, 590, 640, 700].map((x) => steerFor({ x, y: 520 }, TARGET, HAND));
+  const path = [200, 350, 500, 555, 590, 640, 700].map((x) => steerFor({ x, y: 520 }, TARGET));
   assert.deepEqual(path, [
     { kind: 'move', dir: 'right', small: false },
     { kind: 'move', dir: 'right', small: false },
@@ -55,7 +56,7 @@ test('a reach from the left walks right, small, almost, covering', () => {
 });
 
 test('a reach from the right mirrors the left', () => {
-  const path = [1150, 950, 820, 810, 780, 720].map((x) => steerFor({ x, y: 520 }, TARGET, HAND));
+  const path = [1150, 950, 820, 810, 780, 720].map((x) => steerFor({ x, y: 520 }, TARGET));
   assert.deepEqual(path, [
     { kind: 'move', dir: 'left', small: false },
     { kind: 'move', dir: 'left', small: false },
@@ -94,4 +95,11 @@ test('the position names the third of the photo', () => {
   assert.equal(positionFor(box(100, 400, 200, 640), 1280), 'left');
   assert.equal(positionFor(box(600, 400, 760, 640), 1280), 'middle');
   assert.equal(positionFor(box(1000, 400, 1150, 640), 1280), 'right');
+});
+
+test('a hand wider than the product still gets a small move, not an almost', () => {
+  const tall: ShelfBox = { x1: 300, y1: 500, x2: 420, y2: 900, w: 960, h: 1280, confidence: null };
+  assert.deepEqual(steerFor({ x: 250, y: 700 }, tall), { kind: 'move', dir: 'right', small: true });
+  assert.deepEqual(steerFor({ x: 290, y: 700 }, tall), { kind: 'almost' });
+  assert.deepEqual(steerFor({ x: 100, y: 700 }, tall), { kind: 'move', dir: 'right', small: false });
 });

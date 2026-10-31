@@ -210,6 +210,15 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
           const verdict = answer.reads[0]?.verdict ?? 'missing';
           deps.log(`shelf hand read ${answer.readMs}ms verdict ${verdict}`);
         }
+        if (context.guiding) {
+          // The product is found and the hand is being guided: the
+          // outlines still refresh, but settled labels are not read
+          // again every pass (13 reads in 40 s on the phone, each
+          // 2.3 to 4.7 s, all against the budget and the confirm).
+          deps.log('shelf reads paused while guiding');
+          deps.send({ type: 'LINK_OK' });
+          return;
+        }
         const needy = biggestFirst(needsRead(state.tracks));
         const passReads: ShelfRead[] = [];
         const priority = needy.slice(0, PRIORITY_BATCH);

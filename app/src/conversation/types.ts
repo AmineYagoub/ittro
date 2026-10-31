@@ -105,6 +105,8 @@ export interface ConversationContext {
   specAnswer: UnderstandAnswer | null;
   specEpoch: number;
   lastPartialAt: number | null;
+  consumedText: string | null;
+  consumedAt: number;
   request: string | null;
   requestLang: Language | null;
   translateSource: string | null;
