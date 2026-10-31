@@ -11,7 +11,9 @@
       "pending_question": null,
       "pending_request": null,
       "last_line": "Hi, I'm Ittro. Tell me what you're looking for, or say help.",
-      "expect": ["request_product"]
+      "expect": [
+        "request_product"
+      ]
     },
     {
       "id": "en-welcome-masaad",
@@ -21,7 +23,9 @@
       "pending_question": null,
       "pending_request": null,
       "last_line": "Hi, I'm Ittro. Tell me what you're looking for, or say help.",
-      "expect": ["request_product"]
+      "expect": [
+        "request_product"
+      ]
     },
     {
       "id": "en-welcome-water",
@@ -31,7 +35,9 @@
       "pending_question": null,
       "pending_request": null,
       "last_line": "Hi, I'm Ittro. Tell me what you're looking for, or say help.",
-      "expect": ["request_product"]
+      "expect": [
+        "request_product"
+      ]
     },
     {
       "id": "ar-welcome-masaad",
@@ -41,7 +47,9 @@
       "pending_question": null,
       "pending_request": null,
       "last_line": "مرحبًا، أنا إيترو. أخبرني عما تبحث عنه، أو قل مساعدة.",
-      "expect": ["request_product"]
+      "expect": [
+        "request_product"
+      ]
     },
     {
       "id": "ar-welcome-water",
@@ -51,7 +59,9 @@
       "pending_question": null,
       "pending_request": null,
       "last_line": "مرحبًا، أنا إيترو. أخبرني عما تبحث عنه، أو قل مساعدة.",
-      "expect": ["request_product"]
+      "expect": [
+        "request_product"
+      ]
     },
     {
       "id": "fr-welcome-guedila",
@@ -61,7 +71,9 @@
       "pending_question": null,
       "pending_request": null,
       "last_line": "Bonjour, je suis Ittro. Dites-moi ce que vous cherchez, ou dites aide.",
-      "expect": ["request_product"]
+      "expect": [
+        "request_product"
+      ]
     },
     {
       "id": "fr-welcome-eau",
@@ -71,7 +83,9 @@
       "pending_question": null,
       "pending_request": null,
       "last_line": "Bonjour, je suis Ittro. Dites-moi ce que vous cherchez, ou dites aide.",
-      "expect": ["request_product"]
+      "expect": [
+        "request_product"
+      ]
     },
     {
       "id": "en-confirm-guedila",
@@ -81,7 +95,11 @@
       "pending_question": "confirm_request",
       "pending_request": "Masaad water",
       "last_line": "You asked for Masaad water. Is that right? Say yes or no.",
-      "expect": ["request_product", "confirm_no", "confirm_yes"]
+      "expect": [
+        "request_product",
+        "confirm_no",
+        "confirm_yes"
+      ]
     },
     {
       "id": "en-confirm-masaad",
@@ -91,7 +109,11 @@
       "pending_question": "confirm_request",
       "pending_request": "Masaad water",
       "last_line": "You asked for Masaad water. Is that right? Say yes or no.",
-      "expect": ["request_product", "confirm_no", "confirm_yes"]
+      "expect": [
+        "request_product",
+        "confirm_no",
+        "confirm_yes"
+      ]
     },
     {
       "id": "en-confirm-water",
@@ -101,7 +123,11 @@
       "pending_question": "confirm_request",
       "pending_request": "Masaad water",
       "last_line": "You asked for Masaad water. Is that right? Say yes or no.",
-      "expect": ["request_product", "confirm_no", "confirm_yes"]
+      "expect": [
+        "request_product",
+        "confirm_no",
+        "confirm_yes"
+      ]
     },
     {
       "id": "ar-confirm-guedila",
@@ -111,7 +137,11 @@
       "pending_question": "confirm_request",
       "pending_request": "ماء مسعد",
       "last_line": "طلبت ماء مسعد. هل هذا صحيح؟ قل نعم أو لا.",
-      "expect": ["request_product", "confirm_no", "confirm_yes"]
+      "expect": [
+        "request_product",
+        "confirm_no",
+        "confirm_yes"
+      ]
     },
     {
       "id": "ar-confirm-masaad",
@@ -121,7 +151,11 @@
       "pending_question": "confirm_request",
       "pending_request": "ماء مسعد",
       "last_line": "طلبت ماء مسعد. هل هذا صحيح؟ قل نعم أو لا.",
-      "expect": ["request_product", "confirm_no", "confirm_yes"]
+      "expect": [
+        "request_product",
+        "confirm_no",
+        "confirm_yes"
+      ]
     },
     {
       "id": "ar-confirm-water",
@@ -131,7 +165,11 @@
       "pending_question": "confirm_request",
       "pending_request": "ماء مسعد",
       "last_line": "طلبت ماء مسعد. هل هذا صحيح؟ قل نعم أو لا.",
-      "expect": ["request_product", "confirm_no", "confirm_yes"]
+      "expect": [
+        "request_product",
+        "confirm_no",
+        "confirm_yes"
+      ]
     },
     {
       "id": "fr-confirm-guedila",
@@ -141,7 +179,11 @@
       "pending_question": "confirm_request",
       "pending_request": "eau Masaad",
       "last_line": "Vous avez demandé eau Masaad. C’est bien ça ? Dites oui ou non.",
-      "expect": ["request_product", "confirm_no", "confirm_yes"]
+      "expect": [
+        "request_product",
+        "confirm_no",
+        "confirm_yes"
+      ]
     },
     {
       "id": "fr-confirm-masaad",
@@ -151,7 +193,11 @@
       "pending_question": "confirm_request",
       "pending_request": "eau Masaad",
       "last_line": "Vous avez demandé eau Masaad. C’est bien ça ? Dites oui ou non.",
-      "expect": ["request_product", "confirm_no", "confirm_yes"]
+      "expect": [
+        "request_product",
+        "confirm_no",
+        "confirm_yes"
+      ]
     },
     {
       "id": "fr-confirm-eau",
@@ -161,7 +207,11 @@
       "pending_question": "confirm_request",
       "pending_request": "eau Masaad",
       "last_line": "Vous avez demandé eau Masaad. C’est bien ça ? Dites oui ou non.",
-      "expect": ["request_product", "confirm_no", "confirm_yes"]
+      "expect": [
+        "request_product",
+        "confirm_no",
+        "confirm_yes"
+      ]
     },
     {
       "id": "en-cmd-stop",
@@ -171,7 +221,9 @@
       "pending_question": null,
       "pending_request": "Masaad water",
       "last_line": "I'm searching the shelf for Masaad water. 0 products checked so far.",
-      "expect": ["stop"]
+      "expect": [
+        "stop"
+      ]
     },
     {
       "id": "en-cmd-help",
@@ -181,7 +233,9 @@
       "pending_question": null,
       "pending_request": "Masaad water",
       "last_line": "I'm searching the shelf for Masaad water. 0 products checked so far.",
-      "expect": ["help"]
+      "expect": [
+        "help"
+      ]
     },
     {
       "id": "en-cmd-repeat",
@@ -191,7 +245,9 @@
       "pending_question": null,
       "pending_request": "Masaad water",
       "last_line": "I'm searching the shelf for Masaad water. 0 products checked so far.",
-      "expect": ["repeat"]
+      "expect": [
+        "repeat"
+      ]
     },
     {
       "id": "en-cmd-yes",
@@ -201,7 +257,9 @@
       "pending_question": "confirm_request",
       "pending_request": "Masaad water",
       "last_line": "You asked for Masaad water. Is that right? Say yes or no.",
-      "expect": ["confirm_yes"]
+      "expect": [
+        "confirm_yes"
+      ]
     },
     {
       "id": "en-cmd-no",
@@ -211,7 +269,9 @@
       "pending_question": "confirm_request",
       "pending_request": "Masaad water",
       "last_line": "You asked for Masaad water. Is that right? Say yes or no.",
-      "expect": ["confirm_no"]
+      "expect": [
+        "confirm_no"
+      ]
     },
     {
       "id": "ar-cmd-stop",
@@ -221,7 +281,9 @@
       "pending_question": null,
       "pending_request": "ماء مسعد",
       "last_line": "أبحث في الرف عن ماء مسعد. فحصت 0 حتى الآن.",
-      "expect": ["stop"]
+      "expect": [
+        "stop"
+      ]
     },
     {
       "id": "ar-cmd-help",
@@ -231,7 +293,9 @@
       "pending_question": null,
       "pending_request": "ماء مسعد",
       "last_line": "أبحث في الرف عن ماء مسعد. فحصت 0 حتى الآن.",
-      "expect": ["help"]
+      "expect": [
+        "help"
+      ]
     },
     {
       "id": "ar-cmd-repeat",
@@ -241,7 +305,9 @@
       "pending_question": null,
       "pending_request": "ماء مسعد",
       "last_line": "أبحث في الرف عن ماء مسعد. فحصت 0 حتى الآن.",
-      "expect": ["repeat"]
+      "expect": [
+        "repeat"
+      ]
     },
     {
       "id": "ar-cmd-yes",
@@ -251,7 +317,9 @@
       "pending_question": "confirm_request",
       "pending_request": "ماء مسعد",
       "last_line": "طلبت ماء مسعد. هل هذا صحيح؟ قل نعم أو لا.",
-      "expect": ["confirm_yes"]
+      "expect": [
+        "confirm_yes"
+      ]
     },
     {
       "id": "ar-cmd-no",
@@ -261,7 +329,9 @@
       "pending_question": "confirm_request",
       "pending_request": "ماء مسعد",
       "last_line": "طلبت ماء مسعد. هل هذا صحيح؟ قل نعم أو لا.",
-      "expect": ["confirm_no"]
+      "expect": [
+        "confirm_no"
+      ]
     },
     {
       "id": "fr-cmd-stop",
@@ -271,7 +341,9 @@
       "pending_question": null,
       "pending_request": "eau Masaad",
       "last_line": "Je cherche eau Masaad dans le rayon. 0 vérifiés pour l’instant.",
-      "expect": ["stop"]
+      "expect": [
+        "stop"
+      ]
     },
     {
       "id": "fr-cmd-help",
@@ -281,7 +353,9 @@
       "pending_question": null,
       "pending_request": "eau Masaad",
       "last_line": "Je cherche eau Masaad dans le rayon. 0 vérifiés pour l’instant.",
-      "expect": ["help"]
+      "expect": [
+        "help"
+      ]
     },
     {
       "id": "fr-cmd-repeat",
@@ -291,7 +365,9 @@
       "pending_question": null,
       "pending_request": "eau Masaad",
       "last_line": "Je cherche eau Masaad dans le rayon. 0 vérifiés pour l’instant.",
-      "expect": ["repeat"]
+      "expect": [
+        "repeat"
+      ]
     },
     {
       "id": "fr-cmd-yes",
@@ -301,7 +377,9 @@
       "pending_question": "confirm_request",
       "pending_request": "eau Masaad",
       "last_line": "Vous avez demandé eau Masaad. C’est bien ça ? Dites oui ou non.",
-      "expect": ["confirm_yes"]
+      "expect": [
+        "confirm_yes"
+      ]
     },
     {
       "id": "fr-cmd-no",
@@ -311,7 +389,9 @@
       "pending_question": "confirm_request",
       "pending_request": "eau Masaad",
       "last_line": "Vous avez demandé eau Masaad. C’est bien ça ? Dites oui ou non.",
-      "expect": ["confirm_no"]
+      "expect": [
+        "confirm_no"
+      ]
     },
     {
       "id": "ar-bg-darija",
@@ -321,7 +401,9 @@
       "pending_question": null,
       "pending_request": "Masaad water",
       "last_line": "I'm searching the shelf for Masaad water. 0 products checked so far.",
-      "expect": ["ignore"]
+      "expect": [
+        "ignore"
+      ]
     },
     {
       "id": "ar-bg-fragment",
@@ -331,7 +413,9 @@
       "pending_question": null,
       "pending_request": "Masaad water",
       "last_line": "I'm searching the shelf for Masaad water. 0 products checked so far.",
-      "expect": ["ignore"]
+      "expect": [
+        "ignore"
+      ]
     },
     {
       "id": "en-bg-bags",
@@ -341,7 +425,9 @@
       "pending_question": null,
       "pending_request": "Masaad water",
       "last_line": "I'm searching the shelf for Masaad water. 0 products checked so far.",
-      "expect": ["ignore"]
+      "expect": [
+        "ignore"
+      ]
     },
     {
       "id": "fr-bg-bags",
@@ -351,7 +437,9 @@
       "pending_question": null,
       "pending_request": "Masaad water",
       "last_line": "I'm searching the shelf for Masaad water. 0 products checked so far.",
-      "expect": ["ignore"]
+      "expect": [
+        "ignore"
+      ]
     },
     {
       "id": "en-welcome-ask-someone",
@@ -361,7 +449,9 @@
       "pending_question": null,
       "pending_request": "Masaad water",
       "last_line": "I can't confirm yet. I can read Masaad, but not the size. Turn it slowly.",
-      "expect": ["ask_someone"]
+      "expect": [
+        "ask_someone"
+      ]
     },
     {
       "id": "en-welcome-ask-sara",
@@ -371,7 +461,9 @@
       "pending_question": null,
       "pending_request": "Masaad water",
       "last_line": "I can't confirm yet. I can read Masaad, but not the size. Turn it slowly.",
-      "expect": ["ask_someone"]
+      "expect": [
+        "ask_someone"
+      ]
     },
     {
       "id": "en-welcome-ask-again",
@@ -381,7 +473,9 @@
       "pending_question": null,
       "pending_request": "Masaad water",
       "last_line": "Sara hasn't answered. Say ask again, or read again.",
-      "expect": ["ask_someone"]
+      "expect": [
+        "ask_someone"
+      ]
     },
     {
       "id": "en-welcome-stop-waiting",
@@ -391,7 +485,9 @@
       "pending_question": null,
       "pending_request": "Masaad water",
       "last_line": "Sent to Sara. I'll tell you when they answer. Say cancel to stop waiting.",
-      "expect": ["cancel"]
+      "expect": [
+        "cancel"
+      ]
     },
     {
       "id": "en-welcome-never-mind",
@@ -401,7 +497,9 @@
       "pending_question": null,
       "pending_request": "Masaad water",
       "last_line": "Sent to Sara. I'll tell you when they answer. Say cancel to stop waiting.",
-      "expect": ["cancel"]
+      "expect": [
+        "cancel"
+      ]
     },
     {
       "id": "en-welcome-add-helper",
@@ -411,7 +509,9 @@
       "pending_question": null,
       "pending_request": null,
       "last_line": "Hi, I'm Ittro. Tell me what you're looking for, or say help.",
-      "expect": ["add_helper"]
+      "expect": [
+        "add_helper"
+      ]
     },
     {
       "id": "en-welcome-add-sara",
@@ -421,7 +521,9 @@
       "pending_question": null,
       "pending_request": null,
       "last_line": "Hi, I'm Ittro. Tell me what you're looking for, or say help.",
-      "expect": ["add_helper"]
+      "expect": [
+        "add_helper"
+      ]
     },
     {
       "id": "ar-welcome-misspelled-bottle",
@@ -431,7 +533,9 @@
       "pending_question": null,
       "pending_request": null,
       "last_line": "What are you looking for?",
-      "expect": ["request_product"],
+      "expect": [
+        "request_product"
+      ],
       "want_product": "ماء مسعد"
     },
     {
@@ -442,7 +546,9 @@
       "pending_question": null,
       "pending_request": null,
       "last_line": "Hi, I'm Ittro. Tell me what you're looking for, or say help.",
-      "expect": ["request_product"],
+      "expect": [
+        "request_product"
+      ],
       "want_product": "Guedila water"
     },
     {
@@ -453,7 +559,9 @@
       "pending_question": null,
       "pending_request": null,
       "last_line": "What are you looking for?",
-      "expect": ["request_product"],
+      "expect": [
+        "request_product"
+      ],
       "want_product": "ماء مسعد"
     },
     {
@@ -464,8 +572,70 @@
       "pending_question": null,
       "pending_request": null,
       "last_line": "Qu'est-ce que vous cherchez ?",
-      "expect": ["request_product"],
+      "expect": [
+        "request_product"
+      ],
       "want_product": "eau Guedila"
+    },
+    {
+      "language": "ar",
+      "step": "guide",
+      "pending_question": null,
+      "pending_request": "ماء مسعد",
+      "last_line": "يدك قريبة من المنتج.",
+      "id": "ar-guide-hatha-huwa",
+      "transcript": "هذا هو",
+      "expect": [
+        "is_this_right"
+      ]
+    },
+    {
+      "language": "ar",
+      "step": "guide",
+      "pending_question": null,
+      "pending_request": "ماء مسعد",
+      "last_line": "يدك قريبة من المنتج.",
+      "id": "ar-guide-hal-hatha-huwa",
+      "transcript": "هل هذا هو?",
+      "expect": [
+        "is_this_right"
+      ]
+    },
+    {
+      "language": "ar",
+      "step": "guide",
+      "pending_question": null,
+      "pending_request": "ماء مسعد",
+      "last_line": "يدك قريبة من المنتج.",
+      "id": "ar-guide-hatha",
+      "transcript": "هذا؟",
+      "expect": [
+        "is_this_right"
+      ]
+    },
+    {
+      "language": "en",
+      "step": "guide",
+      "pending_question": null,
+      "pending_request": "Masaad water",
+      "last_line": "Almost there.",
+      "id": "en-guide-this-one",
+      "transcript": "This one?",
+      "expect": [
+        "is_this_right"
+      ]
+    },
+    {
+      "language": "fr",
+      "step": "guide",
+      "pending_question": null,
+      "pending_request": "eau Masaad",
+      "last_line": "Presque.",
+      "id": "fr-guide-cest-ca",
+      "transcript": "C'est ça ?",
+      "expect": [
+        "is_this_right"
+      ]
     }
   ]
 }
