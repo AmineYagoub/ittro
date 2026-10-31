@@ -6,6 +6,14 @@ export interface HandFix {
   confidence: number;
   handWidth: number;
   atMs: number;
+  box?: HandBox;
+}
+
+export interface HandBox {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
 }
 
 export interface TipPoint {

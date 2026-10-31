@@ -41,6 +41,10 @@ export interface HandFrame {
   y: number;
   confidence: number;
   handWidth: number;
+  boxX1?: number;
+  boxY1?: number;
+  boxX2?: number;
+  boxY2?: number;
   convertMs: number;
   detectMs: number;
   frameMs: number;

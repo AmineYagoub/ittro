@@ -10,13 +10,17 @@ export function handFixFromEvent(frame: HandFrame, photoW: number, photoH: numbe
   if (!frame.present || photoW <= 0 || photoH <= 0) {
     return null;
   }
-  return {
+  const fix: HandFix = {
     x: frame.x * photoW,
     y: frame.y * photoH,
     confidence: frame.confidence,
     handWidth: frame.handWidth * photoW,
     atMs,
   };
+  if (frame.boxX1 !== undefined && frame.boxY1 !== undefined && frame.boxX2 !== undefined && frame.boxY2 !== undefined) {
+    fix.box = { x1: frame.boxX1 * photoW, y1: frame.boxY1 * photoH, x2: frame.boxX2 * photoW, y2: frame.boxY2 * photoH };
+  }
+  return fix;
 }
 
 let latestFix: HandFix | null = null;

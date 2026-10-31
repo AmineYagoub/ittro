@@ -87,11 +87,18 @@ class HandTracker {
     val pinky = landmarks[PINKY_MCP]
     val width = hypot(index.x() - pinky.x(), index.y() - pinky.y()).toDouble()
     val score = result.handedness().firstOrNull()?.firstOrNull()?.score()?.toDouble() ?: 0.0
+    // The whole hand's box, 0 to 1: a hand wrapped round a bottle touches it even when the fingertip points past it.
+    val xs = landmarks.map { it.x() }
+    val ys = landmarks.map { it.y() }
     return mapOf(
       "x" to tip.x().toDouble(),
       "y" to tip.y().toDouble(),
       "confidence" to score,
       "handWidth" to width,
+      "boxX1" to xs.min().toDouble(),
+      "boxY1" to ys.min().toDouble(),
+      "boxX2" to xs.max().toDouble(),
+      "boxY2" to ys.max().toDouble(),
       "detectMs" to (android.os.SystemClock.uptimeMillis() - started).toDouble(),
     )
   }

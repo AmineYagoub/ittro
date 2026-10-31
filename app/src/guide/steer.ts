@@ -7,7 +7,7 @@
 // five meter segments.
 import type { ShelfBox } from '../relay';
 import type { GuidePosition } from '../conversation/types';
-import type { GuideDir, SteerVerdict, TipPoint } from './types';
+import type { GuideDir, HandBox, SteerVerdict, TipPoint } from './types';
 
 const ALMOST_MARGIN = 0.25;
 
@@ -16,12 +16,35 @@ export function almostMargin(box: ShelfBox): number {
   return Math.max(1, ALMOST_MARGIN * short);
 }
 
-export function steerFor(tip: TipPoint, box: ShelfBox): SteerVerdict {
+// A hand wrapped round the product touches it even when the fingertip
+// points past its outline (t8: fingers round the Masaad's label, the
+// tip above its top edge, "almost" for ever). As in the 26 October
+// project, the hand's box counts when a third of it lies on the
+// product, unless the hand is far wider than the product: one passing
+// close to the lens.
+const HAND_SHARE = 1 / 3;
+const NEAR_LENS = 1.5;
+
+export function handOnBox(hand: HandBox | undefined, box: ShelfBox): boolean {
+  if (!hand) {
+    return false;
+  }
+  const handW = hand.x2 - hand.x1;
+  const handH = hand.y2 - hand.y1;
+  if (handW <= 0 || handH <= 0 || handW > NEAR_LENS * (box.x2 - box.x1)) {
+    return false;
+  }
+  const w = Math.min(hand.x2, box.x2) - Math.max(hand.x1, box.x1);
+  const h = Math.min(hand.y2, box.y2) - Math.max(hand.y1, box.y1);
+  return w > 0 && h > 0 && (w * h) / (handW * handH) >= HAND_SHARE;
+}
+
+export function steerFor(tip: TipPoint, box: ShelfBox, hand?: HandBox): SteerVerdict {
   const margin = almostMargin(box);
   const boxWidth = Math.max(1, box.x2 - box.x1);
   const insideInner =
     tip.x >= box.x1 + margin && tip.x <= box.x2 - margin && tip.y >= box.y1 + margin && tip.y <= box.y2 - margin;
-  if (insideInner) {
+  if (insideInner || handOnBox(hand, box)) {
     return { kind: 'covering' };
   }
   const insideOuter = tip.x >= box.x1 - margin && tip.x <= box.x2 + margin && tip.y >= box.y1 - margin && tip.y <= box.y2 + margin;

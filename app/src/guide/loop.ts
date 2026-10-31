@@ -14,7 +14,7 @@
 import type { ShelfBox, ShelfOutline } from '../relay';
 import { boxOverlap } from '../shelf/outlines';
 import { centerOf, cueIdFor, proximityFor, steerFor } from './steer';
-import type { HandFix, TipPoint } from './types';
+import type { HandFix, TipPoint, HandBox } from './types';
 import { handCoversTarget } from '../conversation/searchTarget';
 import { cosine, describeCue, sameBox } from './loopMath';
 import { restRead } from './loopRest';
@@ -41,10 +41,10 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
     return !sent || deps.now() - at >= EDGE_HEARTBEAT_MS;
   }
 
-  function logCue(id: string, tip: TipPoint, box: ShelfBox, handWidth: number): void {
+  function logCue(id: string, tip: TipPoint, box: ShelfBox, handWidth: number, hand?: HandBox): void {
     if (state.loggedCue !== id) {
       state.loggedCue = id;
-      deps.log(describeCue(id, tip, box, handWidth));
+      deps.log(describeCue(id, tip, box, handWidth, hand));
     }
   }
 
@@ -212,7 +212,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
       }
       const tip = { x: fix.x, y: fix.y };
       const proximity = proximityFor(tip, tracked, Math.hypot(photoW, photoH));
-      const steer = steerFor(tip, tracked);
+      const steer = steerFor(tip, tracked, fix.box);
       await restRead(state, deps, tip, outlines, tracked, fix.handWidth);
       if (steer.kind !== state.inputKind) {
         state.inputKind = steer.kind;
@@ -242,7 +242,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
           state.heldSince = deps.now();
         }
         if (deps.now() - state.heldSince >= CUE_HOLD_MS) {
-          logCue(id, tip, tracked, fix.handWidth);
+          logCue(id, tip, tracked, fix.handWidth, fix.box);
           deps.send({ type: 'GUIDE_CUE', cue: id, proximity, hand: { x: tip.x, y: tip.y } });
         }
       } else if (steer.kind === 'almost') {
@@ -254,7 +254,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
         if (due(state.sentAlmost, state.sentAlmostAt)) {
           state.sentAlmost = true;
           state.sentAlmostAt = deps.now();
-          logCue('almost', tip, tracked, fix.handWidth);
+          logCue('almost', tip, tracked, fix.handWidth, fix.box);
           deps.send({ type: 'GUIDE_ALIGNED', proximity, hand: { x: tip.x, y: tip.y } });
         }
       } else {
@@ -266,7 +266,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
         if (deps.now() - state.coverSince >= COVER_MS && due(state.sentCovering, state.sentCoveringAt)) {
           state.sentCovering = true;
           state.sentCoveringAt = deps.now();
-          logCue('covering', tip, tracked, fix.handWidth);
+          logCue('covering', tip, tracked, fix.handWidth, fix.box);
           deps.send({ type: 'GUIDE_COVERING', proximity, hand: { x: tip.x, y: tip.y } });
         }
         contact(tip, tracked);
