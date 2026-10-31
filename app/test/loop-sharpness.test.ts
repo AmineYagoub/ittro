@@ -6,7 +6,6 @@ import assert from 'node:assert/strict';
 import { createShelfLoop } from '../src/shelf/loop';
 import type { LoopDeps, LoopPhoto, ShelfLoop } from '../src/shelf/loopTypes';
 import type { ShelfBox, ShelfOutline, ShelfRead } from '../src/relay';
-import type { ConversationEvent } from '../src/conversation/types';
 
 function box(x1: number, y1: number, x2: number, y2: number): ShelfBox {
   return { x1, y1, x2, y2, w: 112, h: 96, confidence: null };
@@ -49,7 +48,7 @@ function harness(): { loop: ShelfLoop; calls: { outline: number; read: number };
     classify: async () => ({ scene: 'shelf', kinds: ['bags'], aisle_hint: null }),
     cutCrops: async (_image, tracks) => tracks.map((entry) => ({ id: `shelf-${entry.track}`, image: 'crop', mime: 'image/jpeg' })),
     readContext: () => ({ lang: 'en', alternative: null, checkedCount: 2 }),
-    send: (_event: ConversationEvent) => undefined,
+    send: () => undefined,
     log: (line: string) => {
       logs.push(line);
     },
