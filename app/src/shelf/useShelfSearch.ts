@@ -18,6 +18,7 @@ import type { Language } from '../theme';
 import { speech } from '../theme';
 import { playSound } from '../speech';
 import { createShelfLoop } from './loop';
+import { cachedPhrase } from './phraseCache';
 import type { LoopPhoto, ShelfLoop } from './loopTypes';
 import { decodeBase64, ingestGrey } from './tracker';
 import type { GreyFrame } from './tracker';
@@ -111,7 +112,7 @@ export function useShelfSearch(
     const loop = createShelfLoop({
       now: () => Date.now(),
       outline: outlineShelf,
-      fetchPhrase: fetchPackagePhrase,
+      fetchPhrase: (wantedText, image, mime) => cachedPhrase(wantedText, image, mime, fetchPackagePhrase),
       read: readShelfCrops,
       classify: classifySceneView,
       cutCrops: async (image, tracks) => {
