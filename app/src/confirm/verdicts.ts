@@ -121,13 +121,10 @@ export const noteUnsure = assign({
   confirmMissing: ({ context, event }: EventArgs) => (event.type === 'CONFIRM_UNSURE' && (event.read.length > 0 || event.missing.length > 0) ? event.missing : context.confirmMissing),
 });
 
+// A turned or blurry label asks for a phone action and keeps reading:
+// the check is not over until a yes, a no or a give-up.
 export const storePicture = assign({
-  confirming: false,
   confirmVerdict: 'picture',
-  confirmFinal: true,
-  step: 'verdict',
-  pendingQuestion: 'verdict_done',
-  ...clearHelperNo,
   confirmProblem: ({ event }: EventArgs) => (event.type === 'CONFIRM_PICTURE' ? event.problem : null),
   confirmParts: ({ context, event }: EventArgs) =>
     event.type === 'CONFIRM_PICTURE' ? [{ text: pictureLine(event.problem, context.lang) }] : [],

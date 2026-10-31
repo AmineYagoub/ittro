@@ -86,7 +86,7 @@ export const confirmRegion = {
         CONFIRM_YES: { guard: freshConfirm, actions: [logVerdict, storeYes, raiseQuestion], target: 'yes' },
         CONFIRM_NO: { guard: freshConfirm, actions: [logVerdict, storeNo, raiseQuestion], target: 'no' },
         CONFIRM_UNSURE: { guard: freshConfirm, actions: [logVerdict, storeUnsure], target: 'unsure' },
-        CONFIRM_PICTURE: { guard: freshConfirm, actions: [logVerdict, storePicture, raiseQuestion], target: 'picture' },
+        CONFIRM_PICTURE: { guard: freshConfirm, actions: [logVerdict, storePicture], target: 'picture' },
         CONFIRM_MOVED: { guard: freshConfirm, actions: [storeMoved], target: 'checking', reenter: true },
         CONFIRM_FAILED: { actions: [raiseLinkKind] },
       },
@@ -98,7 +98,7 @@ export const confirmRegion = {
         CONFIRM_YES: { guard: freshConfirm, actions: [logVerdict, storeYes, raiseQuestion], target: 'yes' },
         CONFIRM_NO: { guard: freshConfirm, actions: [logVerdict, storeNo, raiseQuestion], target: 'no' },
         CONFIRM_UNSURE: { guard: freshConfirm, actions: [noteUnsure] },
-        CONFIRM_PICTURE: { guard: freshConfirm, actions: [logVerdict, storePicture, raiseQuestion], target: 'picture' },
+        CONFIRM_PICTURE: { guard: freshConfirm, actions: [logVerdict, storePicture], target: 'picture' },
         CONFIRM_MOVED: { guard: freshConfirm, actions: [storeMoved], target: 'checking' },
         CONFIRM_FAILED: { actions: [] },
         CONFIRM_GIVEUP: { actions: [storeGiveup, raiseQuestion], target: 'giveup' },
@@ -134,6 +134,15 @@ export const confirmRegion = {
     picture: {
       entry: [noteVoice],
       ...speakState(),
+      on: {
+        CONFIRM_YES: { guard: freshConfirm, actions: [logVerdict, storeYes, raiseQuestion], target: 'yes' },
+        CONFIRM_NO: { guard: freshConfirm, actions: [logVerdict, storeNo, raiseQuestion], target: 'no' },
+        CONFIRM_UNSURE: { guard: freshConfirm, actions: [logVerdict, storeUnsure], target: 'unsure' },
+        CONFIRM_PICTURE: { guard: freshConfirm, actions: [logVerdict] },
+        CONFIRM_MOVED: { guard: freshConfirm, actions: [storeMoved], target: 'checking' },
+        CONFIRM_FAILED: { actions: [] },
+        CONFIRM_GIVEUP: { actions: [storeGiveup, raiseQuestion], target: 'giveup' },
+      },
     },
     giveup: {
       entry: [chimeUnsure, noteVoice],

@@ -202,6 +202,32 @@ test('a turned label is a phone action, never a doubt', async () => {
   driver.stop();
 });
 
+test('after a turned label the check keeps reading and a yes still lands (t6: stuck on "turn it")', async () => {
+  const driver = await checking();
+  driver.send({ type: 'CONFIRM_PICTURE', epoch: 1, problem: 'turned' });
+  await driver.flush();
+  assert.equal(driver.context().confirmFinal, false);
+  assert.equal(driver.context().confirming, true);
+  driver.send({ type: 'CONFIRM_PICTURE', epoch: 1, problem: 'turned' });
+  await driver.flush();
+  assert.equal(driver.confirm(), 'picture');
+  driver.send({ type: 'CONFIRM_YES', epoch: 1, label: 'Masaad water, 1.5 litres', crop: CROP });
+  await driver.flush();
+  assert.equal(driver.confirm(), 'yes');
+  assert.equal(driver.context().confirmVerdict, 'yes');
+  driver.stop();
+});
+
+test('a check begun while guiding keeps the guided box for the crop', async () => {
+  const driver = await startListening({ request: 'Masaad water' });
+  driver.send({ type: 'SHELF_FOUND', product: 'Masaad water', outline: TARGET, matches: 1, kind: 'bottles', position: 'middle' });
+  await driver.flush();
+  driver.send({ type: 'CONFIRM_BEGIN' });
+  await driver.flush();
+  assert.deepEqual(driver.context().confirmBox, TARGET.box);
+  driver.stop();
+});
+
 test('silence after a verdict repeats the verdict, not the search', async () => {
   const driver = await checking();
   driver.send({ type: 'CONFIRM_YES', epoch: 1, label: 'Masaad water, 1.5 litres', crop: CROP });
