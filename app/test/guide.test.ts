@@ -232,16 +232,27 @@ test('stopping ends guiding and clears the target', async () => {
   driver.stop();
 });
 
-test('a pause resumes guiding after the welcome back', async () => {
+test('a pause drops the target, resume says one line and looks fresh', async () => {
   const driver = await guiding();
+  const said = driver.spoken.length;
+  const sounded = driver.parts.length;
   driver.send({ type: 'PAUSE' });
   await driver.flush();
   assert.equal(driver.context().guiding, false);
+  assert.equal(driver.context().guideTarget, null);
+  assert.equal(driver.context().shelfTarget, null);
   driver.send({ type: 'RESUME' });
+  await driver.flush();
+  assert.equal(driver.talk(), 'listening');
+  assert.equal(driver.spoken.length, said + 1);
+  assert.ok(driver.spoken.at(-1)?.includes('Welcome back'));
+  assert.equal(driver.parts.length, sounded);
+  assert.equal(driver.guide(), 'idle');
+  assert.equal(driver.context().guiding, false);
+  driver.send(found());
   await driver.flush();
   assert.equal(driver.guide(), 'aiming');
   assert.equal(driver.context().guiding, true);
-  assert.ok(driver.spoken.at(-1)?.includes('Welcome back'));
   driver.send(cue('hand_right'));
   await driver.flush();
   assert.equal(driver.guide(), 'directing');

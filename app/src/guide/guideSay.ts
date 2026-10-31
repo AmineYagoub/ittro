@@ -74,7 +74,6 @@ export const storeGuideTarget = assign({
   guideHand: null,
   guideProximity: 0,
   guideWrong: null,
-  guideResume: false,
   guideOutOfView: false,
 });
 
@@ -118,7 +117,6 @@ export const endGuide = assign({
   guideCue: null,
   guideFresh: false,
   guideWrong: null,
-  guideResume: false,
   guideOutOfView: false,
   guideParts: [],
 });
@@ -126,12 +124,8 @@ export const endGuide = assign({
 export const stopGuide = assign({
   guiding: false,
   guideReaching: false,
-  guideResume: ({ context }: ContextArgs) => context.guiding && context.guideTarget !== null,
-});
-
-export const consumeResume = assign({
-  guiding: true,
-  guideResume: false,
+  guideTarget: null,
+  shelfTarget: null,
 });
 
 export const sayCue = assign({
@@ -275,8 +269,6 @@ function withoutContinue(cue: string): string {
 
 export const sameCue = ({ context, event }: EventArgs): boolean =>
   event.type === 'GUIDE_CUE' && context.guideCue !== null && withoutContinue(event.cue) === withoutContinue(context.guideCue);
-
-export const wantsResume = ({ context }: ContextArgs): boolean => context.guideResume && context.guideTarget !== null;
 
 export const readyToArm = ({ context }: ContextArgs): boolean =>
   hasTarget({ context }) && confirmed({ context }) && !context.guideRestarting;

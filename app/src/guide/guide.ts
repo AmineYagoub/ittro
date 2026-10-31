@@ -32,8 +32,6 @@ import {
   sayTargetLost,
   sayWrong,
   trackCue,
-  wantsResume,
-  consumeResume,
   storeGuideTarget,
 } from './guideSay';
 
@@ -60,12 +58,11 @@ export const guideRegion = {
   states: {
     idle: {
       always: [
-        { guard: readyQuiet, actions: [consumeResume, sayFound], target: 'announcing' },
+        { guard: readyQuiet, actions: [sayFound], target: 'announcing' },
         { guard: readyToArm, target: 'arming' },
       ],
       on: {
         SHELF_FOUND: { guard: foundTarget, actions: [storeGuideTarget] },
-        TALK_IDLE: { guard: wantsResume, actions: [consumeResume], target: 'arming' },
       },
     },
     arming: {
