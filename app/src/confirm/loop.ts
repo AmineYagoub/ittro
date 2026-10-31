@@ -1,10 +1,11 @@
 // The confirm loop, outside the statechart: still photos become
 // cloud reads, each answered in the moment it was taken. A shot
-// waits 1.2 s after the last, at most five per check, and an answer
-// lands only when its epoch is current and a fresh fix shows the
-// hand has not moved since the photo; a missing or stale hand
-// voids it, never a yes. Failures retry on their own; the
-// statechart speaks them once.
+// goes 1.2 s after the last with two reads in flight at once, so
+// the next photo lands while the previous read is still away, at
+// most five per check. An answer lands only when its epoch is
+// current and a fresh fix shows the hand has not moved since the
+// photo; a missing or stale hand voids it, never a yes. Failures
+// retry on their own; the statechart speaks them once.
 import type { ConfirmAttrs, ConfirmRead } from '../relay';
 import { linkKindFor } from '../metaCall';
 import type { ConversationEvent } from '../conversation/types';
@@ -15,7 +16,7 @@ import type { ConfirmLoop, ConfirmLoopContext, ConfirmLoopDeps, ConfirmPhoto } f
 const SHOT_GAP_MS = 1200;
 const FAIL_GAP_MS = 4000;
 const MAX_TRIES = 5;
-const MAX_FLIGHT = 1;
+const MAX_FLIGHT = 2;
 const MOVE_PX = 80;
 
 function readValues(read: ConfirmAttrs): string[] {

@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { HandFrame } from 'ittro-sensors';
-import { createFrameStats, handFixFromEvent } from '../src/guide/frames';
+import { createFrameStats, framePhotoSize, handFixFromEvent } from '../src/guide/frames';
 
 function frame(patch: Partial<HandFrame>): HandFrame {
   return {
@@ -34,6 +34,13 @@ test('a present frame maps to photo pixels', () => {
 test('an absent frame or a missing photo maps to no fix', () => {
   assert.equal(handFixFromEvent(frame({ present: false }), 1280, 960, 7000), null);
   assert.equal(handFixFromEvent(frame({}), 0, 960, 7000), null);
+});
+
+test('the frame size follows the target box, then the last photo', () => {
+  assert.deepEqual(framePhotoSize({ w: 960, h: 1280 }, { w: 640, h: 480 }), { w: 960, h: 1280 });
+  assert.deepEqual(framePhotoSize(null, { w: 960, h: 1280 }), { w: 960, h: 1280 });
+  assert.deepEqual(framePhotoSize(undefined, { w: 960, h: 1280 }), { w: 960, h: 1280 });
+  assert.deepEqual(framePhotoSize({ w: 0, h: 0 }, { w: 960, h: 1280 }), { w: 960, h: 1280 });
 });
 
 test('recorded frames summarize rate, conversion, detection and drops', () => {

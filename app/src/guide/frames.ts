@@ -29,6 +29,18 @@ export function lastHandFix(): HandFix | null {
   return latestFix;
 }
 
+export interface PhotoSize {
+  w: number;
+  h: number;
+}
+
+export function framePhotoSize(box: PhotoSize | null | undefined, held: PhotoSize): PhotoSize {
+  if (box && box.w > 0 && box.h > 0) {
+    return { w: box.w, h: box.h };
+  }
+  return held;
+}
+
 function percentile(sorted: number[], rank: number): number {
   if (sorted.length === 0) {
     return 0;

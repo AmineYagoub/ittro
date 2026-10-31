@@ -14,7 +14,7 @@ import { logIttro } from '../log';
 import { CROP_MARGIN, expandBox } from '../shelf/outlines';
 import type { ShotListeners } from '../shelf/useShelfSearch';
 import type { ConversationContext, ConversationEvent } from '../conversation/types';
-import { createFrameStats, handFixFromEvent, noteHandFix } from './frames';
+import { createFrameStats, framePhotoSize, handFixFromEvent, noteHandFix } from './frames';
 import type { FrameStats } from './frames';
 import { createGuideLoop } from './loop';
 import type { GuideLoop } from './loopTypes';
@@ -42,11 +42,13 @@ function note(line: string): void {
 }
 
 export function useGuide(actor: { current: GuideActor | null }, active: boolean): GuideShots {
-  const held = useRef<{ loop: GuideLoop | null; stats: FrameStats | null; targetKey: string; heatTimer: ReturnType<typeof setTimeout> | null }>({
+  const held = useRef<{ loop: GuideLoop | null; stats: FrameStats | null; targetKey: string; heatTimer: ReturnType<typeof setTimeout> | null; photoW: number; photoH: number }>({
     loop: null,
     stats: null,
     targetKey: '',
     heatTimer: null,
+    photoW: 0,
+    photoH: 0,
   });
 
   useEffect(() => {
@@ -67,7 +69,7 @@ export function useGuide(actor: { current: GuideActor | null }, active: boolean)
       },
       read: (label, crops) => readShelfCrops(label, crops),
     });
-    held.current = { loop, stats, targetKey: '', heatTimer: null };
+    held.current = { loop, stats, targetKey: '', heatTimer: null, photoW: 0, photoH: 0 };
     note(`hand delegate cpu ${setHandDelegate('cpu') ? 'set' : 'missing'}`);
     return () => {
       held.current.loop?.reset();
@@ -151,7 +153,9 @@ export function useGuide(actor: { current: GuideActor | null }, active: boolean)
     }
 
     return {
-      cloudShot: (photo: { image: string; mime: string }): void => {
+      cloudShot: (photo: { image: string; mime: string; w: number; h: number }): void => {
+        held.current.photoW = photo.w;
+        held.current.photoH = photo.h;
         held.current.loop?.setPhoto(photo);
       },
       onHandFrame: (frame: HandFrame): void => {
@@ -162,7 +166,8 @@ export function useGuide(actor: { current: GuideActor | null }, active: boolean)
           return;
         }
         const target = context?.guideTarget ?? null;
-        const fix = handFixFromEvent(frame, target?.box.w ?? 0, target?.box.h ?? 0, Date.now());
+        const size = framePhotoSize(target?.box, { w: held.current.photoW, h: held.current.photoH });
+        const fix = handFixFromEvent(frame, size.w, size.h, Date.now());
         noteHandFix(fix);
         if (!loop || !stats || !context?.guiding) {
           if (!context?.guiding) {

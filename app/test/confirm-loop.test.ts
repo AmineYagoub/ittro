@@ -9,17 +9,18 @@ import type { ConfirmLoopContext } from '../src/confirm/loopTypes';
 import type { ConversationEvent } from '../src/conversation/types';
 import { PHOTO, UNSURE, YES, fix, flush, read, scripted } from './confirm-harness';
 
-test('a second shot waits for the first answer', async () => {
+test('the next photo goes while the previous read is in flight', async () => {
   const { script, loop, advance } = scripted();
   loop.begin();
   await flush();
   assert.equal(script.shots, 1);
   await advance(1200);
-  assert.equal(script.shots, 1);
+  assert.equal(script.shots, 2);
   script.answer(UNSURE);
   await flush();
-  await advance(1200);
-  assert.equal(script.shots, 2);
+  script.answer(UNSURE);
+  await flush();
+  assert.equal(script.sent.filter((event) => event.type === 'CONFIRM_UNSURE').length, 2);
   loop.stop();
 });
 
