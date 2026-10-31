@@ -165,3 +165,15 @@ test('a detail reads once from one photo', async () => {
   assert.equal(script.shots, 1);
   loop.stop();
 });
+
+test('a held product swaying within a hand width still lands (t7: two reads dropped as moved)', async () => {
+  const { script, loop } = scripted();
+  script.hand = { ...fix(400, 400), handWidth: 135 };
+  loop.begin();
+  await flush();
+  script.hand = { ...fix(520, 470), handWidth: 135 };
+  script.answer(YES);
+  await flush();
+  assert.equal(script.sent[0]?.type, 'CONFIRM_YES');
+  loop.stop();
+});
