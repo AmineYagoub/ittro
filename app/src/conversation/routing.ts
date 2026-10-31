@@ -18,6 +18,8 @@ import {
   declineSearch,
   freshAsk,
   incomingConfirm,
+  logRequestStarted,
+  startRequest,
   logRequestConfirmed,
   missLine,
   noteCleared,
@@ -122,6 +124,10 @@ const incomingRequest: Guard = ({ context }) => {
   const answer = answerOf(context);
   return answer?.intent === 'request_product' && !!answer && hasDetail(answer) && context.step !== 'helperName';
 };
+
+// One clear product starts at once; a list of several still asks first.
+const singleRequest: Guard = (args) =>
+  !args.context.askConfirm && incomingRequest(args) && !((answerOf(args.context)?.items?.length ?? 0) > 1);
 
 const confirmDetail: Guard = ({ context }) => {
   const answer = answerOf(context);
@@ -257,6 +263,7 @@ export const routingTransitions: Route[] = [
   { guard: offerNo, actions: [declineOffer], target: 'sayingKeep' },
   { guard: offerSwitch, actions: [switchPlain, noteLanguage], target: 'saying' },
   { guard: offerStep, actions: [missLine], target: 'saying' },
+  { guard: singleRequest, actions: [startRequest, logRequestStarted, raiseSearchBegin, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'saying' },
   { guard: incomingRequest, actions: [incomingConfirm, raiseSearchBegin, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'saying' },
   { guard: confirmDetail, actions: [incomingConfirm, raiseSearchBegin, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'saying' },
   { guard: confirmYes, actions: [logRequestConfirmed, confirmRequestLine], target: 'saying' },

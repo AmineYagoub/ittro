@@ -18,6 +18,18 @@ export function searchingFor(product: string, lang: Language): string {
   return `Yes. I'm searching the shelf for ${product}.`;
 }
 
+// A clear request starts the search at once: no "is that right?" turn
+// (founder, 31 October). "No" still corrects or cancels it.
+export function lookingFor(product: string, lang: Language): string {
+  if (lang === 'ar') {
+    return `أبحث عن ${product}.`;
+  }
+  if (lang === 'fr') {
+    return `Je cherche ${product}.`;
+  }
+  return `Looking for ${product}.`;
+}
+
 export function confirmRequest(product: string, lang: Language): string {
   if (lang === 'ar') {
     return `طلبت ${product}. هل هذا صحيح؟ قل نعم أو لا.`;

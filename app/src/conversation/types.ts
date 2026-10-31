@@ -72,6 +72,10 @@ export interface MachineInput {
   snapshot: MachineSnapshot;
   relayUrl: string;
   relayCode: string;
+  // Ask "is that right?" before searching a clear request. Off in the
+  // app since 31 October (the founder's call); the confirm path stays
+  // for lists and its own tests.
+  askConfirm?: boolean;
 }
 
 export type StreamCommand = { type: 'START'; keywords: string[] } | { type: 'STOP' };
@@ -115,6 +119,7 @@ export interface ConversationContext {
   translateNext: 'saying' | 'routing';
   rate: number;
   firstLaunchDone: boolean;
+  askConfirm: boolean;
   lastLine: string;
   lastChips: string[];
   voiceAt: number;

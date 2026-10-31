@@ -31,6 +31,7 @@ export function initialContext({ input }: { input: MachineInput }): Conversation
     translateNext: 'saying',
     rate: input.prefs.rate,
     firstLaunchDone: input.prefs.firstLaunchDone,
+    askConfirm: input.askConfirm ?? false,
     lastLine: '',
     lastChips: [],
     voiceAt: 0,

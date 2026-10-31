@@ -37,6 +37,7 @@ export interface StartOptions {
   language?: Language;
   firstLaunchDone?: boolean;
   request?: string | null;
+  askConfirm?: boolean;
   understandLogic?: typeof understandAnswer;
 }
 
@@ -127,6 +128,7 @@ export function startConversation(options?: StartOptions): Driver {
       snapshot: { request: options?.request ?? null },
       relayUrl: 'http://localhost:8787',
       relayCode: 'test-code',
+      askConfirm: options?.askConfirm ?? true,
     },
   });
 

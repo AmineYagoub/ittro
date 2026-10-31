@@ -28,7 +28,7 @@ import {
   welcomeBack,
   whatToFind,
 } from '../lines';
-import { confirmList, confirmRequest, declinedRequest, searchingFor, welcomeBackLooking } from '../requestLines';
+import { confirmList, confirmRequest, declinedRequest, lookingFor, searchingFor, welcomeBackLooking } from '../requestLines';
 import { applyRate, mergeBrands, persistSnapshot, storeBrief, storeConfirmedBrand, storeFirstLaunchDone, storeLanguage } from './actors';
 import { logIttro } from '../log';
 import { spokenLang, switchedLines } from './translation';
@@ -140,6 +140,30 @@ export const incomingConfirm = assign({
     { text: confirmLines(context.routeAnswer as UnderstandAnswer, context.lang).text, chips: [YES_CHIP[context.lang], NO_CHIP[context.lang]] },
   ],
 });
+
+export const startRequest = assign({
+  step: 'welcome',
+  pendingQuestion: null,
+  alternative: null,
+  pendingRequest: null,
+  pendingItems: null,
+  requestLang: ({ context }) => spokenLang(context.routeAnswer, context.lang),
+  request: ({ context }) => {
+    const product = context.routeAnswer?.product_text ?? '';
+    persistSnapshot(product);
+    return product;
+  },
+  brands: ({ context }) => {
+    const product = context.routeAnswer?.product_text ?? '';
+    storeConfirmedBrand(product);
+    return mergeBrands(context.brands, product);
+  },
+  pendingSay: ({ context }) => [{ text: lookingFor(context.routeAnswer?.product_text ?? '', context.lang), chips: [] }],
+});
+
+export const logRequestStarted: Effect = ({ context }) => {
+  logIttro(`search request started ${JSON.stringify(context.request)} without a confirm turn`);
+};
 
 export const confirmRequestLine = assign({
   request: ({ context }) => {
