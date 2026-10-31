@@ -9,6 +9,7 @@ import type { SparkSchema } from './spark.ts';
 import { effortField, mimeField, textField } from './bodies.ts';
 import { recordSparkCost } from './gate.ts';
 import type { Env } from './gate.ts';
+import { settleConfirm } from './settle.ts';
 
 export type ConfirmVerdict = 'yes' | 'no' | 'unsure' | 'picture';
 
@@ -198,7 +199,8 @@ export async function confirmInHand(
     },
   ];
   const started = Date.now();
-  const read = await callSparkJson({ fetchImpl, apiBase, apiKey, input, effort: args.effort ?? 'minimal', schema: CONFIRM_SCHEMA, guard: isConfirmRead });
+  const raw = await callSparkJson({ fetchImpl, apiBase, apiKey, input, effort: args.effort ?? 'minimal', schema: CONFIRM_SCHEMA, guard: isConfirmRead });
+  const read = settleConfirm(raw);
   return { read, readMs: Date.now() - started };
 }
 

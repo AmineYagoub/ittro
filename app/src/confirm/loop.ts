@@ -1,9 +1,10 @@
 // The confirm loop, outside the statechart: still photos become
 // cloud reads, each answered in the moment it was taken. A shot
 // waits 1.2 s after the last, at most five per check, and an answer
-// lands only when its epoch is current and the hand has not moved
-// since the photo. Failures retry on their own; the statechart
-// speaks them once.
+// lands only when its epoch is current and a fresh fix shows the
+// hand has not moved since the photo; a missing or stale hand
+// voids it, never a yes. Failures retry on their own; the
+// statechart speaks them once.
 import type { ConfirmAttrs, ConfirmRead } from '../relay';
 import { linkKindFor } from '../metaCall';
 import type { ConversationEvent } from '../conversation/types';
@@ -23,11 +24,24 @@ function readValues(read: ConfirmAttrs): string[] {
   );
 }
 
-function movedSince(shot: HandFix | null, now: HandFix | null): boolean {
+function movedSince(shot: HandFix | null, now: HandFix | null, shotAt: number): boolean {
   if (!shot || !now) {
-    return false;
+    return true;
+  }
+  if (now.atMs < shotAt) {
+    return true;
   }
   return Math.hypot(now.x - shot.x, now.y - shot.y) > MOVE_PX;
+}
+
+function dropReason(shot: HandFix | null, now: HandFix | null, shotAt: number): string {
+  if (!shot || !now) {
+    return 'hand missing';
+  }
+  if (now.atMs < shotAt) {
+    return 'hand stale';
+  }
+  return 'hand moved';
 }
 
 export function createConfirmLoop(deps: ConfirmLoopDeps): ConfirmLoop {
@@ -68,6 +82,7 @@ export function createConfirmLoop(deps: ConfirmLoopDeps): ConfirmLoop {
     state.tries += 1;
     state.flight += 1;
     state.lastShotAt = deps.now();
+    const shotAt = deps.now();
     const epoch = ctx.epoch;
     const hand = deps.handNow();
     const detail = ctx.detailKind;
@@ -95,8 +110,9 @@ export function createConfirmLoop(deps: ConfirmLoopDeps): ConfirmLoop {
         if (now.epoch !== epoch || now.final) {
           return;
         }
-        if (movedSince(hand, deps.handNow())) {
-          deps.log('confirm answer dropped: hand moved');
+        const landed = deps.handNow();
+        if (movedSince(hand, landed, shotAt)) {
+          deps.log(`confirm answer dropped: ${dropReason(hand, landed, shotAt)}`);
           deps.send({ type: 'CONFIRM_MOVED', epoch });
           return;
         }
@@ -118,8 +134,9 @@ export function createConfirmLoop(deps: ConfirmLoopDeps): ConfirmLoop {
       if (now.epoch !== epoch || now.final) {
         return;
       }
-      if (movedSince(hand, deps.handNow())) {
-        deps.log('confirm answer dropped: hand moved');
+      const landed = deps.handNow();
+      if (movedSince(hand, landed, shotAt)) {
+        deps.log(`confirm answer dropped: ${dropReason(hand, landed, shotAt)}`);
         deps.send({ type: 'CONFIRM_MOVED', epoch });
         return;
       }

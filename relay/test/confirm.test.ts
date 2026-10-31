@@ -35,6 +35,56 @@ test('a yes carries every asked attribute read and matched', async () => {
   assert.equal(result.read.label_name, 'El Taaounia Riz Basmati, 1 kg');
 });
 
+test('a yes that contradicts the request becomes a no', async () => {
+  const result = await confirmInHand(okFetch(completed({
+    verdict: 'yes',
+    picture_problem: null,
+    asked: { brand: 'Soummam', product: 'milk', variant: null, size: null },
+    read: { brand: 'Guedila', product: 'water', variant: null, size: null },
+    label_name: 'Guedila water',
+    unreadable: [],
+  })), 'https://example.invalid', 'key', PHOTO);
+  assert.equal(result.read.verdict, 'no');
+  assert.equal(result.read.label_name, 'Guedila water');
+});
+
+test('a yes with an asked attribute unread becomes unsure', async () => {
+  const result = await confirmInHand(okFetch(completed({
+    verdict: 'yes',
+    picture_problem: null,
+    asked: ASKED,
+    read: { brand: 'El Taaounia', product: 'Riz', variant: 'Basmati', size: null },
+    label_name: 'El Taaounia Riz Basmati',
+    unreadable: [],
+  })), 'https://example.invalid', 'key', PHOTO);
+  assert.equal(result.read.verdict, 'unsure');
+  assert.deepEqual(result.read.unreadable, ['size']);
+});
+
+test('a yes matches sizes across unit spellings', async () => {
+  const result = await confirmInHand(okFetch(completed({
+    verdict: 'yes',
+    picture_problem: null,
+    asked: { brand: 'Masaad', product: 'water', variant: null, size: '1.5 litres' },
+    read: { brand: 'Masaad', product: 'water', variant: null, size: '1.5 L' },
+    label_name: 'Masaad water',
+    unreadable: [],
+  })), 'https://example.invalid', 'key', PHOTO);
+  assert.equal(result.read.verdict, 'yes');
+});
+
+test('a yes with different sizes becomes a no', async () => {
+  const result = await confirmInHand(okFetch(completed({
+    verdict: 'yes',
+    picture_problem: null,
+    asked: { brand: 'El Taaounia', product: 'Riz', variant: 'Basmati', size: '1 kg' },
+    read: { brand: 'El Taaounia', product: 'Riz', variant: 'Basmati', size: '500 g' },
+    label_name: 'El Taaounia Riz Basmati',
+    unreadable: [],
+  })), 'https://example.invalid', 'key', PHOTO);
+  assert.equal(result.read.verdict, 'no');
+});
+
 test('a yes with anything unreadable is rejected, never a guess', async () => {
   await assert.rejects(
     confirmInHand(okFetch(completed({

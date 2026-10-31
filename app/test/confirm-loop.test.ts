@@ -1,121 +1,13 @@
 // The confirm loop walked with scripted photos and cloud reads: a
 // shot every 1.2 s, at most five per check, and an answer lands only
-// in its own epoch with the hand unmoved since the photo.
+// in its own epoch with a fresh fix showing the hand unmoved since
+// the photo; a missing or stale hand voids it, never a yes.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createConfirmLoop } from '../src/confirm/loop';
 import type { ConfirmLoopContext } from '../src/confirm/loopTypes';
-import type { HandFix } from '../src/guide/types';
-import type { ConfirmRead, DetailKind } from '../src/relay';
 import type { ConversationEvent } from '../src/conversation/types';
-
-const PHOTO = { image: 'aGk=', mime: 'image/jpeg', crop: 'data:image/jpeg;base64,aGk=' };
-
-const ASKED = { brand: 'Masaad', product: 'water', variant: null, size: '1.5 litres' };
-
-function read(patch: Partial<ConfirmRead>): ConfirmRead {
-  return {
-    verdict: 'yes',
-    picture_problem: null,
-    asked: ASKED,
-    read: { brand: null, product: null, variant: null, size: null },
-    label_name: 'Masaad water',
-    unreadable: [],
-    ...patch,
-  };
-}
-
-const YES = read({ verdict: 'yes', read: { brand: 'Masaad', product: 'water', variant: null, size: '1.5 litres' } });
-
-const UNSURE = read({
-  verdict: 'unsure',
-  read: { brand: 'Masaad', product: null, variant: null, size: null },
-  label_name: 'Masaad',
-  unreadable: ['size'],
-});
-
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  let reject!: (err: unknown) => void;
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
-}
-
-async function flush(rounds = 30): Promise<void> {
-  for (let row = 0; row < rounds; row += 1) {
-    await Promise.resolve();
-  }
-}
-
-interface Script {
-  shots: number;
-  sent: ConversationEvent[];
-  ctx: ConfirmLoopContext;
-  detailKind: DetailKind | null;
-  hand: HandFix | null;
-  answer: (read: ConfirmRead) => void;
-}
-
-function scripted(): {
-  script: Script;
-  loop: ReturnType<typeof createConfirmLoop>;
-  advance: (ms: number) => Promise<void>;
-  pending: () => number;
-} {
-  let now = 0;
-  const script: Script = {
-    shots: 0,
-    sent: [],
-    ctx: { epoch: 1, request: 'Masaad water', detailKind: null, final: false },
-    detailKind: null,
-    hand: null,
-    answer: () => {},
-  };
-  const waiting: Array<(read: ConfirmRead) => void> = [];
-  script.answer = (got: ConfirmRead) => {
-    const next = waiting.shift();
-    if (next) {
-      next(got);
-    }
-  };
-  const loop = createConfirmLoop({
-    now: () => now,
-    shoot: async () => {
-      script.shots += 1;
-      return PHOTO;
-    },
-    confirm: async () => {
-      const gate = deferred<ConfirmRead>();
-      waiting.push((got) => gate.resolve(got));
-      const got = await gate.promise;
-      return { read: got, readMs: 120 };
-    },
-    detail: async (kind) => ({ read: { text: kind === 'date' ? 'best before 12 March 2027' : null, reason: null }, readMs: 90 }),
-    readContext: () => script.ctx,
-    handNow: () => script.hand,
-    send: (event) => {
-      script.sent.push(event);
-    },
-    log: () => {},
-  });
-  return {
-    script,
-    loop,
-    pending: () => waiting.length,
-    advance: async (ms: number) => {
-      now += ms;
-      loop.tick();
-      await flush();
-    },
-  };
-}
-
-function fix(x: number, y: number): HandFix {
-  return { x, y, confidence: 0.9, handWidth: 60, atMs: 0 };
-}
+import { PHOTO, UNSURE, YES, fix, flush, read, scripted } from './confirm-harness';
 
 test('a second shot waits for the first answer', async () => {
   const { script, loop, advance } = scripted();
@@ -195,17 +87,6 @@ test('an answer about a moved hand is dropped and reread', async () => {
   loop.stop();
 });
 
-test('without hand data the answer still lands', async () => {
-  const { script, loop } = scripted();
-  loop.begin();
-  await flush();
-  script.answer(YES);
-  await flush();
-  assert.equal(script.sent.at(-2)?.type, 'CONFIRM_YES');
-  assert.equal(script.sent.at(-1)?.type, 'LINK_OK');
-  loop.stop();
-});
-
 test('a stale epoch answer is dropped', async () => {
   const { script, loop } = scripted();
   loop.begin();
@@ -242,7 +123,7 @@ test('a failed shot retries without spending a try', async () => {
     confirm: async () => ({ read: YES, readMs: 120 }),
     detail: async () => ({ read: { text: null, reason: 'too_small' }, readMs: 90 }),
     readContext: () => ctx,
-    handNow: () => null,
+    handNow: () => ({ x: 100, y: 100, confidence: 0.9, handWidth: 60, atMs: now }),
     send: (event) => {
       sent.push(event);
     },
