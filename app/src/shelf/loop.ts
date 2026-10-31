@@ -9,7 +9,7 @@ import { pickSharpest, sharpness } from './tracker';
 import { moveOutlines } from './outlines';
 import { biggestFirst, needsRead, reconcileTracks } from './shelfTracks';
 import { outlineSignature, packageKind } from './match';
-import { QUIET_MS, maybeSwept, readBatch, reportEmpty, reportVerdicts } from './loopReads';
+import { QUIET_MS, maybeSwept, readBatch, reportEmpty, reportRefind, reportVerdicts, targetJumped } from './loopReads';
 import type { LoopDeps, LoopPhoto, LoopState, LoopStats, ShelfLoop } from './loopTypes';
 
 const REFRESH_MS = 15000;
@@ -40,6 +40,8 @@ function freshState(): LoopState {
     blurrySkips: 0,
     sweptEpoch: -1,
     foundKey: '',
+    foundTrack: null,
+    foundOutline: null,
     turnRightNext: true,
     stats: { samCalls: 0, readCalls: 0, readCrops: 0, classifyCalls: 0 },
   };
@@ -56,6 +58,8 @@ function searchReset(state: LoopState): void {
   state.emptyOutlines = 0;
   state.fruitlessPasses = 0;
   state.blurrySkips = 0;
+  state.foundTrack = null;
+  state.foundOutline = null;
   state.turnRightNext = true;
 }
 
@@ -210,21 +214,25 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
           const verdict = answer.reads[0]?.verdict ?? 'missing';
           deps.log(`shelf hand read ${answer.readMs}ms verdict ${verdict}`);
         }
-        if (context.guiding) {
+        const verifying =
+          context.guiding && !context.handCovering && (context.guideLost || context.guideRecheck || targetJumped(state));
+        if (context.guiding && !verifying) {
           if (context.handCovering) {
             deps.log('shelf target held under hand');
-            deps.send({ type: 'LINK_OK' });
-            return;
+          } else {
+            // The product is found and the hand is being guided: the
+            // outlines still refresh, but settled labels are not read
+            // again every pass (13 reads in 40 s on the phone, each
+            // 2.3 to 4.7 s, all against the budget and the confirm).
+            deps.log('shelf reads paused while guiding');
           }
-          // The product is found and the hand is being guided: the
-          // outlines still refresh, but settled labels are not read
-          // again every pass (13 reads in 40 s on the phone, each
-          // 2.3 to 4.7 s, all against the budget and the confirm).
-          deps.log('shelf reads paused while guiding');
           deps.send({ type: 'LINK_OK' });
           return;
         }
-        const needy = biggestFirst(needsRead(state.tracks));
+        if (verifying) {
+          deps.log('shelf target recheck, reading to confirm');
+        }
+        const needy = verifying ? biggestFirst(state.tracks) : biggestFirst(needsRead(state.tracks));
         const passReads: ShelfRead[] = [];
         const priority = needy.slice(0, PRIORITY_BATCH);
         if (priority.length > 0) {
@@ -232,7 +240,11 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
           if (stale(epoch)) {
             return;
           }
-          reportVerdicts(ctx, request, passReads, epoch);
+          if (verifying) {
+            reportRefind(ctx, request, passReads, epoch);
+          } else {
+            reportVerdicts(ctx, request, passReads, epoch);
+          }
         }
         const rest = needy.slice(PRIORITY_BATCH);
         if (rest.length > 0) {
@@ -240,9 +252,15 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
           if (stale(epoch)) {
             return;
           }
-          reportVerdicts(ctx, request, passReads, epoch);
+          if (verifying) {
+            reportRefind(ctx, request, passReads, epoch);
+          } else {
+            reportVerdicts(ctx, request, passReads, epoch);
+          }
         }
-        maybeSwept(ctx, passReads, epoch);
+        if (!verifying) {
+          maybeSwept(ctx, passReads, epoch);
+        }
         deps.send({ type: 'LINK_OK' });
       } catch (error) {
         fail(error);

@@ -9,7 +9,6 @@ import { playSound } from '../speech';
 import { haptics } from '../theme';
 import { continueIdFor } from './steer';
 import { firstSentence, foundToLine, outOfViewLine, partsText, severalPrefix, thisIsLine } from './lines';
-import { shortProduct } from '../requestLines';
 import { shelfFoundLine } from '../shelf/searchLines';
 import type { ShelfBox } from '../relay';
 import type { GuideDir } from './types';
@@ -56,27 +55,6 @@ function directParts(context: ConversationContext, cue: string | null): SpeechPa
   }
   return [{ clip: cue }];
 }
-
-export const storeGuideTarget = assign({
-  guiding: true,
-  pendingSearch: [],
-  alternative: null,
-  step: ({ context }: ContextArgs) => (context.step === 'alternative' ? 'welcome' : context.step),
-  pendingQuestion: ({ context }: ContextArgs) => (context.step === 'alternative' ? null : context.pendingQuestion),
-  guideTarget: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.outline : null),
-  shelfTarget: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.outline : null),
-  guideLabel: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? shortProduct(event.product) : ''),
-  guideKind: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.kind : ''),
-  guideMatches: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.matches : 0),
-  guidePosition: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.position : 'middle'),
-  guideFresh: true,
-  guideCue: null,
-  guideHand: null,
-  guideProximity: 0,
-  guideWrong: null,
-  guideRecheck: false,
-  guideOutOfView: false,
-});
 
 export const sayFound = assign({
   guideParts: ({ context }: ContextArgs) => [{ text: foundLine(context) }],
@@ -259,30 +237,10 @@ export const sayTargetLost = assign({
   lastChips: [],
 });
 
-export const hasTarget = ({ context }: ContextArgs): boolean => context.guideTarget !== null;
-
-export const foundTarget = ({ event }: EventArgs): boolean => event.type === 'SHELF_FOUND' && event.outline !== null;
-
-export const confirmed = ({ context }: ContextArgs): boolean => context.request !== null && context.pendingRequest === null;
-
 function withoutContinue(cue: string): string {
   return cue.replace(/_continue$/, '');
 }
 
 export const sameCue = ({ context, event }: EventArgs): boolean =>
   event.type === 'GUIDE_CUE' && context.guideCue !== null && withoutContinue(event.cue) === withoutContinue(context.guideCue);
-
-export const readyToArm = ({ context }: ContextArgs): boolean =>
-  hasTarget({ context }) && confirmed({ context }) && !context.guideRestarting;
-
-export const queuesEmpty = ({ context }: ContextArgs): boolean =>
-  context.pendingSearch.length === 0 && context.pendingHelper.length === 0 && context.linkLine === null;
-
-export function readyQuiet({ context }: ContextArgs): boolean {
-  return readyToArm({ context }) && !context.talkBusy && queuesEmpty({ context });
-}
-
-export function armFree({ context }: ContextArgs): boolean {
-  return !context.talkBusy && queuesEmpty({ context });
-}
 

@@ -71,3 +71,101 @@ test('a pass with the hand on the product holds without reading', async () => {
   assert.equal(rigged.reads(), 0);
   assert.ok(rigged.logs.includes('shelf target held under hand'));
 });
+
+function scriptedRig(): {
+  loop: ShelfLoop;
+  sent: ConversationEvent[];
+  logs: string[];
+  reads: () => number;
+  setOutlines: (outlines: ShelfOutline[]) => void;
+  setGuiding: (guiding: boolean, lost: boolean, recheck: boolean) => void;
+} {
+  const sent: ConversationEvent[] = [];
+  const logs: string[] = [];
+  let reads = 0;
+  let outlines = [outline(1, box(0, 0, 10, 10)), outline(2, box(20, 0, 30, 10))];
+  let guiding = false;
+  let lost = false;
+  let recheck = false;
+  const deps: LoopDeps = {
+    now: () => 0,
+    outline: async () => ({ outlines, samMs: 5, maskMs: 1 }),
+    fetchPhrase: async () => 'rice bag',
+    read: async (_request, crops) => {
+      reads += 1;
+      const batch: ShelfRead[] = crops.map((crop, at) => ({
+        id: crop.id,
+        brand_text: at === 0 ? 'Other' : 'Taaounia',
+        size_text: null,
+        verdict: at === 0 ? 'no' : 'yes',
+        spoken: at === 0 ? 'other' : 'rice',
+      }));
+      return { reads: batch, readMs: 7 };
+    },
+    classify: async () => ({ scene: 'shelf', kinds: ['bags'], aisle_hint: null }),
+    cutCrops: async (_image, tracks) => tracks.map((entry) => ({ id: `shelf-${entry.track}`, image: 'crop', mime: 'image/jpeg' })),
+    readContext: () => ({ lang: 'en', alternative: null, checkedCount: 2, guiding, guideLost: lost, guideRecheck: recheck }),
+    send: (event) => {
+      sent.push(event);
+    },
+    log: (line) => {
+      logs.push(line);
+    },
+  };
+  const loop = createShelfLoop(deps);
+  loop.setTarget('rice', 1);
+  return {
+    loop,
+    sent,
+    logs,
+    reads: () => reads,
+    setOutlines: (next) => {
+      outlines = next;
+    },
+    setGuiding: (next, nextLost, nextRecheck) => {
+      guiding = next;
+      lost = nextLost;
+      recheck = nextRecheck;
+    },
+  };
+}
+
+function foundOutlines(sent: ConversationEvent[]): ShelfOutline[] {
+  return sent.filter((event) => event.type === 'SHELF_FOUND').map((event) => (event as { outline: ShelfOutline }).outline);
+}
+
+test('a jumped target while guiding is re-read and re-found by its label', async () => {
+  const rigged = scriptedRig();
+  await rigged.loop.cloudPass([photo()]);
+  assert.equal(foundOutlines(rigged.sent).length, 1);
+  const before = rigged.reads();
+  rigged.setGuiding(true, false, false);
+  rigged.setOutlines([outline(3, box(60, 0, 70, 10)), outline(4, box(80, 0, 90, 10))]);
+  await rigged.loop.cloudPass([photo()]);
+  assert.ok(rigged.reads() > before);
+  assert.ok(rigged.logs.includes('shelf target recheck, reading to confirm'));
+  const found = foundOutlines(rigged.sent);
+  assert.equal(found.length, 2);
+  assert.equal((found[1] as ShelfOutline).box.x1, 80);
+});
+
+test('a lost target while guiding is re-read even from settled tracks', async () => {
+  const rigged = scriptedRig();
+  await rigged.loop.cloudPass([photo()]);
+  assert.equal(foundOutlines(rigged.sent).length, 1);
+  const before = rigged.reads();
+  rigged.setGuiding(true, true, false);
+  await rigged.loop.cloudPass([photo()]);
+  assert.ok(rigged.reads() > before);
+  assert.equal(foundOutlines(rigged.sent).length, 2);
+});
+
+test('a steady target while guiding reads nothing', async () => {
+  const rigged = scriptedRig();
+  await rigged.loop.cloudPass([photo()]);
+  const before = rigged.reads();
+  rigged.setGuiding(true, false, false);
+  await rigged.loop.cloudPass([photo()]);
+  assert.equal(rigged.reads(), before);
+  assert.equal(foundOutlines(rigged.sent).length, 1);
+});

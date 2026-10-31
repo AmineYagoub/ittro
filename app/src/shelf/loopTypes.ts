@@ -21,6 +21,8 @@ export interface LoopContext {
   checkedCount: number;
   guiding?: boolean;
   handCovering?: boolean;
+  guideLost?: boolean;
+  guideRecheck?: boolean;
 }
 
 export interface LoopCut {
@@ -67,6 +69,8 @@ export interface LoopState {
   blurrySkips: number;
   sweptEpoch: number;
   foundKey: string;
+  foundTrack: string | null;
+  foundOutline: ShelfOutline | null;
   turnRightNext: boolean;
   stats: LoopStats;
 }

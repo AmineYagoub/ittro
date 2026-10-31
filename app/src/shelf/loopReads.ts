@@ -3,12 +3,15 @@
 // verdicts, the swept shelf, and the empty-shelf scenes.
 import { aisleFallback, findCloseMatch, packageKind } from './match';
 import { createReadQueue, dropEpoch, enqueueRead, nextRead } from './queue';
-import type { ShelfOutline, ShelfRead } from '../relay';
+import type { ShelfRead } from '../relay';
 import type { LoopDeps, LoopState } from './loopTypes';
 import type { Tracked } from './shelfTracks';
+import { boxOverlap } from './outlines';
 import { positionFor } from '../guide/steer';
 
 export const QUIET_MS = 8000;
+
+const TARGET_STEADY_IOU = 0.5;
 
 const EMPTY_BEFORE_TURN = 2;
 const EMPTY_BEFORE_SWEPT = 3;
@@ -62,18 +65,31 @@ export async function readBatch(
   return answer.reads;
 }
 
-function nearestOutline(state: LoopState, reads: ShelfRead[]): ShelfOutline | null {
+function nearestOutline(state: LoopState, reads: ShelfRead[]): Tracked | null {
   const yes = new Set(reads.filter((read) => read.verdict === 'yes').map((read) => read.id.replace(/^shelf-/, '')));
   if (yes.size === 0) {
     return null;
   }
-  const outlines = state.tracks.filter((entry) => yes.has(entry.track)).map((entry) => entry.outline);
-  const area = (outline: ShelfOutline): number => Math.max(0, outline.box.x2 - outline.box.x1) * Math.max(0, outline.box.y2 - outline.box.y1);
-  const central = (outline: ShelfOutline): number =>
-    outline.box.w > 0 ? Math.abs((outline.box.x1 + outline.box.x2) / 2 / outline.box.w - 0.5) : 1;
-  return (
-    [...outlines].sort((a, b) => area(b) - area(a) || central(a) - central(b))[0] ?? null
-  );
+  const outlines = state.tracks.filter((entry) => yes.has(entry.track));
+  const area = (entry: Tracked): number => Math.max(0, entry.outline.box.x2 - entry.outline.box.x1) * Math.max(0, entry.outline.box.y2 - entry.outline.box.y1);
+  const central = (entry: Tracked): number =>
+    entry.outline.box.w > 0 ? Math.abs((entry.outline.box.x1 + entry.outline.box.x2) / 2 / entry.outline.box.w - 0.5) : 1;
+  return [...outlines].sort((a, b) => area(b) - area(a) || central(a) - central(b))[0] ?? null;
+}
+
+function sendFound(ctx: ReadsContext, request: string, reads: ShelfRead[], epoch: number, tracked: Tracked): void {
+  const { deps, state } = ctx;
+  state.foundTrack = tracked.track;
+  state.foundOutline = tracked.outline;
+  const phrase = state.phrases.get(request) ?? request;
+  deps.send({
+    type: 'SHELF_FOUND',
+    product: request,
+    outline: tracked.outline,
+    matches: reads.filter((read) => read.verdict === 'yes').length,
+    kind: packageKind(phrase, deps.readContext().lang),
+    position: positionFor(tracked.outline.box, tracked.outline.box.w),
+  });
 }
 
 export function reportVerdicts(ctx: ReadsContext, request: string, reads: ShelfRead[], epoch: number): void {
@@ -84,15 +100,7 @@ export function reportVerdicts(ctx: ReadsContext, request: string, reads: ShelfR
     const key = `${epoch}:${request}`;
     if (state.foundKey !== key) {
       state.foundKey = key;
-      const phrase = state.phrases.get(request) ?? request;
-      deps.send({
-        type: 'SHELF_FOUND',
-        product: request,
-        outline: target,
-        matches: reads.filter((read) => read.verdict === 'yes').length,
-        kind: packageKind(phrase, deps.readContext().lang),
-        position: positionFor(target.box, target.box.w),
-      });
+      sendFound(ctx, request, reads, epoch, target);
     }
     return;
   }
@@ -101,6 +109,26 @@ export function reportVerdicts(ctx: ReadsContext, request: string, reads: ShelfR
     state.fruitlessPasses = 0;
     deps.send({ type: 'CLOSE_MATCH', wanted: request, found: close });
   }
+}
+
+export function reportRefind(ctx: ReadsContext, request: string, reads: ShelfRead[], epoch: number): void {
+  const { state } = ctx;
+  const target = nearestOutline(state, reads);
+  if (target) {
+    state.fruitlessPasses = 0;
+    sendFound(ctx, request, reads, epoch, target);
+  }
+}
+
+export function targetJumped(state: LoopState): boolean {
+  if (!state.foundTrack || !state.foundOutline) {
+    return false;
+  }
+  const entry = state.tracks.find((tracked) => tracked.track === state.foundTrack) ?? null;
+  if (!entry) {
+    return true;
+  }
+  return boxOverlap(entry.outline.box, state.foundOutline.box) < TARGET_STEADY_IOU;
 }
 
 export function maybeSwept(ctx: ReadsContext, reads: ShelfRead[], epoch: number): void {

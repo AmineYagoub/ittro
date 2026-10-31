@@ -11,14 +11,9 @@ import {
   AIM_TIMEOUT_MS,
   ARM_TIMEOUT_MS,
   REPEAT_MS,
-  armFree,
   buzzNo,
   endGuide,
-  foundTarget,
-  hasTarget,
   lostSound,
-  readyQuiet,
-  readyToArm,
   sameCue,
   sayAlmost,
   sayContinue,
@@ -32,8 +27,8 @@ import {
   sayTargetLost,
   sayWrong,
   trackCue,
-  storeGuideTarget,
 } from './guideSay';
+import { adoptGuideTarget, armFree, foundTarget, hasTarget, logAdopted, readyQuiet, readyToArm, storeGuideTarget } from './guideTarget';
 
 function speakState() {
   return {
@@ -102,6 +97,7 @@ export const guideRegion = {
         GUIDE_NOHAND: { actions: [sayNoHand], target: 'noHand' },
         GUIDE_LOST: { actions: [sayLost], target: 'handLost' },
         GUIDE_TARGET_LOST: { actions: [sayTargetLost], target: 'targetLost' },
+        SHELF_FOUND: { guard: foundTarget, actions: [adoptGuideTarget, logAdopted] },
       },
     },
     directing: {
@@ -115,6 +111,7 @@ export const guideRegion = {
         GUIDE_LOST: { actions: [sayLost], target: 'handLost' },
         GUIDE_WRONG: { actions: [sayWrong], target: 'wrongItem' },
         GUIDE_TARGET_LOST: { actions: [sayTargetLost], target: 'targetLost' },
+        SHELF_FOUND: { guard: foundTarget, actions: [adoptGuideTarget, logAdopted] },
       },
       after: { [REPEAT_MS]: { actions: [sayContinue], target: 'directing', reenter: true } },
     },
@@ -128,6 +125,7 @@ export const guideRegion = {
         GUIDE_LOST: { actions: [sayLost], target: 'handLost' },
         GUIDE_WRONG: { actions: [sayWrong], target: 'wrongItem' },
         GUIDE_TARGET_LOST: { actions: [sayTargetLost], target: 'targetLost' },
+        SHELF_FOUND: { guard: foundTarget, actions: [adoptGuideTarget, logAdopted] },
       },
     },
     reaching: {
@@ -142,6 +140,7 @@ export const guideRegion = {
         GUIDE_LOST: { actions: [sayLost], target: 'handLost' },
         GUIDE_WRONG: { actions: [sayWrong], target: 'wrongItem' },
         GUIDE_TARGET_LOST: { actions: [sayTargetLost], target: 'targetLost' },
+        SHELF_FOUND: { guard: foundTarget, actions: [adoptGuideTarget, logAdopted] },
       },
     },
     picking: {
@@ -163,6 +162,7 @@ export const guideRegion = {
         GUIDE_COVERING: { actions: [sayReach], target: 'reaching' },
         GUIDE_LOST: { actions: [sayLost], target: 'handLost' },
         GUIDE_TARGET_LOST: { actions: [sayTargetLost], target: 'targetLost' },
+        SHELF_FOUND: { guard: foundTarget, actions: [adoptGuideTarget, logAdopted] },
       },
     },
     handLost: {
@@ -177,6 +177,7 @@ export const guideRegion = {
         GUIDE_COVERING: { actions: [sayReach], target: 'reaching' },
         GUIDE_NOHAND: { actions: [sayNoHand], target: 'noHand' },
         GUIDE_TARGET_LOST: { actions: [sayTargetLost], target: 'targetLost' },
+        SHELF_FOUND: { guard: foundTarget, actions: [adoptGuideTarget, logAdopted] },
       },
     },
     wrongItem: {
@@ -194,6 +195,7 @@ export const guideRegion = {
         GUIDE_LOST: { actions: [sayLost], target: 'handLost' },
         GUIDE_WRONG: { actions: [sayWrong], target: 'wrongItem', reenter: true },
         GUIDE_TARGET_LOST: { actions: [sayTargetLost], target: 'targetLost' },
+        SHELF_FOUND: { guard: foundTarget, actions: [adoptGuideTarget, logAdopted] },
       },
     },
     targetLost: {
@@ -206,6 +208,7 @@ export const guideRegion = {
         GUIDE_COVERING: { actions: [sayReach], target: 'reaching' },
         GUIDE_NOHAND: { actions: [sayNoHand], target: 'noHand' },
         GUIDE_LOST: { actions: [sayLost], target: 'handLost' },
+        SHELF_FOUND: { guard: foundTarget, actions: [adoptGuideTarget, logAdopted], target: 'aiming' },
       },
     },
   },
