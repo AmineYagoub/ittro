@@ -19,9 +19,8 @@ import {
   shelfSweptLine,
   wrongShelfLine,
 } from '../shelf/searchLines';
-import { boxOverlap } from '../shelf/outlines';
-import type { ShelfOutline } from '../relay';
 import type { ConversationContext, GuidePosition, SearchAnnouncement } from './types';
+import { followTarget } from './searchTarget';
 
 export const raiseSearchBegin = raise({ type: 'SEARCH_BEGIN' });
 
@@ -150,29 +149,6 @@ export const storeNoShelf = assign({
       ? queueLine(context, { text: holdPhoneLine(context.lang, event.floor), chips: [], kind: 'status' })
       : context.pendingSearch,
 });
-
-// The found target follows the outline that overlaps it best, and
-// only that: SAM numbers its objects per response, so an id says
-// nothing across passes, and matching by id dragged the rectangle to
-// another product while the loop still steered to the old box. When
-// nothing overlaps, the last box holds until the product is back.
-export const TARGET_FOLLOW_IOU = 0.3;
-
-export function followTarget(target: ShelfOutline | null, outlines: ShelfOutline[]): ShelfOutline | null {
-  if (!target) {
-    return null;
-  }
-  let best: ShelfOutline | null = null;
-  let bestScore = TARGET_FOLLOW_IOU;
-  for (const outline of outlines) {
-    const score = boxOverlap(target.box, outline.box);
-    if (score >= bestScore) {
-      bestScore = score;
-      best = outline;
-    }
-  }
-  return best ?? target;
-}
 
 export const storeMoved = assign({
   outlines: ({ event }: EventArgs) => (event.type === 'OUTLINES_MOVED' ? event.outlines : []),

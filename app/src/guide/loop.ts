@@ -11,12 +11,11 @@
 // cloud read are injected, so tests walk it with scripted frames and
 // the phone drives it with live stills.
 import type { ShelfBox, ShelfOutline } from '../relay';
-import { linkKindFor } from '../metaCall';
-import { linkEvent } from '../conversation/link';
 import { boxOverlap } from '../shelf/outlines';
 import { centerOf, cueIdFor, proximityFor, steerFor } from './steer';
 import type { HandFix, TipPoint } from './types';
-import { cosine, describeCue, inside, sameBox } from './loopMath';
+import { cosine, describeCue, sameBox } from './loopMath';
+import { restRead } from './loopRest';
 import { freshGuideState } from './loopTypes';
 import type { GuideLoop, GuideLoopDeps, GuideLoopPhoto } from './loopTypes';
 
@@ -25,8 +24,6 @@ const KIND_HOLD_MS = 500;
 export const EDGE_HEARTBEAT_MS = 2000;
 const LOST_WITHIN_MS = 2000;
 const COVER_MS = 1000;
-const REST_MS = 500;
-const REST_RADIUS = 0.5;
 const TARGET_MATCH_IOU = 0.3;
 const TARGET_GONE_FRAMES = 2;
 const CONTACT_POINTS = 4;
@@ -114,57 +111,6 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
     }
   }
 
-  function cueToward(tip: TipPoint, box: ShelfBox): string {
-    const center = centerOf(box);
-    if (Math.abs(tip.x - center.x) >= Math.abs(tip.y - center.y)) {
-      return tip.x < center.x ? 'hand_right' : 'hand_left';
-    }
-    return tip.y < center.y ? 'hand_down' : 'hand_up';
-  }
-
-  async function restRead(tip: TipPoint, outlines: ShelfOutline[], target: ShelfBox, handWidth: number): Promise<void> {
-    const anchor = state.restAnchor;
-    if (!anchor || Math.hypot(tip.x - anchor.x, tip.y - anchor.y) > REST_RADIUS * handWidth) {
-      state.restAnchor = { ...tip };
-      state.restSince = deps.now();
-      state.restRead = false;
-      return;
-    }
-    if (state.restRead || deps.now() - state.restSince < REST_MS) {
-      return;
-    }
-    state.restRead = true;
-    const container = outlines.find((outline) => inside(tip, outline.box) && boxOverlap(outline.box, target) < 0.5) ?? null;
-    const photo = state.photo;
-    if (!container || !photo) {
-      return;
-    }
-    const reading = state.restAnchor;
-    try {
-      const crop = await deps.cutCrop(photo.image, container.box);
-      if (!crop) {
-        return;
-      }
-      const answer = await deps.read(state.label, [crop]);
-      deps.send({ type: 'LINK_OK' });
-      const verdict = answer.reads[0];
-      if (!verdict || verdict.verdict !== 'no') {
-        return;
-      }
-      if (state.restAnchor !== reading || !state.restRead) {
-        return;
-      }
-      const label = [verdict.brand_text, verdict.size_text].filter((part) => part && part.length > 0).join(' ') || verdict.spoken;
-      const steer = steerFor(tip, target);
-      const cue = steer.kind === 'move' ? cueIdFor(steer.dir, steer.small, false) : cueToward(tip, target);
-      deps.log(`guide rest read ${answer.readMs}ms verdict no label ${label}`);
-      deps.send({ type: 'GUIDE_WRONG', label, cue });
-    } catch (error) {
-      deps.log(`guide rest read failed: ${String((error as Error)?.message ?? error)}`);
-      deps.send(linkEvent(linkKindFor(error)));
-    }
-  }
-
   function contact(tip: TipPoint, target: ShelfBox): void {
     state.trail.push({ tip: { ...tip }, center: centerOf(target) });
     state.trail = state.trail.slice(-CONTACT_POINTS);
@@ -236,7 +182,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
       const tip = { x: fix.x, y: fix.y };
       const proximity = proximityFor(tip, tracked, Math.hypot(photoW, photoH));
       const steer = steerFor(tip, tracked);
-      await restRead(tip, outlines, tracked, fix.handWidth);
+      await restRead(state, deps, tip, outlines, tracked, fix.handWidth);
       if (steer.kind !== state.inputKind) {
         state.inputKind = steer.kind;
         state.kindSince = deps.now();
