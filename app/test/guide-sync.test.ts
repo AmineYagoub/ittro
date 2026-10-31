@@ -120,6 +120,21 @@ test('a cue logs its tip, box and hand once', async () => {
   assert.deepEqual(lines, ['guide cue hand_right tip 300,520 box 600,400,760,640 hand 120']);
 });
 
+test('contact waits for the covering announcement at phone frame rate', async () => {
+  const env = harness();
+  for (let step = 0; step < 12; step += 1) {
+    const target = outline(7, 600 + step * 20, 400, 760 + step * 20, 640);
+    env.loop.syncTarget(target.box);
+    await env.loop.handFrame(fix(660 + step * 20, 520, env.at()), [target], 1280, 960);
+    env.tick(100);
+  }
+  const covering = env.sent.findIndex((event) => event.type === 'GUIDE_COVERING');
+  const contact = env.sent.findIndex((event) => event.type === 'GUIDE_CONTACT');
+  assert.ok(covering >= 0);
+  assert.equal(env.sent.filter((event) => event.type === 'GUIDE_CONTACT').length, 1);
+  assert.ok(covering < contact);
+});
+
 test('a still hand over the target is not contact', async () => {
   const env = harness();
   for (let step = 0; step < 6; step += 1) {

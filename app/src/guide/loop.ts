@@ -2,7 +2,8 @@
 // at most one guide event. A new cue holds 0.4 s before it speaks,
 // almost and covering are edges, a recent dropout is lost while a
 // long absence is no hand, a rest on another product reads it, and
-// contact needs the target moving with the hand. The target box is
+// contact needs covering announced with the target moving with the
+// hand. The target box is
 // the statechart's: syncTarget carries every move, so the loop and
 // the green rectangle never steer toward two different boxes; the
 // loop only tells in view from out of view. Out of view, lost and
@@ -141,7 +142,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
   function contact(tip: TipPoint, target: ShelfBox): void {
     state.trail.push({ tip: { ...tip }, center: centerOf(target) });
     state.trail = state.trail.slice(-CONTACT_POINTS);
-    if (state.sentContact || state.trail.length < CONTACT_POINTS) {
+    if (!state.sentCovering || state.sentContact || state.trail.length < CONTACT_POINTS) {
       return;
     }
     const first = state.trail[0] as { tip: TipPoint; center: TipPoint };
