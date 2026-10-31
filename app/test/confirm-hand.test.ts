@@ -33,7 +33,7 @@ test('a stale hand voids the answer', async () => {
   await flush();
   script.answer(UNSURE);
   await flush();
-  await advance(1200);
+  await advance(2500);
   script.hand = fix(100, 100, 0);
   script.answer(YES);
   await flush();
