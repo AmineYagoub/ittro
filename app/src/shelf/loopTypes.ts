@@ -34,6 +34,8 @@ export interface LoopCut {
 
 export interface LoopDeps {
   now: () => number;
+  // Keeps the phrase that outlined, for the next search of this product.
+  keepPhrase?: (request: string, phrase: string) => void;
   outline: (image: string, mime: string, phrase: string, w: number, h: number) => Promise<{ outlines: ShelfOutline[]; samMs: number; maskMs: number }>;
   fetchPhrase: (request: string, image: string, mime: string) => Promise<string>;
   read: (request: string, crops: ShelfCrop[]) => Promise<{ reads: ShelfRead[]; readMs: number }>;

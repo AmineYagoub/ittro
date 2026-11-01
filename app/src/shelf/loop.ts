@@ -155,6 +155,11 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
           if (stale(epoch)) {
             return;
           }
+          // The shelf answers to the short word: the next passes ask it first.
+          if (outlined.outlines.length > 0) {
+            state.phrases.set(request, shorter);
+            deps.keepPhrase?.(request, shorter);
+          }
         }
         outlined = { ...outlined, outlines: anchorOutlines(outlined.outlines, sharpest.shot) };
         const masked = outlined.outlines.filter((outline) => outline.mask).length;

@@ -2,7 +2,7 @@
 // search of the same product starts without the 2 s Spark call.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cachedPhrase, forgetPhrasesForTest } from '../src/shelf/phraseCache';
+import { cachedPhrase, forgetPhrasesForTest, rememberPhrase } from '../src/shelf/phraseCache';
 import { resetStorage } from './stubs.mjs';
 
 test('a product asked twice costs one phrase call', async () => {
@@ -29,5 +29,20 @@ test('the phrase survives a relaunch', async () => {
     return 'carton';
   });
   assert.equal(again, 'bottle');
+  assert.equal(calls, 0);
+});
+
+test('the phrase SAM answered to replaces the one asked', async () => {
+  resetStorage();
+  forgetPhrasesForTest();
+  await cachedPhrase('بسمتي', 'img', 'image/jpeg', async () => 'rice bag');
+  rememberPhrase(' بسمتي ', 'bag');
+  forgetPhrasesForTest();
+  let calls = 0;
+  const again = await cachedPhrase('بسمتي', 'img', 'image/jpeg', async () => {
+    calls += 1;
+    return 'rice bag';
+  });
+  assert.equal(again, 'bag');
   assert.equal(calls, 0);
 });

@@ -52,16 +52,19 @@ interface Script {
 function harness(script: Script): {
   loop: ShelfLoop;
   sent: ConversationEvent[];
-  calls: { outline: string[]; read: string[][]; phrase: number; classify: number };
+  calls: { outline: string[]; read: string[][]; phrase: number; classify: number; kept: string[] };
   tick: (ms: number) => void;
 } {
   let now = 0;
   const sent: ConversationEvent[] = [];
-  const calls = { outline: [] as string[], read: [] as string[][], phrase: 0, classify: 0 };
+  const calls = { outline: [] as string[], read: [] as string[][], phrase: 0, classify: 0, kept: [] as string[] };
   let outlined = 0;
   let batches = 0;
   const deps: LoopDeps = {
     now: () => now,
+    keepPhrase: (request, phrase) => {
+      calls.kept.push(`${request}:${phrase}`);
+    },
     outline: async (_image, _mime, phrase) => {
       calls.outline.push(phrase);
       const fresh = script.outlines[Math.min(outlined, script.outlines.length - 1)] ?? [];
@@ -267,11 +270,21 @@ test('a cloud pass without frames is a programmer error', async () => {
   await assert.rejects(rig.loop.cloudPass([]), /at least one frame/);
 });
 
-test('the phrase is picked once and shortened on retry', async () => {
+// t15: every pass asked "rice bag" for nothing before "bag", 1-2 s each.
+test('the phrase is picked once, and a short word that worked is asked first after', async () => {
   const rig = harness({ outlines: [[], BAGS], reads: [[read('shelf-t1', 'yes'), read('shelf-t2', 'no')]] });
   rig.loop.setTarget('rice', 1);
   await rig.loop.cloudPass([photo()]);
   await rig.loop.cloudPass([photo()]);
-  assert.deepEqual(rig.calls.outline, ['rice bag', 'bag', 'rice bag']);
+  assert.deepEqual(rig.calls.outline, ['rice bag', 'bag', 'bag']);
   assert.equal(rig.calls.phrase, 1);
+  assert.deepEqual(rig.calls.kept, ['rice:bag']);
+});
+
+test('a short word that finds nothing is not kept', async () => {
+  const rig = harness({ outlines: [[]], reads: [[]] });
+  rig.loop.setTarget('rice', 1);
+  await rig.loop.cloudPass([photo()]);
+  assert.deepEqual(rig.calls.outline, ['rice bag', 'bag']);
+  assert.deepEqual(rig.calls.kept, []);
 });

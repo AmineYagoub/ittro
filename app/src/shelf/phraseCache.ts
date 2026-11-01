@@ -50,13 +50,19 @@ export async function cachedPhrase(
     return known;
   }
   const phrase = await fetchPhrase(request, image, mime);
+  rememberPhrase(request, phrase);
+  return phrase;
+}
+
+/** The phrase SAM answered to for this product, kept in place of the one asked. */
+export function rememberPhrase(request: string, phrase: string): void {
+  const key = keyOf(request);
   cache.delete(key);
   cache.set(key, phrase);
   while (cache.size > MAX) {
     cache.delete(cache.keys().next().value as string);
   }
   save();
-  return phrase;
 }
 
 export function forgetPhrasesForTest(): void {
