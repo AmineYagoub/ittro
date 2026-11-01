@@ -49,6 +49,7 @@ import {
 } from './actions';
 import { consumedFinal, logConsumedFinal } from './consumed';
 import { understandInput } from './askHints';
+import { ackHeard, askingState } from './askView';
 import type { ContextArgs } from './actions';
 import { buttonsLines } from './answers';
 import { UNDERSTAND_TIMEOUT_MS, hasLinkLine, raiseLinkDown, raiseLinkForError, raiseLinkOk, sayLinkLine, understandTimedOut } from './link';
@@ -191,7 +192,7 @@ export const talkState = {
     },
     speculating: { ...speculatingState, entry: [markTalkBusy], exit: [markTalkQuiet] },
     understanding: {
-      entry: [markTalkBusy],
+      entry: [markTalkBusy, ackHeard],
       exit: [markTalkQuiet],
       invoke: [
         {
@@ -210,6 +211,7 @@ export const talkState = {
     routing: {
       always: routingTransitions,
     },
+    asking: askingState,
     pairingHelper: {
       entry: [markTalkBusy],
       exit: [markTalkQuiet],

@@ -11,7 +11,7 @@ import type { AskContext, UnderstandAsk } from './askTypes';
 
 export type { SearchAnnouncement, SearchContext, SearchEvent } from './searchTypes';
 
-export type ConversationStep = 'welcome' | 'confirm' | 'offer' | 'sleep' | 'language' | 'tour' | 'translate' | 'alternative' | 'verdict' | 'helperName' | 'helperSend' | 'helperOffer';
+export type ConversationStep = 'welcome' | 'confirm' | 'offer' | 'sleep' | 'language' | 'tour' | 'translate' | 'alternative' | 'verdict' | 'helperName' | 'helperSend' | 'helperOffer' | 'viewOffer';
 
 export type { ConfirmAttr, DetailKind, DetailReason, PictureProblem };
 

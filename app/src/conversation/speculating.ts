@@ -5,6 +5,7 @@ import { assignConversation as assign } from './actors';
 import type { ContextArgs } from './actions';
 import { consumedFinal, logConsumedFinal } from './consumed';
 import { understandInput } from './askHints';
+import { ackSpeculated } from './askView';
 import {
   alertDue,
   assignHelp,
@@ -139,7 +140,7 @@ export const speculatingState = {
     ],
     SPEECH_ENDED: [
       { guard: specYesReady, actions: [playHeard, logSpecEarly, noteSpecEarly], target: 'routing' },
-      { actions: [playHeard, raiseHeard] },
+      { actions: [playHeard, ackSpeculated, raiseHeard] },
     ],
     STREAM_OPEN: { actions: [noteStreamOpen, raiseLinkOk] },
     STREAM_CLOSED: { actions: [noteStreamDown, sendStart] },

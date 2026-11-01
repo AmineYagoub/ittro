@@ -40,6 +40,7 @@ import {
 import { switchCarry } from './translation';
 import { raiseSearchBegin, raiseSearchEnd } from './search';
 import { alternativeRoutes, lookRoutes } from './searchRoutes';
+import { askRoutes, noteViewBrief } from './askView';
 import { raiseGuideEnd } from '../guide/guideSay';
 import { raiseConfirmEnd } from '../confirm/confirmSay';
 import { confirmRoutes } from '../confirm/routing';
@@ -233,6 +234,7 @@ export const routingTransitions: Route[] = [
   { guard: offerNo, actions: [declineOffer], target: 'sayingKeep' },
   { guard: offerSwitch, actions: [switchPlain, noteLanguage], target: 'saying' },
   { guard: offerStep, actions: [missLine], target: 'saying' },
+  ...askRoutes,
   { guard: singleRequest, actions: [startRequest, logRequestStarted, raiseSearchBegin, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'saying' },
   { guard: incomingRequest, actions: [incomingConfirm, raiseSearchBegin, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'saying' },
   { guard: confirmDetail, actions: [incomingConfirm, raiseSearchBegin, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'saying' },
@@ -251,7 +253,7 @@ export const routingTransitions: Route[] = [
   { guard: stopIntent, actions: [sayStopping, raiseSearchEnd, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'sayingSleep' },
   { guard: freshIntent, actions: [freshAsk, noteCleared, raiseSearchEnd, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'saying' },
   ...lookRoutes,
-  { guard: verboseIntent, actions: [sayVerbose, noteVerbose], target: 'saying' },
+  { guard: verboseIntent, actions: [sayVerbose, noteVerbose, noteViewBrief], target: 'saying' },
   { guard: rateIntent, actions: [changeRate], target: 'saying' },
   { guard: tourIntent, target: 'touring' },
   ...confirmRoutes,
