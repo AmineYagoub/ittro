@@ -114,3 +114,29 @@ test('a find that lands after the request changed says nothing', async () => {
   await pass;
   assert.deepEqual(sent, []);
 });
+
+test('the find takes a frame too soft for crop reads (t20: 724 read GUEDILA)', async () => {
+  const { sharpness } = await import('../src/shelf/tracker');
+  // A checker whose contrast lands between the find's bar and the reads'.
+  let grey = { data: new Uint8Array(64), w: 8, h: 8 };
+  for (let amp = 1; amp < 40 && sharpness(grey) === 0; amp += 1) {
+    for (let cols = 2; cols <= 8; cols += 1) {
+      const data = new Uint8Array(64).map((_, at) => (at % 8 < cols && ((at % 8) + Math.floor(at / 8)) % 2 === 0 ? 128 + amp : 128));
+      const score = sharpness({ data, w: 8, h: 8 });
+      if (score > 620 && score < 790) {
+        grey = { data, w: 8, h: 8 };
+        break;
+      }
+    }
+  }
+  assert.ok(sharpness(grey) > 600 && sharpness(grey) < 800);
+  const soft = { ...photo(), grey };
+  const { loop, calls } = rig([TWO]);
+  loop.setTarget('basmati', 1);
+  await loop.cloudPass([soft]);
+  assert.equal(calls.find, 1);
+  const guided = rig([TWO], { guiding: true });
+  guided.loop.setTarget('basmati', 1);
+  await guided.loop.cloudPass([soft]);
+  assert.equal(guided.calls.outline, 0);
+});

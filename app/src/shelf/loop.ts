@@ -22,6 +22,9 @@ const REREAD_MS = 1200;
 const EMPTY_BEFORE_CLEAR = 3;
 const PRIORITY_BATCH = 2;
 const READ_MIN_SHARPNESS = 800;
+// The find reads whole packages, not small crops: t20 read GUEDILA and
+// Messäd at 724 and 772, after waiting 2 s for frames over 800.
+const FIND_MIN_SHARPNESS = 600;
 const BLURRY_SKIP_MAX = 2;
 
 export function createShelfLoop(deps: LoopDeps): ShelfLoop {
@@ -113,7 +116,8 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
         const sharpest = photos[pickSharpest(photos.map((frame) => frame.grey))] as LoopPhoto;
         const picked = sharpness(sharpest.grey);
         const scored = sharpest.grey.data.length > 0;
-        if (scored && picked < READ_MIN_SHARPNESS && state.blurrySkips < BLURRY_SKIP_MAX) {
+        const findable = deps.find !== undefined && !hand && !deps.readContext().guiding;
+        if (scored && picked < (findable ? FIND_MIN_SHARPNESS : READ_MIN_SHARPNESS) && state.blurrySkips < BLURRY_SKIP_MAX) {
           // The phrase names the package, which a blurry frame still shows:
           // ask for it now rather than after the sharp frame (t9: 2.8 s).
           if (!state.phrases.has(request) && !state.phraseWait) {
@@ -131,7 +135,7 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
           return;
         }
         state.blurrySkips = 0;
-        if (!hand && !deps.readContext().guiding && (await findPass(ctx, request, epoch, sharpest, nextId, picked))) {
+        if (findable && (await findPass(ctx, request, epoch, sharpest, nextId, picked))) {
           if (!stale(epoch)) {
             deps.send({ type: 'LINK_OK' });
           }
