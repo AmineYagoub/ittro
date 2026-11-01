@@ -28,7 +28,7 @@ export type SearchEvent =
   | { type: 'SEARCH_END' }
   | { type: 'SHELF_OUTLINED'; outlines: ShelfOutline[]; kind: string }
   | { type: 'SHELF_SWEPT'; checked: number }
-  | { type: 'WRONG_SHELF'; kind: string; aisle: string }
+  | { type: 'WRONG_SHELF'; shelf: string | null; product: string }
   | { type: 'HAND_HOLD' }
   | { type: 'SEARCH_FAILED'; kind: LinkKind }
   | { type: 'SHELF_FOUND'; product: string; outline: ShelfOutline | null; matches: number; kind: string; position: GuidePosition; crop?: string | null }

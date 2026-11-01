@@ -116,14 +116,17 @@ export function closeMatchLine(wanted: string, found: string, lang: Language): s
   return `${wanted} isn't here. I see ${found}. Do you want that one?`;
 }
 
-export function wrongShelfLine(kind: string, aisle: string, lang: Language): string {
+export function wrongShelfLine(shelf: string | null, product: string, lang: Language): string {
   if (lang === 'ar') {
-    return `لا أرى أي ${kind} هنا. اسأل أحد العاملين عن ${aisle}، أو قل اسأل شخصًا.`;
+    const here = shelf ? `هذا رف ${shelf}.` : `لا أرى ${product} على هذا الرف.`;
+    return `${here} اسأل شخصًا قريبًا عن ${product}، وعندما تصل قل ابحث من جديد. أو قل اسأل شخصًا.`;
   }
   if (lang === 'fr') {
-    return `Je ne vois aucun ${kind} ici. Demandez à un employé pour ${aisle}, ou dites demandez à quelqu’un.`;
+    const here = shelf ? `C’est le rayon ${shelf}.` : `Je ne vois pas ${product} dans ce rayon.`;
+    return `${here} Demandez à quelqu’un près de vous où est ${product}, et une fois là-bas, dites cherchez encore. Ou dites demandez à quelqu’un.`;
   }
-  return `I don't see any ${kind} here. Ask a staff member for ${aisle}, or say ask someone.`;
+  const here = shelf ? `This is the ${shelf} shelf.` : `I don't see ${product} on this shelf.`;
+  return `${here} Ask someone nearby where ${product} is, and when you're there, say look again. Or say ask someone.`;
 }
 
 export function searchingStatusLine(product: string, checked: number, lang: Language): string {

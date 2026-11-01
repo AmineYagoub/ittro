@@ -25,6 +25,8 @@ export const READ_AGAIN_CHIP: Record<Language, string> = { en: 'read again', ar:
 
 export const KEEP_LOOKING_CHIP: Record<Language, string> = { en: 'keep looking', ar: 'واصل البحث', fr: 'continuez à chercher' };
 
+export const LOOK_AGAIN_CHIP: Record<Language, string> = { en: 'look again', ar: 'ابحث من جديد', fr: 'cherchez encore' };
+
 export const FIND_ANOTHER_CHIP: Record<Language, string> = { en: 'find another', ar: 'ابحث عن غيره', fr: 'cherchez un autre' };
 
 export const DONE_CHIP: Record<Language, string> = { en: 'done', ar: 'انتهيت', fr: 'c’est fini' };

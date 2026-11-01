@@ -43,7 +43,7 @@ export interface LoopDeps {
   // The grounding find (relay /find); absent, every pass takes the phrase path.
   find?: (request: string, image: string, mime: string, w: number, h: number) => Promise<FoundShelf>;
   read: (request: string, crops: ShelfCrop[]) => Promise<{ reads: ShelfRead[]; readMs: number }>;
-  classify: (request: string, image: string, mime: string) => Promise<SceneView>;
+  classify: (request: string, image: string, mime: string, language: Language) => Promise<SceneView>;
   cutCrops: (image: string, tracks: LoopCut[]) => Promise<ShelfCrop[]>;
   readContext: () => LoopContext;
   // Where the camera points now, for the inventory and the sweep; absent in tests.

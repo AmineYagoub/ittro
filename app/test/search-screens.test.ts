@@ -41,10 +41,13 @@ test('a wrong shelf points to a person, with yes-no chips absent', async () => {
     );
     await driver.heard("I'm looking for Masaad water");
     await driver.heard('Yes');
-    driver.send({ type: 'WRONG_SHELF', kind: 'bottles', aisle: 'the water aisle' });
+    driver.send({ type: 'WRONG_SHELF', shelf: 'biscuits', product: 'Masaad water' });
     await driver.flush();
-    assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /I don't see any bottles here/);
-    assert.deepEqual(driver.context().lastChips, ['ask someone']);
+    assert.equal(
+      driver.spoken[driver.spoken.length - 1],
+      "This is the biscuits shelf. Ask someone nearby where Masaad water is, and when you're there, say look again. Or say ask someone.",
+    );
+    assert.deepEqual(driver.context().lastChips, ['look again', 'ask someone']);
   } finally {
     driver.stop();
   }

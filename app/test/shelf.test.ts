@@ -9,7 +9,7 @@ import type { GreyFrame } from '../src/shelf/tracker';
 import { createReadQueue, dropEpoch, enqueueRead, nextRead, queueSize } from '../src/shelf/queue';
 import { biggestFirst, needsRead, reconcileTracks } from '../src/shelf/shelfTracks';
 import type { Tracked } from '../src/shelf/shelfTracks';
-import { aisleFallback, outlineSignature, packageKind } from '../src/shelf/match';
+import { outlineSignature, packageKind } from '../src/shelf/match';
 
 function patternFrame(w: number, h: number, paint: (x: number, y: number) => number): GreyFrame {
   const data = new Uint8Array(w * h);
@@ -140,9 +140,6 @@ test('the package kind names the shelf aloud in every language', () => {
   assert.equal(packageKind('bottle', 'en'), 'bottles');
   assert.equal(packageKind('rice bag', 'ar'), 'منتجات');
   assert.equal(packageKind('rice bag', 'fr'), 'produits');
-  assert.equal(aisleFallback('en'), 'the right aisle');
-  assert.equal(aisleFallback('ar'), 'القسم المناسب');
-  assert.equal(aisleFallback('fr'), 'le bon rayon');
 });
 
 test('masks move with the pan and stay inside the frame', () => {

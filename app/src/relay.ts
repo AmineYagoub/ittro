@@ -1,5 +1,6 @@
 import { RelayError, getMeta, postMeta, relayEndpoint } from './metaCall';
 import type { AskExchange, AskHints, ViewReply } from './conversation/askTypes';
+import type { Language } from './theme';
 
 export interface RelayConfig {
   url: string;
@@ -95,6 +96,10 @@ export interface SceneView {
   scene: 'shelf' | 'floor' | 'other';
   kinds: string[];
   aisle_hint: string | null;
+  /** What the shelf holds, named in the shopper's language; absent from a relay before 2 Nov. */
+  shelf_label?: string | null;
+  /** Whether the shelf holds the kind requested; absent from a relay before 2 Nov. */
+  fits_request?: boolean;
 }
 
 export type ConfirmVerdict = 'yes' | 'no' | 'unsure' | 'picture';
@@ -179,8 +184,8 @@ export async function readShelfCrops(
   return postMeta('read-shelf', '/read-shelf', { request, crops });
 }
 
-export async function classifySceneView(request: string, image: string, mime: string): Promise<SceneView> {
-  const body = await postMeta<{ scene: SceneView }>('classify-scene', '/classify-scene', { request, image, mime });
+export async function classifySceneView(request: string, image: string, mime: string, language: Language): Promise<SceneView> {
+  const body = await postMeta<{ scene: SceneView }>('classify-scene', '/classify-scene', { request, image, mime, language });
   return body.scene;
 }
 

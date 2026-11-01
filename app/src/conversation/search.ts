@@ -4,7 +4,7 @@
 // mid-sentence is lost; listening speaks them when it can.
 import { assignConversation as assign, raiseConversation as raise } from './actors';
 import type { ContextArgs, EventArgs } from './actions';
-import { ASK_CHIP } from '../chips';
+import { ASK_CHIP, LOOK_AGAIN_CHIP } from '../chips';
 import { raiseLinkKind } from './link';
 import { logIttro } from '../log';
 import { lookingFor, shortProduct, stillLooking } from '../requestLines';
@@ -112,7 +112,11 @@ export const storeSwept = assign({
 export const storeWrongShelf = assign({
   pendingSearch: ({ context, event }: EventArgs) =>
     event.type === 'WRONG_SHELF'
-      ? queueLine(context, { text: wrongShelfLine(event.kind, event.aisle, context.lang), chips: [ASK_CHIP[context.lang]], kind: 'status' })
+      ? queueLine(context, {
+          text: wrongShelfLine(event.shelf, shortProduct(event.product), context.lang),
+          chips: [LOOK_AGAIN_CHIP[context.lang], ASK_CHIP[context.lang]],
+          kind: 'status',
+        })
       : context.pendingSearch,
 });
 

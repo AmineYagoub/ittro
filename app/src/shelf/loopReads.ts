@@ -1,7 +1,7 @@
 // The cloud half of the shelf loop: new tracks read in a priority
 // batch first, so the found line never waits on the rest; then the
 // verdicts, the swept shelf, and the empty-shelf scenes.
-import { aisleFallback, packageKind } from './match';
+import { packageKind } from './match';
 import { createReadQueue, dropEpoch, enqueueRead, nextRead } from './queue';
 import type { ShelfBox, ShelfCrop, ShelfRead } from '../relay';
 import type { LoopDeps, LoopState } from './loopTypes';
@@ -10,6 +10,7 @@ import { boxOverlap } from './outlines';
 import { positionFor } from '../guide/steer';
 import { noteSeen, readName } from './inventory';
 import { beginSweep, sayNotHere } from './loopSweep';
+import { sweeping } from './sweep';
 
 export const QUIET_MS = 8000;
 
@@ -230,7 +231,7 @@ export async function reportEmpty(
     return;
   }
   state.classifyAt = deps.now();
-  const scene = await deps.classify(request, image, 'image/jpeg');
+  const scene = await deps.classify(request, image, 'image/jpeg', deps.readContext().lang);
   if (ctx.stale(epoch)) {
     return;
   }
@@ -245,10 +246,11 @@ export async function reportEmpty(
     return;
   }
   const kind = packageKind(phrase, context.lang);
-  if (!scene.kinds.includes(kind) && !scene.kinds.includes(phrase.trim())) {
-    if (state.lastScene !== key) {
+  const fits = scene.fits_request ?? (scene.kinds.includes(kind) || scene.kinds.includes(phrase.trim()));
+  if (!fits) {
+    if (state.lastScene !== key && !sweeping(state.sweep)) {
       state.lastScene = key;
-      deps.send({ type: 'WRONG_SHELF', kind, aisle: scene.aisle_hint ?? aisleFallback(context.lang) });
+      deps.send({ type: 'WRONG_SHELF', shelf: scene.shelf_label?.trim() || null, product: request });
     }
     return;
   }
