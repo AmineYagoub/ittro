@@ -3,7 +3,7 @@
 // verdicts, the swept shelf, and the empty-shelf scenes.
 import { aisleFallback, findCloseMatch, packageKind } from './match';
 import { createReadQueue, dropEpoch, enqueueRead, nextRead } from './queue';
-import type { ShelfCrop, ShelfRead } from '../relay';
+import type { ShelfBox, ShelfCrop, ShelfRead } from '../relay';
 import type { LoopDeps, LoopState } from './loopTypes';
 import type { Tracked } from './shelfTracks';
 import { boxOverlap } from './outlines';
@@ -142,15 +142,27 @@ export function reportVerdicts(ctx: ReadsContext, request: string, reads: ShelfR
   }
 }
 
+function closestYes(state: LoopState, reads: ShelfRead[], held: ShelfBox): Tracked | null {
+  const yes = new Set(reads.filter((read) => read.verdict === 'yes').map((read) => read.id.replace(/^shelf-/, '')));
+  const gap = (entry: Tracked): number =>
+    Math.abs(entry.outline.box.x1 + entry.outline.box.x2 - held.x1 - held.x2) + Math.abs(entry.outline.box.y1 + entry.outline.box.y2 - held.y1 - held.y2);
+  return [...state.tracks.filter((entry) => yes.has(entry.track))].sort((a, b) => gap(a) - gap(b))[0] ?? null;
+}
+
 // The yes overlapping the guided box, or, when the guided spot was
-// read no or the product is out of view, the best yes anywhere.
+// read no or the product is out of view, the yes nearest the guided
+// spot: with two matching bottles the hand keeps its one (t19 jumped
+// between two Guedila bottles on each recheck).
 function refindTarget(ctx: ReadsContext, reads: ShelfRead[]): Tracked | null {
   const { deps, state } = ctx;
   const best = nearestOutline(state, reads);
   const context = deps.readContext();
   const held = context.guideBox ?? null;
-  if (!best || !held || context.guideLost) {
+  if (!best || !held) {
     return best;
+  }
+  if (context.guideLost) {
+    return closestYes(state, reads, held) ?? best;
   }
   const verdict = (entry: Tracked): string | undefined => reads.find((read) => read.id === `shelf-${entry.track}`)?.verdict;
   const here = state.tracks
@@ -161,7 +173,7 @@ function refindTarget(ctx: ReadsContext, reads: ShelfRead[]): Tracked | null {
     return same;
   }
   if (here.some((entry) => verdict(entry) === 'no')) {
-    return best;
+    return closestYes(state, reads, held) ?? best;
   }
   deps.log(`shelf recheck kept the target, a yes at ${Math.round(best.outline.box.x1)}-${Math.round(best.outline.box.x2)} is elsewhere`);
   return null;

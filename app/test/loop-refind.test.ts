@@ -102,3 +102,15 @@ test('t11: a reflection overlapping the guided bottle by 0.2 does not take the t
   assert.equal(found.length, 0);
   assert.ok(logs.includes('shelf recheck kept the target, a yes at 604-820 is elsewhere'));
 });
+
+test('t19: the guided spot read no moves the target to the nearest yes, not the biggest', async () => {
+  const near = box(705, 330, 900, 1100);
+  const farBigger = box(40, 200, 330, 1250);
+  const { found } = await recheck([
+    { box: GUEDILA, verdict: 'no' },
+    { box: farBigger, verdict: 'yes' },
+    { box: near, verdict: 'yes' },
+  ]);
+  assert.ok(found.length >= 1);
+  assert.equal(found[found.length - 1]?.box.x1, 705);
+});
