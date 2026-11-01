@@ -13,7 +13,9 @@ import { logIttro } from '../log';
 import type { ButtonGesture, ConversationContext, ConversationStep } from './types';
 
 function yesNoOpen(step: ConversationStep): boolean {
-  return step === 'confirm' || step === 'offer' || step === 'alternative' || step === 'tour' || step === 'helperSend' || step === 'helperOffer';
+  return (
+    step === 'confirm' || step === 'offer' || step === 'alternative' || step === 'viewOffer' || step === 'tour' || step === 'helperSend' || step === 'helperOffer'
+  );
 }
 
 function gestureIntent(gesture: ButtonGesture, context: ConversationContext): string {

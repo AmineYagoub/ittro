@@ -74,6 +74,16 @@ function waitEstimate(text: string, g: number): Promise<void> {
   });
 }
 
+/** Says a short line once the clip now playing has had waitMs to end, unless something else was played or said first. */
+export function sayAfterClip(text: string, lang: Language, waitMs: number): void {
+  const g = generation;
+  setTimeout(() => {
+    if (generation === g) {
+      void say(text, lang);
+    }
+  }, waitMs);
+}
+
 export async function say(text: string, lang: Language): Promise<void> {
   const g = ++generation;
   stopPlayer();

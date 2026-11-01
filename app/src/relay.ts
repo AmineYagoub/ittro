@@ -36,7 +36,7 @@ export interface UnderstandAnswer {
   target_language: string | null;
   helper_name: string | null;
   question?: string | null;
-  // Set when the call carried a still and the sentence asked about the view.
+  /** Set when the call carried a still and the sentence asked about the view. */
   view?: ViewReply | null;
 }
 

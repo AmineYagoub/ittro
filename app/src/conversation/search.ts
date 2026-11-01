@@ -239,6 +239,7 @@ export const adoptAlternative = assign({
   request: ({ context }: ContextArgs) => context.alternative ?? context.request,
   step: 'welcome',
   pendingQuestion: null,
+  pendingSearch: [],
   alternative: null,
   pendingSay: ({ context }: ContextArgs) => [{ text: lookingFor(context.alternative ?? context.request ?? '', context.lang), chips: [] }],
 });

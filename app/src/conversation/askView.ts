@@ -3,12 +3,17 @@
 // Spark's words. When understanding already answered it from the
 // still, the answer is said at once; otherwise asking takes a fresh
 // still (opening the camera if needed), asks /ask-view with the working
-// tick and a 15 s limit, and says the answer or why there is none. An
-// answer that names a product offers to take the shopper to it; yes
-// starts the normal find, guide and in-hand check.
+// tick and a 15 s limit, and says the answer or why there is none.
+// Speech heard meanwhile is understood as usual. The camera opened for
+// a question stays on 20 s for a follow-up. An answer that names a
+// product offers to take the shopper to it, kept apart from the
+// search's own offer; yes starts the normal find, guide and in-hand
+// check, and drops the lines the old search had queued. The quick
+// acknowledgement plays only while awake with a fresh shelf still in
+// hand, when a view answer is likely, and after the heard earcon.
 import { fromPromise } from 'xstate';
-import { assignConversation as assign } from './actors';
-import { mergeBrands, persistSnapshot, storeConfirmedBrand } from './actors';
+import { assignConversation as assign, cancelConversation as cancel, raiseConversation as raise } from './actors';
+import { STILL_FRESH_MS as ATTACH_FRESH_MS, mergeBrands, persistSnapshot, storeConfirmedBrand } from './actors';
 import { markTalkBusy, markTalkQuiet } from './actions';
 import type { ContextArgs, EventArgs } from './actions';
 import type { Route } from './routing';
@@ -22,10 +27,10 @@ import { raiseConfirmEnd } from '../confirm/confirmSay';
 import { fireCancel } from '../helper/helperSay';
 import { raiseHelperEnd } from '../helper/helper';
 import { askAboutView } from '../relay';
-import { takeViewStill } from '../shelf/stills';
+import { freshStill, takeViewStill } from '../shelf/stills';
 import { NO_CHIP, YES_CHIP } from '../chips';
 import { lookingFor } from '../requestLines';
-import { say } from '../speech';
+import { say, sayAfterClip } from '../speech';
 import { speech } from '../theme';
 import type { Language } from '../theme';
 import { logIttro } from '../log';
@@ -35,6 +40,8 @@ export const ASK_TIMEOUT_MS = 15000;
 const STILL_FRESH_MS = 4000;
 const ACK_GAP_MS = 3000;
 const HISTORY_KEEP = 6;
+const VIEW_CAMERA_HOLD_MS = 20000;
+const ACK_AFTER_EARCON_MS = 150;
 
 let lastAckAt = 0;
 
@@ -63,21 +70,21 @@ export function forgetAck(): void {
   lastAckAt = 0;
 }
 
-function ackIfQuestion(text: string, lang: Language): void {
+function ackIfQuestion(context: ConversationContext, text: string): void {
   const now = Date.now();
-  if (!looksLikeQuestion(text) || now - lastAckAt < ACK_GAP_MS) {
+  if (context.step === 'sleep' || !looksLikeQuestion(text) || now - lastAckAt < ACK_GAP_MS || !freshStill(now, ATTACH_FRESH_MS)) {
     return;
   }
   lastAckAt = now;
-  const line = ackLine(lang, Math.random());
+  const line = ackLine(context.lang, Math.random());
   logIttro(`ack: ${JSON.stringify(line)}`);
-  void say(line, lang);
+  sayAfterClip(line, context.lang, ACK_AFTER_EARCON_MS);
 }
 
 /** As a question ends: a short acknowledgement within half a second, before the answer. */
-export const ackSpeculated = ({ context }: ContextArgs): void => ackIfQuestion(context.specText ?? '', context.lang);
+export const ackSpeculated = ({ context }: ContextArgs): void => ackIfQuestion(context, context.specText ?? '');
 
-export const ackHeard = ({ context }: ContextArgs): void => ackIfQuestion(context.transcript, context.lang);
+export const ackHeard = ({ context }: ContextArgs): void => ackIfQuestion(context, context.transcript);
 
 function replyLines(reply: ViewReply, lang: Language): ConversationContext['pendingSay'] {
   if (!reply.offer) {
@@ -90,9 +97,9 @@ function replyAssigns(reply: ViewReply | null) {
   return {
     viewReply: () => reply,
     pendingSay: ({ context }: ContextArgs) => (reply ? replyLines(reply, context.lang) : context.pendingSay),
-    alternative: ({ context }: ContextArgs) => reply?.offer ?? context.alternative,
     step: ({ context }: ContextArgs) => (reply?.offer ? 'viewOffer' : context.step === 'viewOffer' ? 'welcome' : context.step),
-    pendingQuestion: ({ context }: ContextArgs) => (reply?.offer ? 'view_offer' : context.pendingQuestion),
+    pendingQuestion: ({ context }: ContextArgs) =>
+      reply?.offer ? 'view_offer' : context.pendingQuestion === 'view_offer' ? null : context.pendingQuestion,
     viewHistory: ({ context }: ContextArgs) =>
       reply ? [...context.viewHistory, { shopper: context.transcript, ittro: reply.answer, heard: false }].slice(-HISTORY_KEEP) : context.viewHistory,
   };
@@ -114,7 +121,7 @@ const noteViewQuestion = assign({
 });
 
 const openViewCamera = assign({
-  viewCamera: ({ context }) => !context.cameraOn,
+  viewCamera: ({ context }) => context.viewCamera || !context.cameraOn,
   cameraOn: true,
 });
 
@@ -123,8 +130,12 @@ const closeViewCamera = assign({
   viewCamera: false,
 });
 
-const pointIfOpened = ({ context }: ContextArgs): void => {
-  if (context.viewCamera) {
+const holdViewCamera = raise({ type: 'VIEW_CAMERA_IDLE' }, { delay: VIEW_CAMERA_HOLD_MS, id: 'viewCameraIdle' });
+
+const keepViewCamera = cancel('viewCameraIdle');
+
+const pointIfOff = ({ context }: ContextArgs): void => {
+  if (!context.cameraOn) {
     lastAckAt = Date.now();
     void say(pointAtShelfLine(context.lang), context.lang);
   }
@@ -160,22 +171,23 @@ const startViewOffer = assign({
   pendingQuestion: null,
   pendingRequest: null,
   pendingItems: null,
+  pendingSearch: [],
   request: ({ context }) => {
-    persistSnapshot(context.alternative);
-    return context.alternative;
+    const offer = context.viewReply?.offer ?? context.request;
+    persistSnapshot(offer);
+    return offer;
   },
   brands: ({ context }) => {
-    storeConfirmedBrand(context.alternative);
-    return mergeBrands(context.brands, context.alternative);
+    const offer = context.viewReply?.offer ?? null;
+    storeConfirmedBrand(offer);
+    return mergeBrands(context.brands, offer);
   },
-  alternative: null,
-  pendingSay: ({ context }) => [{ text: lookingFor(context.alternative ?? '', context.lang), chips: [] }],
+  pendingSay: ({ context }) => [{ text: lookingFor(context.viewReply?.offer ?? '', context.lang), chips: [] }],
 });
 
 const declineViewOffer = assign({
   step: 'welcome',
   pendingQuestion: null,
-  alternative: null,
   pendingSay: ({ context }) => [{ text: viewDeclinedLine(context.lang), chips: [] }],
 });
 
@@ -186,7 +198,7 @@ const askAnswered: Guard = ({ context }) => context.routeAnswer?.intent === 'ask
 const askPending: Guard = ({ context }) => context.routeAnswer?.intent === 'ask_view';
 
 const viewOfferYes: Guard = ({ context }) =>
-  context.step === 'viewOffer' && context.routeAnswer?.intent === 'confirm_yes' && context.alternative !== null;
+  context.step === 'viewOffer' && context.routeAnswer?.intent === 'confirm_yes' && !!context.viewReply?.offer;
 
 const viewOfferNo: Guard = ({ context }) => context.step === 'viewOffer' && context.routeAnswer?.intent === 'confirm_no';
 
@@ -197,9 +209,14 @@ export const askRoutes: Route[] = [
   { guard: viewOfferNo, actions: [declineViewOffer], target: 'saying' },
 ];
 
+/** The camera opened for questions closes a while after the last one, unless a search, the guide or the check needs it. */
+export const askTalkOn = {
+  VIEW_CAMERA_IDLE: { actions: [closeViewCamera] },
+};
+
 export const askingState = {
-  entry: [markTalkBusy, openViewCamera, pointIfOpened],
-  exit: [markTalkQuiet, closeViewCamera],
+  entry: [markTalkBusy, keepViewCamera, pointIfOff, openViewCamera],
+  exit: [markTalkQuiet, holdViewCamera],
   invoke: [
     {
       src: 'askView' as const,

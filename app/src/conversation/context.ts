@@ -18,6 +18,7 @@ export function initialContext({ input }: { input: MachineInput }): Conversation
     offered: false,
     misses: 0,
     specText: null,
+    specAsked: null,
     specAnswer: null,
     specEpoch: 0,
     lastPartialAt: null,

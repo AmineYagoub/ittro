@@ -10,7 +10,7 @@ export interface ViewReply {
 export interface ViewTurn {
   shopper: string;
   ittro: string;
-  // Whether the whole answer was spoken; a barge-in keeps its first sentence only.
+  /** Whether the whole answer was spoken; a barge-in keeps its first sentence only. */
   heard: boolean;
 }
 
@@ -27,9 +27,11 @@ export interface AskHints {
 }
 
 export interface UnderstandAsk extends AskHints {
-  // The sentence sounds like a question: send the fresh still, if any.
+  /** The sentence sounds like a question: send the fresh still, if any. */
   withStill: boolean;
 }
+
+export type AskEvent = { type: 'VIEW_CAMERA_IDLE' };
 
 export interface AskContext {
   viewHistory: ViewTurn[];

@@ -252,6 +252,7 @@ const ANSWER_QUESTIONS = new Set([
   'language_offer',
   'tour_offer',
   'close_alternative',
+  'view_offer',
   'helper_send',
   'helper_offer',
 ]);

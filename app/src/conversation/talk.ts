@@ -49,14 +49,14 @@ import {
 } from './actions';
 import { consumedFinal, logConsumedFinal } from './consumed';
 import { understandInput } from './askHints';
-import { ackHeard, askingState } from './askView';
+import { ackHeard, askTalkOn, askingState } from './askView';
 import { sweepTalkOn } from './sweepTalk';
 import type { ContextArgs } from './actions';
 import { buttonsLines } from './answers';
 import { UNDERSTAND_TIMEOUT_MS, hasLinkLine, raiseLinkDown, raiseLinkForError, raiseLinkOk, sayLinkLine, understandTimedOut } from './link';
 import { sayTo } from './sayTo';
 import { applyTranslated, skipKeep, skipSay, translateKeep } from './translation';
-import { notePartial, partialWorthy, speculatingState } from './speculating';
+import { notePartial, noteSpecAsked, partialWorthy, speculatingState } from './speculating';
 import { chainActions, routingTransitions } from './routing';
 import { earbudTalkOn, guideTalkOn, logButton, noteButton, stopSpokenVoice } from './buttons';
 import {
@@ -88,6 +88,12 @@ const listeningShared = {
   STREAM_OPEN: { actions: [noteStreamOpen, raiseLinkOk] },
 };
 
+const heardPartial = [
+  { guard: echoFull, actions: [logEchoDrop] },
+  { guard: partialWorthy, actions: [notePartial, raiseHeard], target: 'speculating' },
+  { actions: [raiseHeard] },
+];
+
 const buttonRoute = { actions: [stopSpokenVoice, noteButton, logButton, raiseHeard], target: '.routing' };
 
 export const talkState = {
@@ -95,6 +101,7 @@ export const talkState = {
   on: {
     ...searchTalkOn,
     ...sweepTalkOn,
+    ...askTalkOn,
     ...guideTalkOn,
     ...earbudTalkOn,
     ...helperTalkOn,
@@ -154,11 +161,7 @@ export const talkState = {
       ],
       on: {
         ...listeningShared,
-        PARTIAL_TEXT: [
-          { guard: echoFull, actions: [logEchoDrop] },
-          { guard: partialWorthy, actions: [notePartial, raiseHeard], target: 'speculating' },
-          { actions: [raiseHeard] },
-        ],
+        PARTIAL_TEXT: heardPartial,
         STREAM_CLOSED: { actions: [noteStreamDown, sendStart] },
         STREAM_ERROR: { actions: [noteStreamDown, sendStart] },
         STREAM_FAILED: { actions: [noteStreamDown, raiseLinkDown, sendStart] },
@@ -192,7 +195,7 @@ export const talkState = {
         onError: [{ guard: translateKeep, target: 'routing' }, { target: 'saying' }],
       },
     },
-    speculating: { ...speculatingState, entry: [markTalkBusy], exit: [markTalkQuiet] },
+    speculating: { ...speculatingState, entry: [markTalkBusy, noteSpecAsked], exit: [markTalkQuiet] },
     understanding: {
       entry: [markTalkBusy, ackHeard],
       exit: [markTalkQuiet],
@@ -213,7 +216,7 @@ export const talkState = {
     routing: {
       always: routingTransitions,
     },
-    asking: askingState,
+    asking: { ...askingState, on: { ...listeningShared, PARTIAL_TEXT: heardPartial } },
     pairingHelper: {
       entry: [markTalkBusy],
       exit: [markTalkQuiet],

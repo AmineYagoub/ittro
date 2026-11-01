@@ -1,6 +1,10 @@
 // Speculative understanding: while the shopper is still speaking,
-// partial transcripts start understanding early. When the final text
-// matches what was speculated, its answer routes at once.
+// partial transcripts start understanding early. One call goes out
+// per sentence, for the first partial worth asking; later partials
+// only note the newest text. Its answer routes at once only for a
+// final of the very text it answered, and an early yes only while
+// nothing newer was heard: "Is there honey?" never gets the answer
+// meant for "Is there".
 import { assignConversation as assign } from './actors';
 import type { ContextArgs } from './actions';
 import { consumedFinal, logConsumedFinal } from './consumed';
@@ -57,7 +61,7 @@ export const partialChanged = ({ context, event }: SpecArgs): boolean => {
 
 export const finalMatch = ({ context, event }: SpecArgs): boolean =>
   event.type === 'FINAL_TEXT' &&
-  event.text === context.specText &&
+  event.text === context.specAsked &&
   context.specAnswer !== null &&
   context.specEpoch === context.epoch;
 
@@ -68,8 +72,19 @@ export const notePartial = assign({
   lastPartialAt: () => Date.now(),
 });
 
+const notePartialText = assign({
+  specText: ({ event }) => heardText(event),
+  lastPartialAt: () => Date.now(),
+});
+
+/** On entering speculation: the call goes out for this text. */
+export const noteSpecAsked = assign({ specAsked: ({ context }: ContextArgs) => context.specText });
+
 export const specYesReady = ({ context }: ContextArgs): boolean =>
-  context.specAnswer !== null && context.specAnswer.intent === 'confirm_yes' && context.specEpoch === context.epoch;
+  context.specAnswer !== null &&
+  context.specAnswer.intent === 'confirm_yes' &&
+  context.specEpoch === context.epoch &&
+  context.specText === context.specAsked;
 
 export const specYesStale = ({ context }: SpecArgs): boolean =>
   specYesReady({ context }) && context.lastPartialAt !== null && Date.now() - context.lastPartialAt > YES_STABLE_MS;
@@ -84,6 +99,7 @@ export const noteSpecEarly = assign({
   consumedText: ({ context }: ContextArgs) => context.specText,
   consumedAt: () => Date.now(),
   specText: null,
+  specAsked: null,
   specAnswer: null,
 });
 
@@ -98,6 +114,7 @@ export const noteSpeculative = assign({
 
 export const noteSpecClear = assign({
   specAnswer: null,
+  specAsked: null,
 });
 
 export const noteSpecHit = assign({
@@ -110,13 +127,14 @@ export const noteSpecHit = assign({
   routeAnswer: ({ context }) => context.specAnswer,
   misses: 0,
   specText: null,
+  specAsked: null,
   specAnswer: null,
 });
 
 export const speculatingState = {
   invoke: {
     src: 'understandAnswer' as const,
-    input: ({ context }: ContextArgs) => understandInput(context, context.specText ?? ''),
+    input: ({ context }: ContextArgs) => understandInput(context, context.specAsked ?? context.specText ?? ''),
     onDone: [
       { guard: specYesStale, actions: [logSpecEarly, noteSpecEarly, raiseLinkOk], target: 'routing' },
       { actions: [noteSpeculative, raiseLinkOk] },
@@ -136,7 +154,7 @@ export const speculatingState = {
     ],
     PARTIAL_TEXT: [
       { guard: echoFull, actions: [logEchoDrop] },
-      { guard: partialChanged, actions: [notePartial, raiseHeard], target: 'speculating' },
+      { guard: partialChanged, actions: [notePartialText, raiseHeard] },
     ],
     SPEECH_ENDED: [
       { guard: specYesReady, actions: [playHeard, logSpecEarly, noteSpecEarly], target: 'routing' },

@@ -7,7 +7,7 @@ import type { Prefs } from '../store';
 import type { LinkKind } from '../metaCall';
 import type { ConfirmAttr, DetailKind, DetailReason, PictureProblem, ShelfBox, ShelfOutline, UnderstandAnswer } from '../relay';
 import type { SearchContext, SearchEvent } from './searchTypes';
-import type { AskContext, UnderstandAsk } from './askTypes';
+import type { AskContext, AskEvent, UnderstandAsk } from './askTypes';
 
 export type { SearchAnnouncement, SearchContext, SearchEvent } from './searchTypes';
 
@@ -105,6 +105,7 @@ export interface ConversationContext extends SearchContext, AskContext {
   offered: boolean;
   misses: number;
   specText: string | null;
+  specAsked: string | null;
   specAnswer: UnderstandAnswer | null;
   specEpoch: number;
   lastPartialAt: number | null;
@@ -244,7 +245,8 @@ export type ConversationEvent =
   | { type: 'HELPER_NUDGE' }
   | { type: 'HELPER_TIMEOUT'; names: string[] }
   | { type: 'HELPER_END' }
-  | SearchEvent;
+  | SearchEvent
+  | AskEvent;
 
 export type ExpressionEvent = ConversationEvent | DoneActorEvent | ErrorActorEvent;
 

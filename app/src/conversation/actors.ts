@@ -3,6 +3,7 @@
 // table and the states own the rest.
 import {
   assign as rawAssign,
+  cancel as rawCancel,
   enqueueActions as rawEnqueue,
   fromCallback,
   fromPromise,
@@ -33,6 +34,8 @@ import type {
 export const assignConversation = rawAssign<ConversationContext, ExpressionEvent, undefined, ConversationEvent, never>;
 
 export const raiseConversation = rawRaise<ConversationContext, ExpressionEvent, ConversationEvent, undefined>;
+
+export const cancelConversation = rawCancel<ConversationContext, ExpressionEvent, undefined, ConversationEvent>;
 
 export const sendToConversation = rawSendTo<ConversationContext, ExpressionEvent, undefined, AnyActorRef, ConversationEvent>;
 
@@ -108,10 +111,8 @@ function cacheStore(key: string, value: UnderstandAnswer): void {
 // in flight joins that call instead of sending a second one.
 const understandInFlight = new Map<string, Promise<UnderstandAnswer>>();
 
-// A question asked while the camera is on a shelf sends the still,
-// so the same call can answer it; that answer depends on the picture,
-// so it is never cached.
-const STILL_FRESH_MS = 5000;
+/** How old a still may be to go with a question, so the same call can answer it; that answer depends on the picture and is never cached. */
+export const STILL_FRESH_MS = 5000;
 
 function stillFor(input: UnderstandInput): ViewStill | null {
   return input.ask?.withStill ? freshStill(Date.now(), STILL_FRESH_MS) : null;

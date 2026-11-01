@@ -1,13 +1,15 @@
 // Questions about what the camera sees (shelf-awareness plan steps 3
 // and 4): an answer from the understanding call is said at once; else
 // asking opens the camera if needed, asks with the hints, and says the
-// answer, the timeout or why there is no picture. A named product is
-// offered; yes starts the normal find, no leaves things as they were.
+// answer, the timeout or why there is no picture. The camera it opened
+// stays on 20 s for a follow-up. A named product is offered; yes starts
+// the normal find, no leaves things as they were.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { answer, startListening } from './driver';
 import { resetSpeech, resetStorage, speechCalls } from './stubs.mjs';
 import { NoStillError, forgetAck } from '../src/conversation/askView';
+import { forgetStills, keepStill } from '../src/shelf/stills';
 
 const WHAT = answer({ intent: 'ask_view', question: "what's here?" });
 
@@ -34,7 +36,7 @@ test('an answer from the understanding call is said at once, with no second call
   }
 });
 
-test('without an answer, asking opens the camera, asks with the hints, then closes it', async () => {
+test('without an answer, asking opens the camera, asks with the hints, and closes it 20 s later', async () => {
   resetStorage();
   const driver = await startListening();
   const reply = deferred<{ answer: string; offer: string | null; unreadable: string[] }>();
@@ -49,6 +51,8 @@ test('without an answer, asking opens the camera, asks with the hints, then clos
     reply.resolve({ answer: 'On this shelf I see white rice and honey.', offer: null, unreadable: [] });
     await driver.flush();
     assert.equal(driver.spoken[driver.spoken.length - 1], 'On this shelf I see white rice and honey.');
+    assert.equal(driver.context().cameraOn, true);
+    await driver.advance(20000);
     assert.equal(driver.context().cameraOn, false);
   } finally {
     driver.stop();
@@ -116,6 +120,7 @@ test('an answer that never comes is given up after 15 s, aloud', async () => {
     assert.equal(driver.talk(), 'asking');
     await driver.advance(15000);
     assert.equal(driver.spoken[driver.spoken.length - 1], "I couldn't answer in time. Ask me again.");
+    await driver.advance(20000);
     assert.equal(driver.context().cameraOn, false);
   } finally {
     driver.stop();
@@ -139,18 +144,22 @@ test('a follow-up carries the last exchange, and "shorter" makes answers brief',
   }
 });
 
-test('a question gets a spoken acknowledgement as it ends, a request does not', async () => {
+test('a question at the shelf gets a spoken acknowledgement after the earcon, a request does not', async () => {
   resetStorage();
   resetSpeech();
   forgetAck();
+  keepStill({ image: 'shelf', mime: 'image/jpeg', w: 960, h: 1280, at: Date.now() });
   const driver = await startListening();
   try {
     driver.setUnderstand((input) => (input.transcript === 'Guedila water' ? answer({ intent: 'request_product', product_text: 'Guedila water' }) : WHAT));
     await driver.heard('Guedila water');
+    await new Promise((done) => setTimeout(done, 200));
     assert.ok(!speechCalls.some((call: { text: string }) => /Let me|One moment/.test(call.text)));
     await driver.heard("What's here?");
+    await new Promise((done) => setTimeout(done, 200));
     assert.ok(speechCalls.some((call: { text: string }) => /^(Let me look|One moment|Let me see)…$/.test(call.text)));
   } finally {
+    forgetStills();
     driver.stop();
   }
 });

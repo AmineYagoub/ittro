@@ -5,18 +5,8 @@ import { wsUrl } from './streamCtl';
 import type { Language } from '../theme';
 import { playSound, setSpeechRate, stopVoice } from '../speech';
 import type { UnderstandAnswer } from '../relay';
-import {
-  askAgain,
-  chooseLanguage,
-  offerHelp,
-  offerLanguage,
-  pausing,
-  refusedMic,
-  tourOffer,
-  welcome,
-  welcomeBack,
-  whatToFind,
-} from '../lines';
+import { askAgain, chooseLanguage, offerHelp, offerLanguage, pausing, refusedMic, tourOffer, welcome, welcomeBack, whatToFind } from '../lines';
+import { viewOfferLine } from './askLines';
 import { confirmList, confirmRequest, stillLooking, welcomeBackLooking } from '../requestLines';
 import { closeMatchLine } from '../shelf/searchLines';
 import { verdictReprompt } from '../confirm/lines';
@@ -147,7 +137,7 @@ export const noteMicComplaint = assign({
 });
 
 export function repromptLines(step: ConversationContext['step'], request: string | null, lang: Language): SpokenLine[] {
-  if (step === 'confirm' || step === 'offer' || step === 'alternative' || step === 'helperSend' || step === 'helperOffer') {
+  if (step === 'confirm' || step === 'offer' || step === 'alternative' || step === 'viewOffer' || step === 'helperSend' || step === 'helperOffer') {
     return [{ text: askAgain[lang], chips: [YES_CHIP[lang], NO_CHIP[lang]] }];
   }
   if (step === 'helperName') {
@@ -231,6 +221,9 @@ export function pausedLines(context: ConversationContext): SpokenLine[] {
   }
   if (context.step === 'alternative' && context.alternative) {
     return [{ text: closeMatchLine(context.request ?? '', context.alternative, lang), chips: [YES_CHIP[lang], NO_CHIP[lang]] }];
+  }
+  if (context.step === 'viewOffer' && context.viewReply?.offer) {
+    return [{ text: `${context.viewReply.answer} ${viewOfferLine(lang)}`, chips: [YES_CHIP[lang], NO_CHIP[lang]] }];
   }
   if (context.step === 'helperName') {
     return [{ text: askNameLine[lang], chips: [] }];
