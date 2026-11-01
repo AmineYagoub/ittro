@@ -7,6 +7,7 @@ import { outlineProducts } from './sam.ts';
 import { classifyScene, pickPackagePhrase, readShelfLabels } from './shelf.ts';
 import { realtimeUrl, startRealtimeSession } from './realtime.ts';
 import { confirmRoute, detailRoute } from './confirm.ts';
+import { findRoute } from './find.ts';
 import { helperRoutes } from './helperRoutes.ts';
 import { effortField, mimeField, textField } from './bodies.ts';
 import type { OutlineBody, PhraseBody, ReadBody } from './bodies.ts';
@@ -24,6 +25,8 @@ export { outlineProducts } from './sam.ts';
 export type { OutlineArgs, OutlineResult, SamBox, SamMask, SamOutline } from './sam.ts';
 export { classifyScene, pickPackagePhrase, readShelfLabels } from './shelf.ts';
 export type { ClassifyArgs, ReadArgs, SceneKind, SceneResult, ShelfCrop, ShelfRead, ShelfResult, ShelfVerdict } from './shelf.ts';
+export { findOnShelf, findRoute } from './find.ts';
+export type { FindArgs, FindResult, FoundOutline } from './find.ts';
 export { confirmInHand, confirmRoute, detailRoute, readLabelDetail } from './confirm.ts';
 export type { ConfirmArgs, ConfirmAttr, ConfirmAttrs, ConfirmRead, ConfirmResult, ConfirmVerdict, DetailArgs, DetailKind, DetailRead, DetailReason, DetailResult, PictureProblem } from './confirm.ts';
 export { processedMsToUsd, realtimeUrl, startRealtimeSession } from './realtime.ts';
@@ -118,6 +121,13 @@ export default {
       } catch (err) {
         return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
       }
+    }
+    if (request.method === 'POST' && url.pathname === '/find') {
+      const blocked = await gate(request, env, Number(env.SPARK_COST_USD ?? '0.01') + Number(env.SAM_COST_USD ?? '0.0025'));
+      if (blocked) {
+        return blocked;
+      }
+      return findRoute(await request.json(), env);
     }
     if (request.method === 'POST' && url.pathname === '/package-phrase') {
       const blocked = await gate(request, env, Number(env.SPARK_COST_USD ?? '0.01'));
