@@ -13,6 +13,7 @@ export interface LoopPhoto {
   w: number;
   h: number;
   grey: GreyFrame;
+  shot?: number;
 }
 
 export interface LoopContext {

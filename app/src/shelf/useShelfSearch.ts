@@ -209,7 +209,10 @@ export function useShelfSearch(
         } catch {
           grey = { data: new Uint8Array(0), w: 0, h: 0 };
         }
-        const ring = [...held.current.ring, { image: prepared.photo, mime: 'image/jpeg', w: prepared.w, h: prepared.h, grey }].slice(-3);
+        // The still's number places SAM's cut on the live camera.
+        const shot = Number(/ittro-shot-(\d+)\.jpg$/.exec(uri)?.[1] ?? Number.NaN);
+        const photo = { image: prepared.photo, mime: 'image/jpeg', w: prepared.w, h: prepared.h, grey, ...(Number.isFinite(shot) ? { shot } : {}) };
+        const ring = [...held.current.ring, photo].slice(-3);
         held.current.ring = ring;
         shooting = false;
         await loop.cloudPass(ring, null);

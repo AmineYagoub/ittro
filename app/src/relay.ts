@@ -51,11 +51,20 @@ export interface ShelfMask {
   points: number[];
 }
 
+// Where SAM cut the outline: the still's number and the box and mask
+// in that still, never moved, so the camera can place it natively.
+export interface OutlineAnchor {
+  shot: number;
+  box: ShelfBox;
+  points: number[] | null;
+}
+
 export interface ShelfOutline {
   id: number;
   frame: number;
   box: ShelfBox;
   mask?: ShelfMask;
+  anchor?: OutlineAnchor;
 }
 
 export interface ShelfCrop {

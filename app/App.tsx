@@ -22,6 +22,7 @@ import { startPhoneWatch, trackState } from './src/phoneWatch';
 import { conversationMachine } from './src/conversation/machine';
 import { useShelfSearch } from './src/shelf/useShelfSearch';
 import { GuideOverlay } from './src/guide/GuideOverlay';
+import { cameraOutline } from './src/shelf/outlines';
 import { useGuide } from './src/guide/useGuide';
 import type { ShelfOutline } from './src/relay';
 import type { GuideHand, HelperPairing, HelperWaiting } from './src/conversation/types';
@@ -220,6 +221,7 @@ export default function App(): React.JSX.Element {
       {cameraOn && IttroCameraView ? (
         <IttroCameraView
           active
+          outline={guideCluster ? cameraOutline(guideTarget, guideLabel) : null}
           style={styles.camera}
           accessible={false}
           importantForAccessibility="no"
@@ -240,7 +242,6 @@ export default function App(): React.JSX.Element {
           hand={guideHand}
           proximity={guideProximity}
           cue={guideCue}
-          label={guideLabel}
           width={viewSize.width}
           height={viewSize.height}
         />

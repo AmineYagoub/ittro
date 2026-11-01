@@ -210,6 +210,10 @@ class IttroSensorsModule : Module() {
         view.setActive(active ?: false)
       }
 
+      Prop("outline") { view: IttroCameraView, outline: Map<String, Any?>? ->
+        view.setOutline(outline)
+      }
+
       OnViewDestroys { view: IttroCameraView ->
         view.shutdown()
       }

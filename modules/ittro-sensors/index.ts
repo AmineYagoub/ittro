@@ -61,8 +61,24 @@ export interface TrackPan {
   panMs: number;
 }
 
+// The guided outline the camera draws and moves natively every frame:
+// SAM's cut in the still numbered `shot` (null: placed as it is now).
+export interface CameraOutline {
+  key: string;
+  name: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  w: number;
+  h: number;
+  points: number[] | null;
+  shot: number | null;
+}
+
 export interface CameraViewProps {
   active: boolean;
+  outline?: CameraOutline | null;
   style?: unknown;
   accessible?: boolean;
   importantForAccessibility?: 'auto' | 'yes' | 'no' | 'no-hide-descendants';

@@ -1,33 +1,33 @@
-// The target's SAM outline on screen: the mask's points mapped like
-// its box, no shape (so the box is drawn) without enough points, and
-// the name pill centred over the cap as ~/ittro/native drew it.
+// The guided outline handed to the camera, which draws and moves it
+// natively every frame: SAM's cut as it was in its still, with the
+// still's number, so the camera places it by its motion since; an
+// outline with no still is placed as it is now.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shapeCap, shapePoints } from '../src/shelf/outlines';
-import { capPill } from '../src/guide/lines';
+import { anchorOutlines, cameraOutline, moveOutlines } from '../src/shelf/outlines';
 import type { ShelfOutline } from '../src/relay';
 
 const box = { x1: 161, y1: 335, x2: 396, y2: 1180, w: 960, h: 1280, confidence: 0.9 };
+const masaad: ShelfOutline = { id: 1, frame: 3, box, mask: { points: [200, 335, 360, 335, 396, 1180, 161, 1180] } };
 
-test('the outline is drawn on screen as the mask, scaled like the box', () => {
-  const outline: ShelfOutline = { id: 1, frame: 3, box, mask: { points: [200, 335, 360, 335, 396, 1180, 161, 1180] } };
-  // A 480x640 view is the 960x1280 photo at half size.
-  assert.equal(shapePoints(outline, 480, 640), '100,168,180,168,198,590,81,590');
+test('the camera gets SAM cut from its still, not the box JavaScript moved since', () => {
+  const [anchored] = anchorOutlines([masaad], 12);
+  const [moved] = moveOutlines([anchored as ShelfOutline], { dx: 4, dy: 0, scale: 6 });
+  const outline = cameraOutline(moved as ShelfOutline, 'Masaad water');
+  assert.equal(moved?.box.x1, 185);
+  assert.deepEqual(
+    { x1: outline?.x1, shot: outline?.shot, points: outline?.points, name: outline?.name },
+    { x1: 161, shot: 12, points: [200, 335, 360, 335, 396, 1180, 161, 1180], name: 'Masaad water' },
+  );
+  // The same cut keeps its key while JavaScript moves it, so the camera never re-places it.
+  assert.equal(outline?.key, cameraOutline(anchored as ShelfOutline, 'Masaad water')?.key);
 });
 
-test('no mask, or too few points, draws the box instead', () => {
-  assert.equal(shapePoints({ id: 1, frame: 3, box }, 480, 640), null);
-  assert.equal(shapePoints({ id: 1, frame: 3, box, mask: { points: [1, 2, 3, 4] } }, 480, 640), null);
-});
-
-test('the pill sits centred over the bottle cap', () => {
-  // A bottle: cap 280-320 wide at the top, body 200-400 below.
-  const bottle: ShelfOutline = { id: 1, frame: 3, box, mask: { points: [280, 340, 200, 600, 200, 1180, 400, 1180, 400, 600, 320, 340] } };
-  const cap = shapeCap(bottle, 480, 640);
-  assert.deepEqual(cap, { x: 150, y: 170 });
-  const view = { left: 100, top: 170, width: 100, height: 420 };
-  // "Masaad water" guesses 12 * 9 + 28 = 136 dp: left 150 - 68.
-  assert.deepEqual(capPill(cap as { x: number; y: number }, view, 'Masaad water', 480, 640), { left: 82, top: 126 });
-  // Near the right edge the pill stays on screen.
-  assert.deepEqual(capPill({ x: 470, y: 170 }, view, 'Masaad water', 480, 640), { left: 336, top: 126 });
+test('an outline from an unknown still is placed as it is now', () => {
+  assert.deepEqual(anchorOutlines([masaad], undefined), [masaad]);
+  const outline = cameraOutline(masaad, 'Masaad water');
+  assert.equal(outline?.shot, null);
+  assert.equal(outline?.x1, 161);
+  assert.deepEqual(outline?.points, masaad.mask?.points);
+  assert.equal(cameraOutline(null, 'Masaad water'), null);
 });

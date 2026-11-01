@@ -1,16 +1,14 @@
-// Guiding over the live camera, screens 06, 23 and 29: the target's
-// SAM outline (its box when SAM sent no mask) in solid green over an
-// ink halo with its name pill, a dashed
+// Guiding over the live camera, screens 06, 23 and 29: a dashed
 // arrow from the fingertip to the target, the direction circle and
-// the five-segment proximity meter. Hidden from TalkBack; the spoken
-// line carries their meaning.
-import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Polygon } from 'react-native-svg';
-import { mapBox, mapPoints, shapeCap, shapePoints } from '../shelf/outlines';
+// the five-segment proximity meter. The target's outline and name
+// pill are drawn by the camera itself, moved every frame. Plain views
+// only, hidden from TalkBack; the spoken line carries their meaning.
+import { StyleSheet, View } from 'react-native';
+import { mapBox, mapPoints } from '../shelf/outlines';
 import type { ShelfOutline } from '../relay';
 import type { GuideHand } from '../conversation/types';
 import { color, size } from '../theme';
-import { GUIDE_CLUSTER_BOTTOM, PILL_MAX_WIDTH, capPill, dirOfCue, pillBox } from './lines';
+import { GUIDE_CLUSTER_BOTTOM, dirOfCue } from './lines';
 import { meterSegments } from './steer';
 import type { GuideDir } from './types';
 
@@ -38,29 +36,11 @@ function HandArrow({ hand, target, width, height }: { hand: GuideHand; target: S
   );
 }
 
-// The product's own shape, so the shopper's choice reads at a glance
-// even with another bottle touching it. Under a hand the statechart
-// holds the last whole outline, so the shape never shrinks to the
-// part the fingers leave.
-function TargetShape({ target, width, height }: { target: ShelfOutline; width: number; height: number }): React.JSX.Element | null {
-  const mapped = shapePoints(target, width, height);
-  if (!mapped) {
-    return null;
-  }
-  return (
-    <Svg style={StyleSheet.absoluteFill} width={width} height={height}>
-      <Polygon points={mapped} fill="#2BD98A38" stroke="#00000073" strokeWidth={9} strokeLinejoin="round" />
-      <Polygon points={mapped} fill="none" stroke={color.yes} strokeWidth={4.5} strokeLinejoin="round" />
-    </Svg>
-  );
-}
-
 export function GuideOverlay({
   target,
   hand,
   proximity,
   cue,
-  label,
   width,
   height,
 }: {
@@ -68,33 +48,13 @@ export function GuideOverlay({
   hand: GuideHand | null;
   proximity: number;
   cue: string | null;
-  label: string;
   width: number;
   height: number;
 }): React.JSX.Element {
-  const box = mapBox(target.box, width, height);
-  const cap = shapeCap(target, width, height);
-  const pill = cap ? capPill(cap, box, label, width, height) : pillBox(box, width, height);
   const filled = meterSegments(proximity);
   const segments = [0, 1, 2, 3, 4];
-  const shaped = cap !== null;
   return (
     <View style={styles.layer} pointerEvents="none" accessible={false} importantForAccessibility="no">
-      {shaped ? (
-        <TargetShape target={target} width={width} height={height} />
-      ) : (
-        <>
-          <View style={[styles.halo, { left: box.left - 3, top: box.top - 3, width: box.width + 6, height: box.height + 6 }]} />
-          <View style={[styles.target, { left: box.left, top: box.top, width: box.width, height: box.height }]} />
-        </>
-      )}
-      {label.length > 0 ? (
-        <View style={[styles.pill, { left: pill.left, top: pill.top, maxWidth: Math.min(PILL_MAX_WIDTH, width - 16) }]}>
-          <Text style={styles.pillText} numberOfLines={1} ellipsizeMode="tail">
-            {label}
-          </Text>
-        </View>
-      ) : null}
       {hand ? <HandArrow hand={hand} target={target} width={width} height={height} /> : null}
       <View style={styles.cluster}>
         <View style={styles.circle}>
@@ -121,31 +81,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-  },
-  halo: {
-    position: 'absolute',
-    borderWidth: 11,
-    borderColor: '#0B0E13B3',
-    borderRadius: 12,
-  },
-  target: {
-    position: 'absolute',
-    borderWidth: 5,
-    borderColor: color.yes,
-    backgroundColor: '#2BD98A1F',
-    borderRadius: 8,
-  },
-  pill: {
-    position: 'absolute',
-    backgroundColor: color.yes,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  pillText: {
-    color: color.ink,
-    fontSize: 16,
-    fontFamily: 'ReadexPro_600SemiBold',
   },
   arrow: {
     position: 'absolute',

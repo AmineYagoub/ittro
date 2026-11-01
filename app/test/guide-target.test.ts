@@ -4,7 +4,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { answer, startListening } from './driver';
-import { pillBox } from '../src/guide/lines';
 import type { ShelfOutline } from '../src/relay';
 
 function outline(id: number, x1: number, y1: number, x2: number, y2: number): ShelfOutline {
@@ -187,11 +186,4 @@ test('the find points from the hand when the hand is known', async () => {
   } finally {
     driver.stop();
   }
-});
-
-test('the name pill stays fully on screen', () => {
-  assert.deepEqual(pillBox({ left: 300, top: 200, width: 160, height: 240 }, 1280, 960), { left: 300, top: 156 });
-  assert.deepEqual(pillBox({ left: 300, top: 20, width: 160, height: 240 }, 1280, 960), { left: 300, top: 268 });
-  assert.deepEqual(pillBox({ left: 1200, top: 200, width: 160, height: 240 }, 1280, 960), { left: 992, top: 156 });
-  assert.deepEqual(pillBox({ left: 4, top: 200, width: 160, height: 240 }, 1280, 960), { left: 8, top: 156 });
 });

@@ -7,17 +7,18 @@ import android.media.Image
 import android.media.ImageReader
 import android.os.Handler
 import android.os.SystemClock
+import java.util.concurrent.atomic.AtomicBoolean
 
-// Live hand frames off the JavaScript thread. Each available image is
-// sampled straight to a half-size upright bitmap — the palm detector
-// sees a fraction of that — and closed at once, so the camera session
-// never stalls behind detection; the landmarker then runs on the copy
-// and only its small result crosses to the app. Every buffer is
-// reused, so frames cost no garbage. Frames the detector cannot keep
-// up with are skipped by taking the latest image, and the skips are
+// Live hand frames off the JavaScript thread. Every camera frame
+// moves the guided outline (OutlineTrack) on the frame thread; the
+// frame is then sampled straight to a half-size upright bitmap for
+// the landmarker, which runs on its own thread, so detection (about
+// 120 ms on the OPPO) never holds the outline back. A frame that
+// arrives while the landmarker is busy only moves the outline. Every
+// buffer is reused, so frames cost no garbage; the skips are
 // estimated from the timestamp gaps against a nominal 30 frames a
-// second. The same image feeds the outline tracker at most every
-// quarter second.
+// second. The same image feeds the outline tracker JavaScript reads
+// at most every 200 ms.
 private const val NOMINAL_FRAME_MS = 1000.0 / 30.0
 
 private const val MAX_SKIP_ESTIMATE = 30
@@ -28,6 +29,7 @@ class HandFrames(
   private val context: Context,
   private val tracker: HandTracker,
   private val rotationDeg: Int,
+  private val frameHandler: Handler,
   private val handler: Handler,
   private val onFrame: (Map<String, Any>) -> Unit,
   private val onPan: (Map<String, Any>) -> Unit,
@@ -38,6 +40,7 @@ class HandFrames(
   private var converter: FrameConverter? = null
   private val pan = TrackPan()
   private var lastPanAt = 0L
+  private val detecting = AtomicBoolean(false)
 
   fun attach(reader: ImageReader) {
     reader.setOnImageAvailableListener({ source ->
@@ -49,9 +52,16 @@ class HandFrames(
         dropped += gap.toLong().coerceIn(0L, MAX_SKIP_ESTIMATE.toLong())
       }
       lastTimestampMs = timestampMs
+      if (image.format == ImageFormat.YUV_420_888) {
+        OutlineTrack.onImage(image, rotationDeg)
+      }
       if (arrived - lastPanAt >= PAN_EVERY_MS) {
         lastPanAt = arrived
         pan.pan(image, rotationDeg)?.let { onPan(it) }
+      }
+      if (!detecting.compareAndSet(false, true)) {
+        image.close()
+        return@setOnImageAvailableListener
       }
       if (converter == null) {
         converter = FrameConverter(image.width, image.height, rotationDeg)
@@ -61,23 +71,37 @@ class HandFrames(
       val convertMs = (SystemClock.uptimeMillis() - started).toDouble()
       image.close()
       if (bitmap == null) {
+        detecting.set(false)
         return@setOnImageAvailableListener
       }
-      val found = tracker.detectIn(context, bitmap, timestampMs)
-      frameId += 1
-      val payload = mutableMapOf<String, Any>(
-        "present" to (found != null),
-        "frame" to frameId.toDouble(),
-        "convertMs" to convertMs,
-        "detectMs" to 0.0,
-        "frameMs" to (SystemClock.uptimeMillis() - arrived).toDouble(),
-        "dropped" to dropped.toDouble(),
-      )
-      if (found != null) {
-        payload.putAll(found)
+      handler.post {
+        val found = tracker.detectIn(context, bitmap, timestampMs)
+        detecting.set(false)
+        OutlineTrack.hand(
+          found?.let {
+            floatArrayOf(
+              (it["boxX1"] as Double).toFloat(),
+              (it["boxY1"] as Double).toFloat(),
+              (it["boxX2"] as Double).toFloat(),
+              (it["boxY2"] as Double).toFloat(),
+            )
+          },
+        )
+        frameId += 1
+        val payload = mutableMapOf<String, Any>(
+          "present" to (found != null),
+          "frame" to frameId.toDouble(),
+          "convertMs" to convertMs,
+          "detectMs" to 0.0,
+          "frameMs" to (SystemClock.uptimeMillis() - arrived).toDouble(),
+          "dropped" to dropped.toDouble(),
+        )
+        if (found != null) {
+          payload.putAll(found)
+        }
+        onFrame(payload)
       }
-      onFrame(payload)
-    }, handler)
+    }, frameHandler)
   }
 }
 

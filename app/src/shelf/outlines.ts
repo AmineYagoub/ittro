@@ -3,6 +3,7 @@
 // shifts both by the measured pan so they stay on the products while
 // the phone moves. The phone never decodes masks: the relay ships the
 // polygons, and moving them is a few dozen adds.
+import type { CameraOutline } from 'ittro-sensors';
 import type { ShelfBox, ShelfMask, ShelfOutline } from '../relay';
 
 export type { ShelfBox, ShelfMask, ShelfOutline };
@@ -99,33 +100,34 @@ export function mapPoints(points: number[], w: number, h: number, viewW: number,
   return out;
 }
 
-/** The outline's mask as SVG points on screen, or null when SAM sent no shape to draw. */
-export function shapePoints(outline: ShelfOutline, viewW: number, viewH: number): string | null {
-  const points = outline.mask?.points ?? [];
-  if (points.length < 6) {
-    return null;
+/** SAM's outlines tagged with the still they were cut from, when its number is known. */
+export function anchorOutlines(outlines: ShelfOutline[], shot: number | undefined): ShelfOutline[] {
+  if (shot === undefined) {
+    return outlines;
   }
-  return mapPoints(points, outline.box.w, outline.box.h, viewW, viewH).join(',');
+  return outlines.map((outline) => ({ ...outline, anchor: { shot, box: outline.box, points: outline.mask?.points ?? null } }));
 }
 
-/** The top of the outline on screen, the cap of a bottle: where its name pill sits. */
-export function shapeCap(outline: ShelfOutline, viewW: number, viewH: number): { x: number; y: number } | null {
-  const points = outline.mask?.points ?? [];
-  if (points.length < 6) {
+/** The guided outline for the camera to draw: SAM's cut and its still, else the box as it is now. */
+export function cameraOutline(target: ShelfOutline | null, label: string): CameraOutline | null {
+  if (!target) {
     return null;
   }
-  const mapped = mapPoints(points, outline.box.w, outline.box.h, viewW, viewH);
-  let top = Infinity;
-  for (let at = 1; at < mapped.length; at += 2) {
-    top = Math.min(top, mapped[at] as number);
-  }
-  const xs: number[] = [];
-  for (let at = 0; at + 1 < mapped.length; at += 2) {
-    if ((mapped[at + 1] as number) <= top + 6) {
-      xs.push(mapped[at] as number);
-    }
-  }
-  return { x: Math.round((Math.min(...xs) + Math.max(...xs)) / 2), y: top };
+  const anchor = target.anchor;
+  const box = anchor?.box ?? target.box;
+  const shot = anchor?.shot ?? null;
+  return {
+    key: `${shot ?? 'now'}:${target.id}:${box.x1},${box.y1},${box.x2},${box.y2}:${label}`,
+    name: label,
+    x1: box.x1,
+    y1: box.y1,
+    x2: box.x2,
+    y2: box.y2,
+    w: box.w,
+    h: box.h,
+    points: anchor ? anchor.points : (target.mask?.points ?? null),
+    shot,
+  };
 }
 
 export function mapBox(box: ShelfBox, viewW: number, viewH: number): ViewBox {

@@ -32,6 +32,7 @@ object IttroCamera {
 
   private var cameraThread: HandlerThread? = null
   private var handsThread: HandlerThread? = null
+  private var framesThread: HandlerThread? = null
   private var device: CameraDevice? = null
   private var session: CameraCaptureSession? = null
   private var handReader: ImageReader? = null
@@ -73,6 +74,7 @@ object IttroCamera {
       val map = features.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP) ?: throw Exception("no stream map")
       val cameraHandler = thread("IttroCamera")
       val handsHandler = thread("IttroHands")
+      val framesHandler = thread("IttroFrames")
       val handSize = pickHandSize(map.getOutputSizes(ImageFormat.YUV_420_888)) ?: throw Exception("no hand size")
       val stillSize = pickStillSize(map.getOutputSizes(ImageFormat.JPEG)) ?: throw Exception("no still size")
       val hands = ImageReader.newInstance(handSize.width, handSize.height, ImageFormat.YUV_420_888, 2)
@@ -81,9 +83,13 @@ object IttroCamera {
       synchronized(lock) {
         jpegDeg = rotation
       }
-      HandFrames(app, tracker, rotation, handsHandler, onHandFrame, onPan).attach(hands)
+      OutlineTrack.reset()
+      HandFrames(app, tracker, rotation, framesHandler, handsHandler, onHandFrame, onPan).attach(hands)
       stills.setOnImageAvailableListener({ reader ->
         val image = reader.acquireLatestImage() ?: return@setOnImageAvailableListener
+        synchronized(lock) {
+          OutlineTrack.shot(shotCounter + 1, image.timestamp)
+        }
         val plane = image.planes[0]
         val bytes = ByteArray(plane.buffer.remaining())
         plane.buffer.get(bytes)
@@ -115,6 +121,7 @@ object IttroCamera {
       synchronized(lock) {
         cameraThread = cameraHandler.looper.thread as HandlerThread
         handsThread = handsHandler.looper.thread as HandlerThread
+        framesThread = framesHandler.looper.thread as HandlerThread
         handReader = hands
         stillReader = stills
       }
@@ -198,8 +205,10 @@ object IttroCamera {
       shotLatch = null
       cameraThread?.quitSafely()
       handsThread?.quitSafely()
+      framesThread?.quitSafely()
       cameraThread = null
       handsThread = null
+      framesThread = null
       opening.set(false)
     }
   }

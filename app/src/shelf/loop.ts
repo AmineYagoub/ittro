@@ -6,7 +6,7 @@
 import type { ShelfCrop, ShelfOutline, ShelfRead } from '../relay';
 import { linkKindFor } from '../metaCall';
 import { pickSharpest, sharpness } from './tracker';
-import { moveOutlines } from './outlines';
+import { anchorOutlines, moveOutlines } from './outlines';
 import { biggestFirst, needsRead, reconcileTracks } from './shelfTracks';
 import { outlineSignature, packageKind } from './match';
 import { QUIET_MS, maybeSwept, readBatch, reportEmpty, reportRefind, reportVerdicts, targetJumped } from './loopReads';
@@ -202,6 +202,7 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
             return;
           }
         }
+        outlined = { ...outlined, outlines: anchorOutlines(outlined.outlines, sharpest.shot) };
         const masked = outlined.outlines.filter((outline) => outline.mask).length;
         deps.log(
           `shelf sam ${outlined.samMs}ms masks ${outlined.maskMs}ms outlines ${outlined.outlines.length} masked ${masked} sharpness ${Math.round(picked)}`,
