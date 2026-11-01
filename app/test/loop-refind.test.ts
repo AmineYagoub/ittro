@@ -93,3 +93,12 @@ test('a product out of view is found again anywhere', async () => {
   const { found } = await recheck([{ box: REFLECTION, verdict: 'yes' }], true);
   assert.equal(found[0]?.box.x1, 765);
 });
+
+test('t11: a reflection overlapping the guided bottle by 0.2 does not take the target', async () => {
+  const { found, logs } = await recheck([
+    { box: MASAAD, verdict: 'no' },
+    { box: box(604, 280, 820, 1062), verdict: 'yes' },
+  ]);
+  assert.equal(found.length, 0);
+  assert.ok(logs.includes('shelf recheck kept the target, a yes at 604-820 is elsewhere'));
+});

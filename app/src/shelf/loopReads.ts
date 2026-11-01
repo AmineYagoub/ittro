@@ -16,8 +16,10 @@ const TARGET_STEADY_IOU = 0.5;
 // A recheck re-finds the guided product where it is: a yes must
 // overlap the box the hand is going to. In t10 SAM outlined a
 // reflection beside the Guedila while the hand hid the real one, the
-// read called the reflection yes, and the guide jumped to it.
-const REFIND_IOU = 0.2;
+// read called the reflection yes, and the guide jumped to it; in t11 a
+// reflection overlapping the Guedila by 0.2 took the target, so the
+// overlap must be clear.
+const REFIND_IOU = 0.4;
 
 const EMPTY_BEFORE_TURN = 2;
 const EMPTY_BEFORE_SWEPT = 3;
