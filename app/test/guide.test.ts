@@ -57,7 +57,7 @@ test('several matches say how many and guide to the nearest one', async () => {
   assert.deepEqual(driver.parts, [
     [{ text: 'I found Masaad water in the middle.' }],
     [
-      { text: 'I see three Masaad water bottles. Guiding you to the nearest one, in the middle. Masaad water is to your left.' },
+      { text: 'I see three Masaad water bottles. Guiding you to the nearest one. Masaad water is to your left.' },
       { clip: 'hand_left' },
     ],
   ]);

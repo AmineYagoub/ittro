@@ -40,7 +40,7 @@ function shown(parts: SpeechPart[], context: ConversationContext): string {
 function firstParts(context: ConversationContext, cue: string): SpeechPart[] {
   const where = firstSentence(context.guideLabel, cue, context.lang);
   if (context.guideMatches > 1) {
-    const several = severalPrefix(context.guideMatches, context.guideLabel, context.guideKind, context.guidePosition, context.lang);
+    const several = severalPrefix(context.guideMatches, context.guideLabel, context.guideKind, context.lang);
     return [{ text: `${several} ${where}` }, { clip: cue }];
   }
   return [{ text: where }, { clip: cue }];

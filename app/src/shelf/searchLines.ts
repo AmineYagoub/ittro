@@ -54,7 +54,7 @@ export function shelfSweptLine(checked: number, product: string, lang: Language)
 
 // Arabic counts agree with the noun: one and two have their own
 // forms, 3 to 10 take the plural, 11 and up the singular accusative.
-function arabicProducts(count: number): string {
+export function arabicProducts(count: number): string {
   if (count === 1) {
     return 'منتجًا واحدًا';
   }
