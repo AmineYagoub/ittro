@@ -13,7 +13,7 @@ import { helperRoutes } from './helperRoutes.ts';
 import { askFields, effortField, mimeField, textField } from './bodies.ts';
 import type { OutlineBody, PhraseBody, ReadBody } from './bodies.ts';
 import { wrapSocket } from './streamWire.ts';
-import { clientIp, codesEqual, gate, overRateLimit, recordSamCost, recordSparkCost, spendTodayUsd } from './gate.ts';
+import { addSpendUsd, clientIp, codesEqual, gate, overRateLimit, recordSamCost, recordSparkCost, spendTodayUsd } from './gate.ts';
 import type { Env } from './gate.ts';
 import type { StreamBudget } from './realtime.ts';
 import type { StreamSocket } from './streamWire.ts';
@@ -43,6 +43,7 @@ interface PairedSocket {
   send(data: string | ArrayBuffer): void;
   close(code?: number, reason?: string): void;
   accept(): void;
+  onopen: (() => void) | null;
   onmessage: ((event: { data: unknown }) => void) | null;
   onclose: (() => void) | null;
   onerror: (() => void) | null;
