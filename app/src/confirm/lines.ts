@@ -25,6 +25,12 @@ export function yesNext(lang: Language): string {
   return 'Say find another, or done.';
 }
 
+/** The 8 s reminder after a verdict: a yes is not said again, only the choice that followed it. */
+export function verdictReprompt(lastLine: string, lang: Language): string {
+  const next = yesNext(lang);
+  return lastLine.endsWith(next) ? next : lastLine;
+}
+
 export function backToShelfLine(lang: Language): string {
   if (lang === 'ar') {
     return 'سأبحث عنه على الرف.';

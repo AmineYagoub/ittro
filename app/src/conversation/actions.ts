@@ -19,6 +19,7 @@ import {
 } from '../lines';
 import { confirmList, confirmRequest, stillLooking, welcomeBackLooking } from '../requestLines';
 import { closeMatchLine } from '../shelf/searchLines';
+import { verdictReprompt } from '../confirm/lines';
 import { askConfirmLine, askNameLine, helpersWord, offerLine } from '../helper/lines';
 import { HELP_CHIP, NO_CHIP, YES_CHIP } from '../chips';
 import type { streamClient } from './streamActor';
@@ -171,13 +172,11 @@ export function repromptLines(step: ConversationContext['step'], request: string
 export const assignReprompt = assign({
   pendingSay: ({ context }: ContextArgs) =>
     context.step === 'verdict' && context.lastLine
-      ? [{ text: context.lastLine, chips: context.lastChips }]
+      ? [{ text: verdictReprompt(context.lastLine, context.lang), chips: context.lastChips }]
       : repromptLines(context.step, context.request, context.lang),
 });
 
-export const logReprompt = (): void => {
-  logIttro('silence 8s, asking again');
-};
+export const logReprompt = (): void => logIttro('silence 8s, asking again');
 
 export const assignHelp = assign({
   pendingSay: ({ context }: ContextArgs) => [{ text: offerHelp[context.lang], chips: [HELP_CHIP[context.lang]] }],

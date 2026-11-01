@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startListening } from './driver';
 import type { ShelfOutline } from '../src/relay';
-import { verdictWord } from '../src/confirm/lines';
+import { verdictReprompt, verdictWord } from '../src/confirm/lines';
 
 const TARGET: ShelfOutline = {
   id: 7,
@@ -228,12 +228,12 @@ test('a check begun while guiding keeps the guided box for the crop', async () =
   driver.stop();
 });
 
-test('silence after a verdict repeats the verdict, not the search', async () => {
+test('silence after a yes repeats the choice, not the yes or the search', async () => {
   const driver = await checking();
   driver.send({ type: 'CONFIRM_YES', epoch: 1, label: 'Masaad water, 1.5 litres', crop: CROP });
   await driver.flush();
   await driver.advance(8000);
-  assert.equal(driver.spoken.at(-1), 'Yes. This is Masaad water, 1.5 litres. Say find another, or done.');
+  assert.equal(driver.spoken.at(-1), 'Say find another, or done.');
   driver.stop();
 });
 
@@ -280,4 +280,10 @@ test('verdict words speak the shopper language', async () => {
   assert.ok(driver.context().lastLine.startsWith('لا.'));
   assert.ok(driver.context().lastLine.includes('مياه قديلة'));
   driver.stop();
+});
+
+test('the reminder after a yes repeats the choice, not the yes (t16, t17)', () => {
+  assert.equal(verdictReprompt('نعم. هذا ماء مسعد. قل ابحث عن غيره، أو انتهيت.', 'ar'), 'قل ابحث عن غيره، أو انتهيت.');
+  assert.equal(verdictReprompt('Yes. This is Masaad water. Say find another, or done.', 'en'), 'Say find another, or done.');
+  assert.equal(verdictReprompt('No. This is Guedila water. Put it back.', 'en'), 'No. This is Guedila water. Put it back.');
 });
