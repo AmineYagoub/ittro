@@ -85,19 +85,45 @@ test('rejects reads that invent a crop id', async () => {
 
 test('classifies a shelf scene with its kinds', async () => {
   const scene = await classifyScene(
-    okFetch(completed({ scene: 'shelf', kinds: ['bags', 'jars'], aisle_hint: null })),
+    okFetch(completed({ scene: 'shelf', kinds: ['bags', 'jars'], aisle_hint: null, shelf_label: 'rice', fits_request: true })),
     'https://example.invalid',
     'key',
     { request: 'rice', image: 'aGk=', mime: 'image/jpeg' },
   );
   assert.equal(scene.scene, 'shelf');
   assert.deepEqual(scene.kinds, ['bags', 'jars']);
+  assert.equal(scene.fits_request, true);
+});
+
+test('names the shelf in the shopper\'s language and says whether it holds the request', async () => {
+  let sent = '';
+  const fetchImpl = (async (_url: string, init: { body: string }) => {
+    sent = init.body;
+    return { ok: true, json: async () => completed({ scene: 'shelf', kinds: ['boxes'], aisle_hint: null, shelf_label: 'البسكويت', fits_request: false }) };
+  }) as unknown as typeof fetch;
+  const scene = await classifyScene(fetchImpl, 'https://example.invalid', 'key', { request: 'أرز', image: 'aGk=', mime: 'image/jpeg', language: 'ar' });
+  assert.equal(scene.shelf_label, 'البسكويت');
+  assert.equal(scene.fits_request, false);
+  assert.match(sent, /Shopper's language: ar/);
+  assert.match(sent, /fits_request/);
+});
+
+test('a scene without the shelf fields is refused', async () => {
+  await assert.rejects(
+    classifyScene(
+      okFetch(completed({ scene: 'shelf', kinds: ['bags'], aisle_hint: null })),
+      'https://example.invalid',
+      'key',
+      { request: 'rice', image: 'aGk=', mime: 'image/jpeg' },
+    ),
+    /schema gate/,
+  );
 });
 
 test('rejects a scene outside the enum instead of guessing', async () => {
   await assert.rejects(
     classifyScene(
-      okFetch(completed({ scene: 'aisle', kinds: [], aisle_hint: null })),
+      okFetch(completed({ scene: 'aisle', kinds: [], aisle_hint: null, shelf_label: null, fits_request: false })),
       'https://example.invalid',
       'key',
       { request: 'rice', image: 'aGk=', mime: 'image/jpeg' },

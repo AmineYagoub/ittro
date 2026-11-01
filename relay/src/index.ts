@@ -217,6 +217,7 @@ export default {
           request: wanted,
           image,
           mime: mimeField(body.mime),
+          language: textField(body.language) ?? 'en',
         });
         await recordSparkCost(env);
         return Response.json({ ok: true, scene });

@@ -16,6 +16,7 @@ export interface PhraseBody {
   request?: unknown;
   image?: unknown;
   mime?: unknown;
+  language?: unknown;
 }
 
 export interface ReadBody {

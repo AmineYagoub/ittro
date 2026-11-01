@@ -78,6 +78,8 @@ const INSTRUCTIONS = [
   'items lists each thing wanted normalized the same way when several are named, else null.',
   'detail names the label part for read_detail.',
   'target_language is set only for speak_language. helper_name is set only for ask_someone and add_helper.',
+  'Asking to look or search again, here or at another shelf ("look again", "keep looking", "ابحث من جديد", "واصل البحث",',
+  '"cherchez encore", "continuez à chercher"), is keep_looking.',
   'Asking again ("ask again", "try asking again") is ask_someone with helper_name null. Stopping the wait',
   '("stop waiting", "never mind waiting") is cancel.',
   'ask_view is a question about what the camera sees now: what is here, which is cheaper, is there X here, how many,',
