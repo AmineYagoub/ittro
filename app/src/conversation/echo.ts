@@ -1,14 +1,13 @@
-// Telling Ittro's own voice from the shopper's: the mic stays live
-// while Ittro speaks, so every transcript is checked against what
-// Ittro just said. A transcript that repeats it is dropped silently;
-// one that carries it plus more has the echo stripped and the rest
-// understood; anything else is the shopper's. Arabic folds its
-// diacritics and hamza before matching, and while Ittro's voice is
-// fresh its first words and near-verbatim wobbles drop too, so even
-// a speculative understand never hears its own clips.
+// Telling Ittro's own voice from the shopper's: every transcript is
+// checked against what Ittro just said. One that repeats it is dropped
+// silently; one that carries it plus more has the echo stripped and
+// the rest understood; anything else is the shopper's. Arabic folds
+// diacritics and hamza first, and while Ittro's voice is fresh its
+// first words and near-verbatim wobbles drop too.
 import { assignConversation as assign } from './actors';
 import { partsText } from '../guide/lines';
 import type { ConversationContext, ExpressionEvent, VoiceEcho } from './types';
+import { voiceQuietMs } from '../voiceGate';
 
 const COVERAGE = 0.5;
 
@@ -265,12 +264,12 @@ function shortAnswerOpen(context: ConversationContext, text: string): boolean {
   );
 }
 
-// A choice Ittro offered, heard while Ittro is quiet, is the shopper
-// taking it: the mic is gated while Ittro speaks (t12 dropped "ابحث
-// عن غيره" as echo twice, 5 and 14 s after the line ended).
-function offeredChoice(context: ConversationContext, text: string): boolean {
+// The mic is gated while Ittro speaks, so an offered choice heard
+// while Ittro is quiet, or anything heard once the gate has been open
+// 2.5 s, is the shopper (t12, t16 dropped "ابحث عن غيره" 12 s after).
+function shopperForSure(context: ConversationContext, text: string): boolean {
   const said = normalize(text);
-  return !context.talkBusy && said.length > 0 && context.lastChips.some((chip) => normalize(chip) === said);
+  return !context.talkBusy && (voiceQuietMs() >= 2500 || (said.length > 0 && context.lastChips.some((chip) => normalize(chip) === said)));
 }
 
 export const echoFull = ({ context, event }: EchoArgs): boolean => {
@@ -278,7 +277,7 @@ export const echoFull = ({ context, event }: EchoArgs): boolean => {
   if (text === null) {
     return false;
   }
-  if (shortAnswerOpen(context, text) || offeredChoice(context, text)) {
+  if (shortAnswerOpen(context, text) || shopperForSure(context, text)) {
     return false;
   }
   return transcriptFate(text, ownSpeechCurrent(context), inEchoWindow(context), ownSpeechPast(context)).echo === true;
@@ -290,7 +289,7 @@ export const echoStripped = ({ context, event }: EchoArgs): boolean => {
     return false;
   }
   const fate = transcriptFate(text, ownSpeechCurrent(context), inEchoWindow(context), ownSpeechPast(context));
-  return fate.echo === false && fate.stripped;
+  return fate.echo === false && fate.stripped && !shopperForSure(context, text);
 };
 
 export function strippedText({ context, event }: EchoArgs): string {

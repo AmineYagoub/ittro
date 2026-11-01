@@ -25,6 +25,15 @@ export function voiceGateClosed(now: number = Date.now()): boolean {
   return speakingCount > 0 || now < voiceTailUntil;
 }
 
+// How long the gate has been open since Ittro last spoke; 0 while it
+// is closed or before Ittro has said anything.
+export function voiceQuietMs(now: number = Date.now()): number {
+  if (speakingCount > 0 || voiceTailUntil === 0) {
+    return 0;
+  }
+  return Math.max(0, now - voiceTailUntil);
+}
+
 async function engineSpeaking(): Promise<boolean> {
   try {
     return await Speech.isSpeakingAsync();

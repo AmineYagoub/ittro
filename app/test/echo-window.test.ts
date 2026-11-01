@@ -2,13 +2,15 @@
 // words never reach understanding, a just-played clip stays echo
 // after the line moves on, and a bare yes is the shopper's only
 // while its question is open; a choice Ittro offered is the
-// shopper's once Ittro is quiet.
+// shopper's once Ittro is quiet, and so is anything heard after
+// 2.5 s of quiet.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { answer, startListening } from './driver';
 import { echoFull } from '../src/conversation/echo';
 import { cueText } from '../src/voiceClips';
 import { resetSpeech, speechStops } from './stubs.mjs';
+import { noteAudioEnd } from '../src/voiceGate';
 
 test('the first words of the playing line never reach understanding', async () => {
   resetSpeech();
@@ -154,6 +156,29 @@ test('an offered choice said back while Ittro is quiet is the shopper (t12)', as
     assert.equal(echoFull({ context: { ...offered, talkBusy: false }, event: heard }), false);
     assert.equal(echoFull({ context: { ...offered, talkBusy: true }, event: heard }), true);
   } finally {
+    driver.stop();
+  }
+});
+
+test('words of the last line said 12 s after it ended are the shopper (t16)', async () => {
+  const driver = await startListening();
+  const realNow = Date.now;
+  try {
+    const heard = { type: 'FINAL_TEXT', text: 'ابحث عن غيره' } as const;
+    const quiet = {
+      ...driver.context(),
+      lang: 'ar' as const,
+      talkBusy: false,
+      lastLine: 'ما زلت أبحث عن بسمتي. قل ابحث عن غيره لتغييره.',
+      lastChips: [],
+    };
+    noteAudioEnd(realNow());
+    assert.equal(echoFull({ context: quiet, event: heard }), true);
+    Date.now = () => realNow() + 12000;
+    assert.equal(echoFull({ context: { ...quiet, voiceAt: realNow(), voiceLog: [] }, event: heard }), false);
+    assert.equal(echoFull({ context: { ...quiet, talkBusy: true }, event: heard }), true);
+  } finally {
+    Date.now = realNow;
     driver.stop();
   }
 });
