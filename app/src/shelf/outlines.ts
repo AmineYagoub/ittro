@@ -99,6 +99,15 @@ export function mapPoints(points: number[], w: number, h: number, viewW: number,
   return out;
 }
 
+/** The outline's mask as SVG points on screen, or null when SAM sent no shape to draw. */
+export function shapePoints(outline: ShelfOutline, viewW: number, viewH: number): string | null {
+  const points = outline.mask?.points ?? [];
+  if (points.length < 6) {
+    return null;
+  }
+  return mapPoints(points, outline.box.w, outline.box.h, viewW, viewH).join(',');
+}
+
 export function mapBox(box: ShelfBox, viewW: number, viewH: number): ViewBox {
   const scale = Math.max(viewW / box.w, viewH / box.h);
   const left = (viewW - box.w * scale) / 2 + box.x1 * scale;

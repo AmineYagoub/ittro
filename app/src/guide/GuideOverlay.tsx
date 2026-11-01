@@ -1,10 +1,12 @@
-// Guiding over the live camera, screens 06, 23 and 29: the target
-// in solid green over an ink halo with its name pill, a dashed
+// Guiding over the live camera, screens 06, 23 and 29: the target's
+// SAM outline (its box when SAM sent no mask) in solid green over an
+// ink halo with its name pill, a dashed
 // arrow from the fingertip to the target, the direction circle and
-// the five-segment proximity meter. Plain views only, hidden from
-// TalkBack; the spoken line carries their meaning.
+// the five-segment proximity meter. Hidden from TalkBack; the spoken
+// line carries their meaning.
 import { StyleSheet, Text, View } from 'react-native';
-import { mapBox, mapPoints } from '../shelf/outlines';
+import Svg, { Polygon } from 'react-native-svg';
+import { mapBox, mapPoints, shapePoints } from '../shelf/outlines';
 import type { ShelfOutline } from '../relay';
 import type { GuideHand } from '../conversation/types';
 import { color, size } from '../theme';
@@ -36,6 +38,23 @@ function HandArrow({ hand, target, width, height }: { hand: GuideHand; target: S
   );
 }
 
+// The product's own shape, so the shopper's choice reads at a glance
+// even with another bottle touching it. Under a hand the statechart
+// holds the last whole outline, so the shape never shrinks to the
+// part the fingers leave.
+function TargetShape({ target, width, height }: { target: ShelfOutline; width: number; height: number }): React.JSX.Element | null {
+  const mapped = shapePoints(target, width, height);
+  if (!mapped) {
+    return null;
+  }
+  return (
+    <Svg style={StyleSheet.absoluteFill} width={width} height={height}>
+      <Polygon points={mapped} fill="none" stroke="#0B0E13B3" strokeWidth={15} strokeLinejoin="round" />
+      <Polygon points={mapped} fill="#2BD98A26" stroke={color.yes} strokeWidth={5} strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 export function GuideOverlay({
   target,
   hand,
@@ -57,10 +76,17 @@ export function GuideOverlay({
   const pill = pillBox(box, width, height);
   const filled = meterSegments(proximity);
   const segments = [0, 1, 2, 3, 4];
+  const shaped = shapePoints(target, width, height) !== null;
   return (
     <View style={styles.layer} pointerEvents="none" accessible={false} importantForAccessibility="no">
-      <View style={[styles.halo, { left: box.left - 3, top: box.top - 3, width: box.width + 6, height: box.height + 6 }]} />
-      <View style={[styles.target, { left: box.left, top: box.top, width: box.width, height: box.height }]} />
+      {shaped ? (
+        <TargetShape target={target} width={width} height={height} />
+      ) : (
+        <>
+          <View style={[styles.halo, { left: box.left - 3, top: box.top - 3, width: box.width + 6, height: box.height + 6 }]} />
+          <View style={[styles.target, { left: box.left, top: box.top, width: box.width, height: box.height }]} />
+        </>
+      )}
       {label.length > 0 ? (
         <View style={[styles.pill, { left: pill.left, top: pill.top, maxWidth: Math.min(PILL_MAX_WIDTH, width - 16) }]}>
           <Text style={styles.pillText} numberOfLines={1} ellipsizeMode="tail">
