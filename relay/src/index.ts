@@ -5,7 +5,7 @@
 import { understandUtterance } from './understand.ts';
 import { outlineProducts } from './sam.ts';
 import { classifyScene, pickPackagePhrase, readShelfLabels } from './shelf.ts';
-import { startRealtimeSession } from './realtime.ts';
+import { realtimeUrl, startRealtimeSession } from './realtime.ts';
 import { confirmRoute, detailRoute } from './confirm.ts';
 import { helperRoutes } from './helperRoutes.ts';
 import { effortField, mimeField, textField } from './bodies.ts';
@@ -26,7 +26,7 @@ export { classifyScene, pickPackagePhrase, readShelfLabels } from './shelf.ts';
 export type { ClassifyArgs, ReadArgs, SceneKind, SceneResult, ShelfCrop, ShelfRead, ShelfResult, ShelfVerdict } from './shelf.ts';
 export { confirmInHand, confirmRoute, detailRoute, readLabelDetail } from './confirm.ts';
 export type { ConfirmArgs, ConfirmAttr, ConfirmAttrs, ConfirmRead, ConfirmResult, ConfirmVerdict, DetailArgs, DetailKind, DetailRead, DetailReason, DetailResult, PictureProblem } from './confirm.ts';
-export { processedMsToUsd, startRealtimeSession } from './realtime.ts';
+export { processedMsToUsd, realtimeUrl, startRealtimeSession } from './realtime.ts';
 export type { StreamBudget } from './realtime.ts';
 export { buildMetaHandshake, parseMetaEvent, parsePhoneMessage, wrapSocket } from './streamWire.ts';
 export type { MetaEvent, PhoneMessage, StreamSocket } from './streamWire.ts';
@@ -236,7 +236,7 @@ export default {
       };
       const openMeta = (metaUrl: string): StreamSocket =>
         wrapSocket(new WebSocket(metaUrl) as unknown as Parameters<typeof wrapSocket>[0]);
-      startRealtimeSession(wrapSocket(relaySide), openMeta, `${env.META_API_BASE ?? ''}/asr/realtime`, env.META_API_KEY ?? '', budget);
+      startRealtimeSession(wrapSocket(relaySide), openMeta, realtimeUrl(env.META_API_BASE ?? ''), env.META_API_KEY ?? '', budget);
       return new Response(null, { status: 101, webSocket: client } as unknown as ResponseInit);
     }
     return new Response('not found', { status: 404 });

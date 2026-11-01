@@ -19,6 +19,12 @@ export interface StreamBudget {
   budget(): number;
 }
 
+// Meta's stream address from the API base. Workers open WebSockets
+// to wss:// only (Node also took https://, so the local relay hid it).
+export function realtimeUrl(base: string): string {
+  return `${base.replace(/^http/i, 'ws')}/asr/realtime`;
+}
+
 export function processedMsToUsd(ms: number): number {
   if (!Number.isFinite(ms) || ms <= 0) {
     return 0;
@@ -151,7 +157,13 @@ export function startRealtimeSession(
         return;
       }
       cancelConfig();
-      const downstream = openMeta(metaUrl);
+      let downstream: StreamSocket;
+      try {
+        downstream = openMeta(metaUrl);
+      } catch {
+        fail('transcribe stream could not open');
+        return;
+      }
       meta = downstream;
       cancelAck = later(ACK_TIMEOUT_MS, () => fail('transcribe stream got no answer'));
       downstream.onopen = (): void => {

@@ -5,6 +5,7 @@ import {
   parseMetaEvent,
   parsePhoneMessage,
   processedMsToUsd,
+  realtimeUrl,
   startRealtimeSession,
 } from '../src/index.ts';
 import type { StreamBudget, StreamSocket } from '../src/index.ts';
@@ -189,5 +190,29 @@ test('a bad first message closes the stream', async () => {
   startRealtimeSession(client, () => fakeSocket(), 'wss://example.invalid', 'key', fakeBudget());
   client.onmessage?.('hello');
   await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.ok(client.closed);
+});
+
+test('Meta is reached on wss, the address Workers can open', () => {
+  assert.equal(realtimeUrl('https://api.meta.ai/v1'), 'wss://api.meta.ai/v1/asr/realtime');
+  assert.equal(realtimeUrl('http://localhost:9000'), 'ws://localhost:9000/asr/realtime');
+});
+
+test('a stream Meta cannot open tells the phone, never hangs', async () => {
+  const client = fakeSocket();
+  startRealtimeSession(
+    client,
+    () => {
+      throw new SyntaxError('bad scheme');
+    },
+    'https://example.invalid',
+    'key',
+    fakeBudget(),
+  );
+  client.onmessage?.(JSON.stringify({ type: 'config', keywords: [] }));
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  const last = JSON.parse(client.sent[client.sent.length - 1] as string) as Record<string, unknown>;
+  assert.equal(last['type'], 'error');
+  assert.equal(last['message'], 'transcribe stream could not open');
   assert.ok(client.closed);
 });
