@@ -8,6 +8,7 @@ import type { LoopDeps, LoopState } from './loopTypes';
 import type { Tracked } from './shelfTracks';
 import { boxOverlap } from './outlines';
 import { positionFor } from '../guide/steer';
+import { noteSeen, readName } from './inventory';
 
 export const QUIET_MS = 8000;
 
@@ -86,10 +87,15 @@ export async function readBatch(
   state.stats.readCrops += jobs.length;
   state.readAt = deps.now();
   deps.log(`shelf read ${answer.readMs}ms verdicts ${answer.reads.map((read) => read.verdict).join(',')}`);
+  const pan = deps.pan?.() ?? null;
   for (const entry of batch) {
     const read = answer.reads.find((item) => item.id === `shelf-${entry.track}`) ?? null;
     if (read && (entry.read === null || entry.read.verdict === 'unsure' || read.verdict !== 'unsure')) {
       entry.read = read;
+    }
+    const name = read ? readName(read) : null;
+    if (name) {
+      noteSeen(name, entry.outline.box, pan, deps.now());
     }
   }
   return answer.reads;

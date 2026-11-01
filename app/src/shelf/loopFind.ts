@@ -10,6 +10,7 @@ import { anchorOutlines } from './outlines';
 import { biggestFirst, reconcileTracks } from './shelfTracks';
 import { outlineSignature, packageKind } from './match';
 import { reportVerdicts } from './loopReads';
+import { noteSeen } from './inventory';
 import type { ReadsContext } from './loopReads';
 import type { LoopPhoto } from './loopTypes';
 
@@ -39,8 +40,10 @@ export async function findPass(ctx: ReadsContext, request: string, epoch: number
   state.sceneChanged = false;
   state.emptyOutlines = 0;
   state.tracks = reconcileTracks(state.tracks, outlines, nextId);
+  const pan = deps.pan?.() ?? null;
   const reads: ShelfRead[] = state.tracks.map((entry) => {
     const label = found.outlines[outlines.indexOf(entry.outline)]?.label || request;
+    noteSeen(label, entry.outline.box, pan, deps.now());
     entry.read = { id: `shelf-${entry.track}`, brand_text: label, size_text: null, verdict: 'yes', spoken: label };
     return entry.read;
   });

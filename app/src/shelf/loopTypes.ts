@@ -44,6 +44,8 @@ export interface LoopDeps {
   classify: (request: string, image: string, mime: string) => Promise<SceneView>;
   cutCrops: (image: string, tracks: LoopCut[]) => Promise<ShelfCrop[]>;
   readContext: () => LoopContext;
+  // Where the camera points now, for the shelf inventory; absent in tests.
+  pan?: () => CameraPan | null;
   send: (event: ConversationEvent) => void;
   log: (line: string) => void;
 }

@@ -140,3 +140,23 @@ test('the find takes a frame too soft for crop reads (t20: 724 read GUEDILA)', a
   await guided.loop.cloudPass([soft]);
   assert.equal(guided.calls.outline, 0);
 });
+
+test('the shelf inventory keeps what finds and reads named, with the camera pan', async () => {
+  const { forgetSeen, seenProducts } = await import('../src/shelf/inventory');
+  forgetSeen();
+  const found = rig([TWO]);
+  found.loop.setTarget('basmati', 1);
+  await found.loop.cloudPass([photo()]);
+  const empty = rig([{ outlines: [], groundMs: 2000, samMs: 0, maskMs: 0 }]);
+  empty.loop.setTarget('basmati', 1);
+  await empty.loop.cloudPass([photo()]);
+  const seen = seenProducts(1000, 60000);
+  assert.deepEqual(
+    seen.map((entry) => [entry.name, entry.count]),
+    [
+      ['Riz Basmati', 2],
+      ['Riz blanc', 1],
+    ],
+  );
+  forgetSeen();
+});
