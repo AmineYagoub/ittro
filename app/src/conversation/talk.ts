@@ -48,6 +48,7 @@ import {
   usePausedNote,
 } from './actions';
 import { consumedFinal, logConsumedFinal } from './consumed';
+import { understandInput } from './askHints';
 import type { ContextArgs } from './actions';
 import { buttonsLines } from './answers';
 import { UNDERSTAND_TIMEOUT_MS, hasLinkLine, raiseLinkDown, raiseLinkForError, raiseLinkOk, sayLinkLine, understandTimedOut } from './link';
@@ -195,14 +196,7 @@ export const talkState = {
       invoke: [
         {
           src: 'understandAnswer' as const,
-          input: ({ context }: ContextArgs) => ({
-            transcript: context.transcript,
-            lang: context.lang,
-            step: context.step,
-            pendingQuestion: context.pendingQuestion,
-            pendingRequest: context.pendingRequest ?? context.request,
-            lastLine: context.lastLine,
-          }),
+          input: ({ context }: ContextArgs) => understandInput(context, context.transcript),
           onDone: [
             { guard: freshAnswer, actions: [noteUnderstood, raiseLinkOk], target: 'routing' },
             { target: 'listening' },

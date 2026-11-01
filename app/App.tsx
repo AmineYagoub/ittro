@@ -31,6 +31,7 @@ import { micLine, refusedCamera, refusedMic } from './src/lines';
 import type { Language } from './src/theme';
 import { styles } from './src/appStyles';
 import { useConfirm } from './src/confirm/useConfirm';
+import { useViewStill } from './src/shelf/useViewStill';
 import { useButtons } from './src/useButtons';
 import { DetailCrop, VerdictScreen } from './src/confirm/VerdictView';
 import { verdictWord } from './src/confirm/lines';
@@ -73,6 +74,7 @@ export default function App(): React.JSX.Element {
   const guide = useGuide(actorRef, cameraOn);
   const search = useShelfSearch(cameraRef, actorRef, searching, searchRequest, cameraReady, guide);
   useConfirm(cameraRef, actorRef, confirming, searchRequest, cameraReady);
+  useViewStill(cameraRef, cameraReady);
   useButtons(actorRef);
 
   useEffect(() => {

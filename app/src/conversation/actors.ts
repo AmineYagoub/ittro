@@ -17,6 +17,8 @@ import { logIttro } from '../log';
 import { speech } from '../theme';
 import type { Language } from '../theme';
 import { understandUtterance } from '../relay';
+import { freshStill } from '../shelf/stills';
+import type { ViewStill } from '../shelf/stills';
 import type { UnderstandAnswer } from '../relay';
 import type {
   ConversationContext,
@@ -106,8 +108,18 @@ function cacheStore(key: string, value: UnderstandAnswer): void {
 // in flight joins that call instead of sending a second one.
 const understandInFlight = new Map<string, Promise<UnderstandAnswer>>();
 
-async function fetchUnderstand(input: UnderstandInput): Promise<UnderstandAnswer> {
-  logIttro(`understand sent: ${JSON.stringify(input.transcript)}`);
+// A question asked while the camera is on a shelf sends the still,
+// so the same call can answer it; that answer depends on the picture,
+// so it is never cached.
+const STILL_FRESH_MS = 5000;
+
+function stillFor(input: UnderstandInput): ViewStill | null {
+  return input.ask?.withStill ? freshStill(Date.now(), STILL_FRESH_MS) : null;
+}
+
+async function fetchUnderstand(input: UnderstandInput, still: ViewStill | null): Promise<UnderstandAnswer> {
+  logIttro(`understand sent: ${JSON.stringify(input.transcript)}${still ? ` with a still ${Date.now() - still.at}ms old` : ''}`);
+  const hints = still && input.ask ? input.ask : null;
   const answer = await understandUtterance({
     transcript: input.transcript,
     language: input.lang,
@@ -116,17 +128,26 @@ async function fetchUnderstand(input: UnderstandInput): Promise<UnderstandAnswer
     pending_request: input.pendingRequest,
     last_line: input.lastLine,
     effort: 'minimal',
+    ...(still && hints
+      ? { image: still.image, mime: still.mime, history: hints.history, inventory: hints.inventory, upset: hints.upset, brief: hints.brief }
+      : {}),
   });
-  logIttro(`intent: ${JSON.stringify(answer)}`);
-  cacheStore(fullCacheKey(input), answer);
-  if (cacheableWithoutContext(answer)) {
-    cacheStore(shortCacheKey(input), answer);
+  logIttro(`intent: ${JSON.stringify({ ...answer, view: undefined })}`);
+  if (answer.view) {
+    logIttro(`view answer: ${JSON.stringify(answer.view)}`);
+  }
+  if (!still) {
+    cacheStore(fullCacheKey(input), answer);
+    if (cacheableWithoutContext(answer)) {
+      cacheStore(shortCacheKey(input), answer);
+    }
   }
   return answer;
 }
 
 export const understandAnswer = fromPromise(async ({ input }: { input: UnderstandInput }) => {
-  const cached = understandCache.get(fullCacheKey(input)) ?? understandCache.get(shortCacheKey(input));
+  const still = stillFor(input);
+  const cached = still ? undefined : (understandCache.get(fullCacheKey(input)) ?? understandCache.get(shortCacheKey(input)));
   if (cached) {
     logIttro(`understand cached: ${JSON.stringify(input.transcript)}`);
     return cached;
@@ -137,7 +158,7 @@ export const understandAnswer = fromPromise(async ({ input }: { input: Understan
     logIttro(`understand joined: ${JSON.stringify(input.transcript)}`);
     return running;
   }
-  const call = fetchUnderstand(input).finally(() => {
+  const call = fetchUnderstand(input, still).finally(() => {
     understandInFlight.delete(key);
   });
   understandInFlight.set(key, call);

@@ -2,7 +2,7 @@
 // calls Meta, and only with strict structured output. Every route except
 // /health needs the app access code, is rate-limited per visitor, and
 // stops for the day when the spending limit is reached.
-import { understandUtterance } from './understand.ts';
+import { understandUtterance, understandWithStill } from './understand.ts';
 import { outlineProducts } from './sam.ts';
 import { classifyScene, pickPackagePhrase, readShelfLabels } from './shelf.ts';
 import { realtimeUrl, startRealtimeSession } from './realtime.ts';
@@ -10,7 +10,7 @@ import { confirmRoute, detailRoute } from './confirm.ts';
 import { findRoute } from './find.ts';
 import { askViewRoute } from './askView.ts';
 import { helperRoutes } from './helperRoutes.ts';
-import { effortField, mimeField, textField } from './bodies.ts';
+import { askFields, effortField, mimeField, textField } from './bodies.ts';
 import type { OutlineBody, PhraseBody, ReadBody } from './bodies.ts';
 import { wrapSocket } from './streamWire.ts';
 import { clientIp, codesEqual, gate, overRateLimit, recordSamCost, recordSparkCost, spendTodayUsd } from './gate.ts';
@@ -21,7 +21,8 @@ import type { StreamSocket } from './streamWire.ts';
 export { callSpark } from './spark.ts';
 export type { ConfirmAnswer, Intent, SpokenLanguage, UnderstandAnswer, Verdict } from './spark.ts';
 export { transcribeClip, wavSeconds } from './transcribe.ts';
-export { understandUtterance } from './understand.ts';
+export { understandUtterance, understandWithStill } from './understand.ts';
+export type { UnderstandStill, UnderstoodView } from './understand.ts';
 export { outlineProducts } from './sam.ts';
 export type { OutlineArgs, OutlineResult, SamBox, SamMask, SamOutline } from './sam.ts';
 export { classifyScene, pickPackagePhrase, readShelfLabels } from './shelf.ts';
@@ -71,7 +72,7 @@ export default {
         return blocked;
       }
       try {
-        const context = (await request.json()) as {
+        const context = (await request.json()) as Record<string, unknown> & {
           transcript?: unknown;
           language?: unknown;
           step?: unknown;
@@ -83,7 +84,7 @@ export default {
         if (typeof context.transcript !== 'string' || context.transcript.trim().length === 0) {
           return Response.json({ ok: false, error: 'missing transcript' }, { status: 400 });
         }
-        const answer = await understandUtterance(fetch, env.META_API_BASE, env.META_API_KEY, {
+        const understood = {
           transcript: context.transcript,
           language: typeof context.language === 'string' ? context.language : 'en',
           step: typeof context.step === 'string' ? context.step : 'welcome',
@@ -91,7 +92,11 @@ export default {
           pending_request: typeof context.pending_request === 'string' ? context.pending_request : null,
           last_line: typeof context.last_line === 'string' ? context.last_line : null,
           effort: typeof context.effort === 'string' ? context.effort : undefined,
-        });
+        };
+        const image = textField(context['image']);
+        const answer = image
+          ? await understandWithStill(fetch, env.META_API_BASE, env.META_API_KEY, understood, { ...askFields(context), image, mime: mimeField(context['mime']) })
+          : await understandUtterance(fetch, env.META_API_BASE, env.META_API_KEY, understood);
         await recordSparkCost(env);
         return Response.json({ ok: true, answer });
       } catch (err) {

@@ -1,4 +1,5 @@
 import { RelayError, getMeta, postMeta, relayEndpoint } from './metaCall';
+import type { AskExchange, AskHints, ViewReply } from './conversation/askTypes';
 
 export interface RelayConfig {
   url: string;
@@ -17,6 +18,12 @@ export interface UnderstandContext {
   pending_request: string | null;
   last_line: string | null;
   effort: string;
+  image?: string;
+  mime?: string;
+  history?: AskExchange[];
+  inventory?: string[];
+  upset?: boolean;
+  brief?: boolean;
 }
 
 export interface UnderstandAnswer {
@@ -27,6 +34,9 @@ export interface UnderstandAnswer {
   detail: string | null;
   target_language: string | null;
   helper_name: string | null;
+  question?: string | null;
+  // Set when the call carried a still and the sentence asked about the view.
+  view?: ViewReply | null;
 }
 
 export async function understandUtterance(context: UnderstandContext): Promise<UnderstandAnswer> {
@@ -143,6 +153,19 @@ async function postFind(request: string, image: string, mime: string, w: number,
 // The grounding find, unless the build turns it off (EXPO_PUBLIC_FIND=off)
 // to compare it with the phrase path on the phone.
 export const findShelf = process.env['EXPO_PUBLIC_FIND'] === 'off' ? undefined : postFind;
+
+export interface AskViewArgs extends AskHints {
+  question: string | null;
+  wanted: string | null;
+  language: string;
+  image: string;
+  mime: string;
+}
+
+/** A question about the still, or the not-here summary when wanted names the product not found. */
+export async function askAboutView(args: AskViewArgs): Promise<{ view: ViewReply; askMs: number }> {
+  return postMeta('ask-view', '/ask-view', args);
+}
 
 export async function fetchPackagePhrase(request: string, image: string, mime: string): Promise<string> {
   const body = await postMeta<{ phrase: string }>('package-phrase', '/package-phrase', { request, image, mime });

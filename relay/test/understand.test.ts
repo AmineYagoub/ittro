@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { understandUtterance } from '../src/index.ts';
+import { understandUtterance, understandWithStill } from '../src/index.ts';
 
 interface StubResponse {
   ok: boolean;
@@ -28,6 +28,7 @@ const answer = {
   detail: null,
   target_language: null,
   helper_name: null,
+  question: null,
 };
 
 test('understands a product request', async () => {
@@ -157,4 +158,48 @@ test('correction rule pins confirm_no with the combined text', async () => {
     pending_request: 'Masaad water',
   });
   assert.match(JSON.stringify(sent['input']), /correction of pending_request is confirm_no/);
+});
+
+test('a question with a still is understood and answered in one call', async () => {
+  let sent: { system: string; content: Array<{ type: string; text?: string; image_url?: string }> } | null = null;
+  const fetchImpl = (async (_url: string, init: { body: string }) => {
+    const body = JSON.parse(init.body) as { input: [{ content: string }, { content: Array<{ type: string; text?: string; image_url?: string }> }] };
+    sent = { system: body.input[0].content, content: body.input[1].content };
+    return {
+      ok: true,
+      json: async () =>
+        completed({ ...answer, intent: 'ask_view', question: 'is there honey?', answer: 'إيه، كاين عسل في الرف التحتاني.', offer: 'عسلة مدينة', unreadable: [] }),
+    };
+  }) as unknown as typeof fetch;
+  const result = await understandWithStill(fetchImpl, 'https://example.invalid', 'key', context, {
+    image: 'aGk=',
+    mime: 'image/jpeg',
+    language: 'ar',
+    history: [],
+    inventory: [],
+    upset: false,
+    brief: false,
+  });
+  assert.equal(result.intent, 'ask_view');
+  assert.deepEqual(result.view, { answer: 'إيه، كاين عسل في الرف التحتاني.', offer: 'عسلة مدينة', unreadable: [] });
+  assert.equal((result as unknown as Record<string, unknown>)['answer'], undefined);
+  const call = sent as unknown as { system: string; content: Array<{ type: string; image_url?: string }> };
+  assert.match(call.system, /ask_view is a question about what the camera sees/);
+  assert.match(call.system, /Never guess/);
+  assert.equal(call.content[1]?.image_url, 'data:image/jpeg;base64,aGk=');
+});
+
+test('any other intent with a still carries no view answer', async () => {
+  const fetchImpl = okFetch(completed({ ...answer, answer: '', offer: null, unreadable: [] }));
+  const result = await understandWithStill(fetchImpl as unknown as typeof fetch, 'https://example.invalid', 'key', context, {
+    image: 'aGk=',
+    mime: 'image/jpeg',
+    language: 'en',
+    history: [],
+    inventory: [],
+    upset: false,
+    brief: false,
+  });
+  assert.equal(result.intent, 'request_product');
+  assert.equal(result.view, null);
 });

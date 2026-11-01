@@ -4,6 +4,7 @@
 import { assignConversation as assign } from './actors';
 import type { ContextArgs } from './actions';
 import { consumedFinal, logConsumedFinal } from './consumed';
+import { understandInput } from './askHints';
 import {
   alertDue,
   assignHelp,
@@ -114,14 +115,7 @@ export const noteSpecHit = assign({
 export const speculatingState = {
   invoke: {
     src: 'understandAnswer' as const,
-    input: ({ context }: ContextArgs) => ({
-      transcript: context.specText ?? '',
-      lang: context.lang,
-      step: context.step,
-      pendingQuestion: context.pendingQuestion,
-      pendingRequest: context.pendingRequest ?? context.request,
-      lastLine: context.lastLine,
-    }),
+    input: ({ context }: ContextArgs) => understandInput(context, context.specText ?? ''),
     onDone: [
       { guard: specYesStale, actions: [logSpecEarly, noteSpecEarly, raiseLinkOk], target: 'routing' },
       { actions: [noteSpeculative, raiseLinkOk] },

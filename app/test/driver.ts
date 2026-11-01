@@ -30,6 +30,8 @@ export function answer(patch: Partial<UnderstandAnswer> & { intent: string }): U
     detail: patch.detail ?? null,
     target_language: patch.target_language ?? null,
     helper_name: patch.helper_name ?? null,
+    question: patch.question ?? null,
+    ...(patch.view ? { view: patch.view } : {}),
   };
 }
 

@@ -39,6 +39,7 @@ export const INTENTS = [
   'speak_language',
   'stop',
   'wake',
+  'ask_view',
   'not_understood',
   'ignore',
 ] as const;
@@ -57,6 +58,7 @@ export interface UnderstandAnswer {
   detail: LabelDetail | null;
   target_language: SpokenLanguage | null;
   helper_name: string | null;
+  question: string | null;
 }
 
 interface JsonSchemaFormat {
@@ -100,8 +102,9 @@ export const UNDERSTAND_SCHEMA = {
       detail: { type: ['string', 'null'], enum: ['date', 'size', 'price', 'ingredients', null] },
       target_language: { type: ['string', 'null'], enum: ['en', 'ar', 'fr', null] },
       helper_name: { type: ['string', 'null'] },
+      question: { type: ['string', 'null'] },
     },
-    required: ['intent', 'language_spoken', 'product_text', 'items', 'detail', 'target_language', 'helper_name'],
+    required: ['intent', 'language_spoken', 'product_text', 'items', 'detail', 'target_language', 'helper_name', 'question'],
   },
   strict: true,
 };
@@ -205,6 +208,7 @@ export function isUnderstandAnswer(value: unknown): value is UnderstandAnswer {
     (v['items'] === null || (Array.isArray(v['items']) && v['items'].every((item) => typeof item === 'string'))) &&
     (v['detail'] === null || v['detail'] === 'date' || v['detail'] === 'size' || v['detail'] === 'price' || v['detail'] === 'ingredients') &&
     (v['target_language'] === null || v['target_language'] === 'en' || v['target_language'] === 'ar' || v['target_language'] === 'fr') &&
-    (typeof v['helper_name'] === 'string' || v['helper_name'] === null)
+    (typeof v['helper_name'] === 'string' || v['helper_name'] === null) &&
+    (typeof v['question'] === 'string' || v['question'] === null)
   );
 }

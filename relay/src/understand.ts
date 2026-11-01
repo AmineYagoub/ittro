@@ -1,8 +1,13 @@
 // Understands one shopper sentence with Muse Spark: the intent, the
 // language actually spoken and anything asked for. Strict schema,
-// like every Spark call; the phone decides what to do with it.
+// like every Spark call; the phone decides what to do with it. When
+// the sentence sounds like a question and the camera is on a shelf,
+// the still comes too, and a question about the view is answered in
+// the same call (decision record 0001).
 import { UNDERSTAND_SCHEMA, callSparkJson, isUnderstandAnswer } from './spark.ts';
-import type { UnderstandAnswer } from './spark.ts';
+import type { SparkSchema, UnderstandAnswer } from './spark.ts';
+import { VIEW_PROPERTIES, VIEW_RULES, isViewAnswer } from './askView.ts';
+import type { AskHints, ViewAnswer } from './askView.ts';
 
 export interface UnderstandContext {
   transcript: string;
@@ -13,6 +18,32 @@ export interface UnderstandContext {
   last_line?: string | null;
   effort?: string;
 }
+
+export interface UnderstandStill extends AskHints {
+  image: string;
+  mime: string;
+}
+
+export interface UnderstoodView extends UnderstandAnswer {
+  view: ViewAnswer | null;
+}
+
+const VIEW_UNDERSTAND_SCHEMA: SparkSchema = {
+  name: 'understand_utterance_with_view',
+  schema: {
+    type: 'object',
+    additionalProperties: false,
+    properties: { ...(UNDERSTAND_SCHEMA.schema['properties'] as Record<string, unknown>), ...VIEW_PROPERTIES },
+    required: [...(UNDERSTAND_SCHEMA.schema['required'] as string[]), 'answer', 'offer', 'unreadable'],
+  },
+  strict: true,
+};
+
+const WITH_VIEW = [
+  'A photo of what the camera sees now comes with this sentence. When the intent is ask_view, also answer the question',
+  'from the photo: answer, offer and unreadable follow these rules. For any other intent answer is an empty string, offer',
+  'is null and unreadable is empty.',
+].join(' ');
 
 const INSTRUCTIONS = [
   'You are Ittro, a shopping companion for a blind shopper. Read one transcribed sentence and say what it means.',
@@ -49,6 +80,10 @@ const INSTRUCTIONS = [
   'target_language is set only for speak_language. helper_name is set only for ask_someone and add_helper.',
   'Asking again ("ask again", "try asking again") is ask_someone with helper_name null. Stopping the wait',
   '("stop waiting", "never mind waiting") is cancel.',
+  'ask_view is a question about what the camera sees now: what is here, which is cheaper, is there X here, how many,',
+  'what X costs on this shelf. question restates it in a few words in the language of the sentence; null for every',
+  'other intent. Wanting a product ("I want honey", "find me the honey") stays request_product, and where the pending',
+  'request is stays where_is_it.',
   'language_spoken is the language of the sentence itself: en, ar or fr.',
   'Anything else, or anything you cannot place, is not_understood.',
 ].join(' ');
@@ -65,4 +100,36 @@ export async function understandUtterance(
   ];
   const effort = context.effort === 'minimal' || context.effort === 'low' ? context.effort : 'low';
   return callSparkJson({ fetchImpl, apiBase, apiKey, input, effort, schema: UNDERSTAND_SCHEMA, guard: isUnderstandAnswer });
+}
+
+function isViewUnderstood(value: unknown): value is UnderstandAnswer & ViewAnswer {
+  if (!isUnderstandAnswer(value)) return false;
+  const v = value as unknown as Record<string, unknown>;
+  const view = { answer: v['answer'], offer: v['offer'], unreadable: v['unreadable'] };
+  return typeof v['answer'] === 'string' && (v['answer'].trim() === '' || isViewAnswer(view)) && Array.isArray(v['unreadable']);
+}
+
+/** One call for a question: the sentence understood and, when it asks about the view, answered from the still. */
+export async function understandWithStill(
+  fetchImpl: typeof fetch,
+  apiBase: string | undefined,
+  apiKey: string | undefined,
+  context: UnderstandContext,
+  still: UnderstandStill,
+): Promise<UnderstoodView> {
+  const facts = { ...context, effort: undefined, history: still.history, inventory: still.inventory, upset: still.upset, brief: still.brief };
+  const input = [
+    { role: 'system', content: `${INSTRUCTIONS} ${WITH_VIEW} ${VIEW_RULES}` },
+    {
+      role: 'user',
+      content: [
+        { type: 'input_text', text: JSON.stringify(facts) },
+        { type: 'input_image', image_url: `data:${still.mime};base64,${still.image}` },
+      ],
+    },
+  ];
+  const answer = await callSparkJson({ fetchImpl, apiBase, apiKey, input, effort: 'minimal', schema: VIEW_UNDERSTAND_SCHEMA, guard: isViewUnderstood });
+  const { answer: spoken, offer, unreadable, ...understood } = answer;
+  const view = understood.intent === 'ask_view' && spoken.trim() !== '' ? { answer: spoken.trim(), offer: offer?.trim() || null, unreadable } : null;
+  return { ...understood, view };
 }

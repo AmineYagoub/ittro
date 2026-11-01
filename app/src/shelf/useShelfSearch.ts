@@ -16,6 +16,7 @@ import { speech } from '../theme';
 import { playSound } from '../speech';
 import { createShelfLoop } from './loop';
 import { searchDeps } from './searchDeps';
+import { keepStill } from './stills';
 import type { LoopPhoto, ShelfCarry, ShelfLoop } from './loopTypes';
 import { decodeBase64, ingestGrey } from './tracker';
 import type { GreyFrame } from './tracker';
@@ -185,6 +186,7 @@ export function useShelfSearch(
         // The still's number places SAM's cut on the live camera.
         const shot = Number(/ittro-shot-(\d+)\.jpg$/.exec(uri)?.[1] ?? Number.NaN);
         const photo = { image: prepared.photo, mime: 'image/jpeg', w: prepared.w, h: prepared.h, grey, ...(Number.isFinite(shot) ? { shot } : {}) };
+        keepStill({ image: prepared.photo, mime: 'image/jpeg', w: prepared.w, h: prepared.h, at: Date.now() });
         const ring = [...held.current.ring, photo].slice(-3);
         held.current.ring = ring;
         shooting = false;

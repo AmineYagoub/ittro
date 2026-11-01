@@ -7,6 +7,7 @@ import type { Prefs } from '../store';
 import type { LinkKind } from '../metaCall';
 import type { ConfirmAttr, DetailKind, DetailReason, PictureProblem, ShelfBox, ShelfOutline, UnderstandAnswer } from '../relay';
 import type { SearchContext, SearchEvent } from './searchTypes';
+import type { AskContext, UnderstandAsk } from './askTypes';
 
 export type { SearchAnnouncement, SearchContext, SearchEvent } from './searchTypes';
 
@@ -90,7 +91,7 @@ export type StreamEmitted =
 
 export type StreamRef = ActorRef<Snapshot<undefined>, StreamCommand | StreamEmitted> | null;
 
-export interface ConversationContext extends SearchContext {
+export interface ConversationContext extends SearchContext, AskContext {
   lang: Language;
   epoch: number;
   askedEpoch: number;
@@ -271,6 +272,7 @@ export interface UnderstandInput {
   pendingQuestion: string | null;
   pendingRequest: string | null;
   lastLine: string;
+  ask?: UnderstandAsk;
 }
 
 export interface TourInput {
