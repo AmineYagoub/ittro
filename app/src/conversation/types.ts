@@ -30,6 +30,7 @@ export type ButtonGesture = 'single' | 'double' | 'triple' | 'hold' | 'volumeHol
 export interface GuideHand {
   x: number;
   y: number;
+  box?: { x1: number; y1: number; x2: number; y2: number };
 }
 
 export interface SearchAnnouncement extends SpokenLine {

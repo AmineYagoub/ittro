@@ -34,6 +34,11 @@ const CONTACT_SHIFT_PX = 6;
 const CONTACT_ALIGN = 0.7;
 const MIN_CONFIDENCE = 0.3;
 
+// The fingertip and, when the tracker sent it, the whole hand's box.
+function handOf(tip: TipPoint, fix: HandFix): { x: number; y: number; box?: HandBox } {
+  return fix.box ? { x: tip.x, y: tip.y, box: fix.box } : { x: tip.x, y: tip.y };
+}
+
 export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
   const state = freshGuideState();
 
@@ -193,7 +198,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
       if (!target) {
         return;
       }
-      const seen = fix && fix.confidence >= MIN_CONFIDENCE ? { x: fix.x, y: fix.y } : null;
+      const seen = fix && fix.confidence >= MIN_CONFIDENCE ? { x: fix.x, y: fix.y, ...(fix.box ? { box: fix.box } : {}) } : null;
       trackTarget(outlines, photoW, handCoversTarget(seen, target));
       const tracked = state.target as ShelfBox;
       if (!fix || fix.confidence < MIN_CONFIDENCE) {
@@ -243,7 +248,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
         }
         if (deps.now() - state.heldSince >= CUE_HOLD_MS) {
           logCue(id, tip, tracked, fix.handWidth, fix.box);
-          deps.send({ type: 'GUIDE_CUE', cue: id, proximity, hand: { x: tip.x, y: tip.y } });
+          deps.send({ type: 'GUIDE_CUE', cue: id, proximity, hand: handOf(tip, fix) });
         }
       } else if (steer.kind === 'almost') {
         state.heldCue = null;
@@ -255,7 +260,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
           state.sentAlmost = true;
           state.sentAlmostAt = deps.now();
           logCue('almost', tip, tracked, fix.handWidth, fix.box);
-          deps.send({ type: 'GUIDE_ALIGNED', proximity, hand: { x: tip.x, y: tip.y } });
+          deps.send({ type: 'GUIDE_ALIGNED', proximity, hand: handOf(tip, fix) });
         }
       } else {
         state.heldCue = null;
@@ -267,7 +272,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
           state.sentCovering = true;
           state.sentCoveringAt = deps.now();
           logCue('covering', tip, tracked, fix.handWidth, fix.box);
-          deps.send({ type: 'GUIDE_COVERING', proximity, hand: { x: tip.x, y: tip.y } });
+          deps.send({ type: 'GUIDE_COVERING', proximity, hand: handOf(tip, fix) });
         }
         contact(tip, tracked);
       }
