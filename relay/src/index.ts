@@ -8,6 +8,7 @@ import { classifyScene, pickPackagePhrase, readShelfLabels } from './shelf.ts';
 import { realtimeUrl, startRealtimeSession } from './realtime.ts';
 import { confirmRoute, detailRoute } from './confirm.ts';
 import { findRoute } from './find.ts';
+import { askViewRoute } from './askView.ts';
 import { helperRoutes } from './helperRoutes.ts';
 import { effortField, mimeField, textField } from './bodies.ts';
 import type { OutlineBody, PhraseBody, ReadBody } from './bodies.ts';
@@ -26,6 +27,8 @@ export type { OutlineArgs, OutlineResult, SamBox, SamMask, SamOutline } from './
 export { classifyScene, pickPackagePhrase, readShelfLabels } from './shelf.ts';
 export type { ClassifyArgs, ReadArgs, SceneKind, SceneResult, ShelfCrop, ShelfRead, ShelfResult, ShelfVerdict } from './shelf.ts';
 export { findOnShelf, findRoute } from './find.ts';
+export { askView, askViewRoute, isViewAnswer, VIEW_RULES } from './askView.ts';
+export type { AskExchange, AskHints, AskViewArgs, AskViewResult, ViewAnswer } from './askView.ts';
 export type { FindArgs, FindResult, FoundOutline } from './find.ts';
 export { confirmInHand, confirmRoute, detailRoute, readLabelDetail } from './confirm.ts';
 export type { ConfirmArgs, ConfirmAttr, ConfirmAttrs, ConfirmRead, ConfirmResult, ConfirmVerdict, DetailArgs, DetailKind, DetailRead, DetailReason, DetailResult, PictureProblem } from './confirm.ts';
@@ -128,6 +131,13 @@ export default {
         return blocked;
       }
       return findRoute(await request.json(), env);
+    }
+    if (request.method === 'POST' && url.pathname === '/ask-view') {
+      const blocked = await gate(request, env, Number(env.SPARK_COST_USD ?? '0.01'));
+      if (blocked) {
+        return blocked;
+      }
+      return askViewRoute(await request.json(), env);
     }
     if (request.method === 'POST' && url.pathname === '/package-phrase') {
       const blocked = await gate(request, env, Number(env.SPARK_COST_USD ?? '0.01'));
