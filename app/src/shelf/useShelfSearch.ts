@@ -136,6 +136,7 @@ export function useShelfSearch(
           handCovering: handCoversTarget(context?.guideHand ?? null, context?.guideTarget?.box ?? null),
           guideLost: context?.guideOutOfView ?? false,
           guideRecheck: context?.guideRecheck ?? false,
+          guideBox: context?.guideTarget?.box ?? null,
         };
       },
       send: (event) => {

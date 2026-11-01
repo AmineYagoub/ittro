@@ -2,7 +2,7 @@
 // runs on, the photos it keeps, and the statistics it reports. The
 // loop itself lives in loop.ts; the cloud half in loopReads.ts.
 import type { Language } from '../theme';
-import type { SceneView, ShelfCrop, ShelfOutline, ShelfRead } from '../relay';
+import type { SceneView, ShelfBox, ShelfCrop, ShelfOutline, ShelfRead } from '../relay';
 import type { GreyFrame } from './tracker';
 import type { Tracked } from './shelfTracks';
 import type { ConversationEvent } from '../conversation/types';
@@ -23,6 +23,7 @@ export interface LoopContext {
   handCovering?: boolean;
   guideLost?: boolean;
   guideRecheck?: boolean;
+  guideBox?: ShelfBox | null;
 }
 
 export interface LoopCut {

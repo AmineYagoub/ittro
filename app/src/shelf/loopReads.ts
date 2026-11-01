@@ -13,6 +13,12 @@ export const QUIET_MS = 8000;
 
 const TARGET_STEADY_IOU = 0.5;
 
+// A recheck re-finds the guided product where it is: a yes must
+// overlap the box the hand is going to. In t10 SAM outlined a
+// reflection beside the Guedila while the hand hid the real one, the
+// read called the reflection yes, and the guide jumped to it.
+const REFIND_IOU = 0.2;
+
 const EMPTY_BEFORE_TURN = 2;
 const EMPTY_BEFORE_SWEPT = 3;
 
@@ -113,9 +119,34 @@ export function reportVerdicts(ctx: ReadsContext, request: string, reads: ShelfR
   }
 }
 
+// The yes overlapping the guided box, or, when the guided spot was
+// read no or the product is out of view, the best yes anywhere.
+function refindTarget(ctx: ReadsContext, reads: ShelfRead[]): Tracked | null {
+  const { deps, state } = ctx;
+  const best = nearestOutline(state, reads);
+  const context = deps.readContext();
+  const held = context.guideBox ?? null;
+  if (!best || !held || context.guideLost) {
+    return best;
+  }
+  const verdict = (entry: Tracked): string | undefined => reads.find((read) => read.id === `shelf-${entry.track}`)?.verdict;
+  const here = state.tracks
+    .filter((entry) => boxOverlap(entry.outline.box, held) >= REFIND_IOU)
+    .sort((a, b) => boxOverlap(b.outline.box, held) - boxOverlap(a.outline.box, held));
+  const same = here.find((entry) => verdict(entry) === 'yes');
+  if (same) {
+    return same;
+  }
+  if (here.some((entry) => verdict(entry) === 'no')) {
+    return best;
+  }
+  deps.log(`shelf recheck kept the target, a yes at ${Math.round(best.outline.box.x1)}-${Math.round(best.outline.box.x2)} is elsewhere`);
+  return null;
+}
+
 export function reportRefind(ctx: ReadsContext, request: string, reads: ShelfRead[], epoch: number): void {
   const { state } = ctx;
-  const target = nearestOutline(state, reads);
+  const target = refindTarget(ctx, reads);
   if (target) {
     state.fruitlessPasses = 0;
     sendFound(ctx, request, reads, epoch, target);
