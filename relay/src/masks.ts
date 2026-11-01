@@ -5,9 +5,14 @@
 import { decodeMaskToRaster } from '@meta-sam/parser';
 import type { SegmentationMask, SegmentationMaskBounds } from '@meta-sam/parser';
 
-export const MASK_ROWS = 64;
+export const MASK_ROWS = 128;
 
-export const MASK_POINTS = 128;
+export const MASK_POINTS = 160;
+
+// How far, as a share of the box's diagonal, the drawn line may stray
+// from SAM's mask: 1% straightened a bottle's shoulders into one line
+// (9 points for a 1.5 L bottle, 1 Nov); 0.25% keeps the curve.
+export const MASK_TOLERANCE = 0.0025;
 
 function frameX(bounds: SegmentationMaskBounds, maskW: number, mx: number): number {
   const span = bounds.right - bounds.left;
@@ -126,7 +131,7 @@ export function traceMaskOutline(mask: SegmentationMask, bounds: SegmentationMas
   }
   const across = bounds.right - bounds.left;
   const down = bounds.bottom - bounds.top;
-  let tolerance = Math.max(2, Math.hypot(across, down) * 0.01);
+  let tolerance = Math.max(1.5, Math.hypot(across, down) * MASK_TOLERANCE);
   let points = simplify(ring, tolerance);
   while (points.length / 2 > MASK_POINTS) {
     tolerance *= 2;
