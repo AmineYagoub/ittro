@@ -103,12 +103,10 @@ last `confirm` and `state` lines before judging it a miss.
 ## Deploy note: the helper store
 
 The relay keeps pairings, helpers and questions in a second KV
-namespace, `ITTRO_HELPERS` (see `relay/wrangler.jsonc`). Deploying
-needs a real namespace first:
-
-```bash
-wrangler kv namespace create ITTRO_HELPERS
-```
-
-Put the printed id in `relay/wrangler.jsonc`, replacing the zeros.
+namespace, `ITTRO_HELPERS` (see `relay/wrangler.jsonc`), created
+1 November 2026. The relay answers on its custom domain,
+`ittro.djazair.dev`, which the deploy keeps in DNS. Its secrets
+(`META_API_KEY`, `APP_ACCESS_CODE`, `VAPID_PUBLIC_KEY`,
+`VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`) are set with
+`wrangler secret put`, never in the repo.
 Local runs and tests without the binding fall back to memory.

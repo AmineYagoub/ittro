@@ -5,14 +5,13 @@
   "name": "ittro-relay",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-27",
-  "routes": [{ "pattern": "ittro.djazair.dev/*", "zone_name": "djazair.dev" }],
+  "routes": [{ "pattern": "ittro.djazair.dev", "custom_domain": true }],
   // ITTRO_HELPERS holds pairings, helpers and questions so they
-  // survive across isolates. Deploy needs a real namespace first:
-  // `wrangler kv namespace create ITTRO_HELPERS`, then put its id
-  // here. Local runs without it fall back to memory.
+  // survive across isolates. Local runs without it fall back to
+  // memory.
   "kv_namespaces": [
     { "binding": "ITTRO_LIMITS", "id": "7f63a9ce59ad44dca7d465d1a8f61e68" },
-    { "binding": "ITTRO_HELPERS", "id": "00000000000000000000000000000000" }
+    { "binding": "ITTRO_HELPERS", "id": "e3df7405dd01450b80fc6d5561052b9e" }
   ],
   // One live session makes 26 to 29 relay calls a minute and about
   // 44 Spark calls per 3 minutes (phone run 3), so the old 30 a
