@@ -2,6 +2,35 @@
 
 A dated log of what was built each day, for the hackathon submission. New work only: everything here dates from 26 October 2026 onward.
 
+## 1 November 2026, evening
+
+- Phone run t20 (`/find` on the phone), each finding fixed by cause:
+  - `/find` was not faster than the old path on the phone: the grounding call took 3–3.9 s and the whole find 5.4–7.0 s over 4G. It used fewer calls and gave no wrong yes, so it stays. Half-size photos missed products, so photos stay full size.
+  - The find waited up to 2 s for frames sharp enough for small crop reads; it reads whole packages, so its bar is now 600 (1176ea1).
+  - The several-matches line said the count in digits in Arabic; it now says it in Arabic words (ecefeab).
+  - A start while the stream socket was still opening closed it 3.7 s in; that socket is now kept (f75be0d).
+- The whole shelf-awareness plan is built (`docs/design/shelf-awareness-plan.md`, steps C and 0–8; voice B is not built):
+  - Voice A: each language speaks in its most natural installed voice, logged at start, dropped after an engine error (94c9339). Decision record 0001 covers it and part 7; it is still Proposed.
+  - Step 0 moved the search types, routes and loop wiring out of the full files, with no change in behaviour (33ef57f).
+  - Questions about the view: `POST /ask-view` answers from the latest shelf still with the last four exchanges, the shelf inventory and the shopper's tone (2bf90c7). The understanding call carries the still and answers a question in the same call when it can (7db626e). The app says "let me look…" as a question ends, opens the camera when needed, gives up aloud after 15 s, and offers to take the shopper to a named product; yes starts the normal find (a05fa58).
+  - The shelf inventory keeps every product the reads and finds name, and where (abb5571).
+  - The sweep with memory: when the product is not in view and the camera's pan is known, Ittro walks the phone along the shelf in overlapping steps and reads once at each stop, with stop, slower, and a walk along a shelf that runs on. At the end, Muse Spark names what is there instead and offers the closest product by name. This replaces the word-overlap close match, which never matched across scripts (39faae8).
+  - A wrong shelf names itself in the shopper's language, "هذا رف البقوليات", and says to ask someone nearby and then say «ابحث من جديد», which restarts the search and the sweep (58cbf6a, 1eecb4d).
+- Found while type-checking the relay: since d7a7106 (31 October) the deployed `/realtime` route called `addSpendUsd` without importing it. Every 30 s of processed audio the charge threw inside Meta's message handler, so the event that crossed the mark never reached the phone. That event could be a final transcript. No streamed audio was counted against the daily budget, and the end of a stream threw before closing Meta's socket. The local relay used in t16 built its own budget and did not have the bug. Fixed with a route test that failed before the fix (74c233a).
+- Checked live against Muse Spark on the founder's shelf frames, each run twice:
+  - Five of the plan's six questions passed both runs. "Which rice is cheaper?" said both times that it could not tell whose the 220 tag was. That is the safe answer but not the table's, and one of those two answers took 15.6 s, past the app's 15 s limit.
+  - The not-here run offered white rice on all six tries and invented nothing.
+  - The scene check passed 14 of 14 (fits and shelf names), and «ابحث من جديد», "look again" and "cherchez encore" are understood as keep looking, 16 of 16 with the neighbouring intents.
+- Reviewed by three independent reviewers, one each for the relay, the conversation and the shelf loop. Each finding was first shown by a test that failed, then fixed:
+  - Relay (cc978ba): a Meta call whose answer failed its check was never charged; it is now. A body that is too big or not a JSON object gets a 400 instead of an uncaught throw, and the text pasted into prompts is capped. The view check refused what the strict schema allows, which turned any sentence said with a still into a 502; it now checks shape only, and a long answer is cut at its last full sentence.
+  - Conversation (c03d6be): "Is there honey?" could get the answer meant for its first words, "Is there". The view offer could be changed by a search's own offer arriving meanwhile. "Stop" said while an answer was on its way went unheard. A follow-up asked the shopper to point the phone again. The acknowledgement could play while asleep, or over the heard earcon. Each is fixed, and the camera opened for a question now stays on 20 s.
+  - Shelf loop (88ba1a7): a stop could be read from a sharper still left from the stop before. A sweep started while the hand was guided stopped every later pass. A camera that never turned was told "I checked the whole shelf" after 75 s. A wrong turn was never corrected, and a cue still queued ran down its clocks before it was said. A second walk could send the shopper back over the shelf just swept, the count named a product once per stop, and a new search's summary was told what an earlier shelf held. Each is fixed. A stop is now read 1.5 s after "stop", once the camera settled, and an unsure label there is read again.
+- Proven on the Mac: 467 app tests, 123 relay tests, the relay typecheck, tsc and lints clean.
+- Weak:
+  - Nothing above has run on the phone. t21 checks the questions, the offer, the sweep's pan direction and "stop" timing, the not-here summary, the wrong shelf and voice A.
+  - The relay commits are not deployed: 2bf90c7, 7db626e, 74c233a, 58cbf6a and cc978ba. They are server scope, and two of them send the shelf still with questions, so the founder reviews them before any push or deploy. Until then the deployed `/realtime` still drops the event at each 30 s charge.
+  - A stop is reached when the turn passes it, so a large overshoot can still leave a gap between two reads.
+
 ## 1 November 2026, afternoon
 
 - Deployed: the relay now runs on Cloudflare Workers at `ittro.djazair.dev` with its helper store (a719c39), so phone runs no longer need adb reverse. A Worker opens an outbound WebSocket only on `wss://`, so the deployed relay heard nothing in t16 until Meta's transcribe stream opened on `wss` and a failed open became a spoken failure (2a697f6).

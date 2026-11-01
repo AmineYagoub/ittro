@@ -26,6 +26,8 @@ The voice is the other half. The Model API has no speech synthesis. English and 
 
 No new service and no new kind of data. The still that already goes to Meta for the shelf read goes with the question, through the relay, with `store: false`. The question, the last four exchanges and the names of products read on this shelf go with it. Nothing is stored on the relay.
 
+One case takes a photo that would not otherwise be taken. When the shopper asks with no shelf still from the last few seconds (the camera was off, or pointed elsewhere), Ittro opens the camera, says "point the phone at the shelf", takes one still and sends that. It is the same kind of photo the shelf read sends, and it goes only because the shopper asked. The camera stays on 20 s after the answer, so a follow-up question does not ask the shopper to point the phone again. It then closes, unless a search needs it.
+
 ## Consequences
 
 - Answers vary from one ask to the next. Offline checks (six questions on the shelf video, each twice) and phone run t21 check that nothing is invented.
