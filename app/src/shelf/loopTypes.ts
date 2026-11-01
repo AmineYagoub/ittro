@@ -55,6 +55,8 @@ export interface LoopState {
   tracks: Tracked[];
   counter: number;
   phrases: Map<string, string>;
+  // The phrase asked from a blurry frame while a sharp one is awaited.
+  phraseWait: Promise<string> | null;
   cloudBusy: boolean;
   outlinedAt: number | null;
   readAt: number | null;

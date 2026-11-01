@@ -13,7 +13,9 @@ import { QUIET_MS, maybeSwept, readBatch, reportEmpty, reportRefind, reportVerdi
 import type { LoopDeps, LoopPhoto, LoopState, LoopStats, ShelfLoop } from './loopTypes';
 
 const REFRESH_MS = 15000;
-const REREAD_MS = 2500;
+// An unsure label is read again from the next sharp frame soon after (t9:
+// 3.4 s between an unsure read and the next try).
+const REREAD_MS = 1200;
 const EMPTY_BEFORE_CLEAR = 3;
 const PRIORITY_BATCH = 2;
 const READ_MIN_SHARPNESS = 800;
@@ -26,6 +28,7 @@ function freshState(): LoopState {
     tracks: [],
     counter: 0,
     phrases: new Map(),
+    phraseWait: null,
     cloudBusy: false,
     outlinedAt: null,
     readAt: null,
@@ -61,6 +64,7 @@ function searchReset(state: LoopState): void {
   state.blurrySkips = 0;
   state.foundTrack = null;
   state.foundOutline = null;
+  state.phraseWait = null;
   state.crops.clear();
   state.turnRightNext = true;
 }
@@ -155,12 +159,28 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
         const picked = sharpness(sharpest.grey);
         const scored = sharpest.grey.data.length > 0;
         if (scored && picked < READ_MIN_SHARPNESS && state.blurrySkips < BLURRY_SKIP_MAX) {
+          // The phrase names the package, which a blurry frame still shows:
+          // ask for it now rather than after the sharp frame (t9: 2.8 s).
+          if (!state.phrases.has(request) && !state.phraseWait) {
+            const asked = request;
+            state.phraseWait = deps.fetchPhrase(asked, sharpest.image, sharpest.mime).then((found) => {
+              state.phrases.set(asked, found);
+              return found;
+            });
+            state.phraseWait.catch(() => {
+              state.phraseWait = null;
+            });
+          }
           state.blurrySkips += 1;
           deps.log(`shelf frame too blurry for a read (${Math.round(picked)}), waiting for a sharper one`);
           return;
         }
         state.blurrySkips = 0;
         let phrase = state.phrases.get(request);
+        if (!phrase && state.phraseWait) {
+          phrase = await state.phraseWait.catch(() => undefined);
+          state.phraseWait = null;
+        }
         if (!phrase) {
           phrase = await deps.fetchPhrase(request, sharpest.image, sharpest.mime);
           if (stale(epoch)) {
