@@ -2,6 +2,29 @@
 
 A dated log of what was built each day, for the hackathon submission. New work only: everything here dates from 26 October 2026 onward.
 
+## 1 November 2026, afternoon
+
+- Deployed: the relay now runs on Cloudflare Workers at `ittro.djazair.dev` with its helper store (a719c39), so phone runs no longer need adb reverse. A Worker opens an outbound WebSocket only on `wss://`, so the deployed relay heard nothing in t16 until Meta's transcribe stream opened on `wss` and a failed open became a spoken failure (2a697f6).
+- Phone runs t16–t19, each fixed by cause from its log:
+  - «ابحث عن غيره» was dropped as echo when said in the quiet after a line; anything heard 2.5 s after Ittro went quiet is now the shopper (a6431e0).
+  - The outline drifted off the bottle: a cut can reach the phone 11–16 s after its still, older than the 8 s ring of camera motion. The ring now holds about 70 s, and t19 placed every cut 33–40 ms from its still (af05750).
+  - After a yes, the reminder repeated the whole yes line; it now repeats only the choice (ce3fdff).
+  - The yes named the product in English word order in Arabic; the relay now asks for the language's own order, «ماء قديلة» (5d39705).
+  - After a no, the way back was judged from the target's old box against the middle of the frame; it now runs from the hand to where the camera has the target (04a20dc).
+  - A rest read that ended after guiding stopped said the internet was lost; it now says nothing (d88727a).
+  - With two Guedila bottles, each recheck jumped to the biggest one; it now keeps the one nearest the guided spot (c490f9e).
+  - t19 proved the drift fix, the reminder, the word order, touch to yes in 4.9 s and no stream drops. «ابحث عن غيره» after its fix and the direction after a no were not exercised on the phone.
+- Measured: photo to outline took 11–16 s on the old path, most of it uploads over the founder's 4G link. Lower JPEG quality cut the upload but hurt SAM, so it was not kept.
+- Privacy: every Muse Spark and SAM call sends `store: false`, so Meta keeps no shelf photo or hand crop (34d9f0e, plan step A).
+- Faster find (plan steps B1, B2):
+  - The relay's `POST /find` asks Muse Spark for the box and printed name of every package that is the request, then one SAM 3.1 box-prompt call outlines them (cab79fc).
+  - The app's shelf loop uses it on a fresh shelf: one upload, the found line first, then the outlines (91d701f). Nothing in view goes down the old phrase path in the same pass, which still gives the close match, the swept shelf and the turn. Guiding, rechecks and the hand check keep the old path. `EXPO_PUBLIC_FIND=off` builds the old path for comparison.
+  - Live through the deployed relay from the Mac: Basmati outlined in 5.8 s round trip, an empty shelf answered in 3.2 s. On six shelf-video frames it found the right products and none on the two frames without them.
+- Proven on the Mac: 408 app tests, 108 relay tests, tsc and lints clean.
+- Weak:
+  - `/find` has not run on the phone; the next run (t20) times it against t19.
+  - The full 21-frame replay through the app's loop (plan step B3) was not rerun with `/find`. The same prompt passed it twice on 1 November morning, outside the app.
+
 ## 1 November 2026
 
 - Who wrote it: Claude (Claude Code), not Muse Code. The founder's rule of 31 October was that if Muse Code's fix-4 round failed its phone run, Claude would take over the core path (target tracking, guiding, the in-hand check, the mic gate). It failed on t6, so every commit on `review/demo-fixes` from 68b7bf0 (31 October) onward was written by Claude and carries no Muse Code trailer. Muse Code's last commit is 8748fd0.
