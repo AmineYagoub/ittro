@@ -100,6 +100,8 @@ export interface ShelfLoop {
 export interface CameraPan {
   x: number;
   y: number;
+  // Each camera opening counts its motion from zero.
+  session?: number;
 }
 
 // The last request's tracks and label crops, with where the camera was.

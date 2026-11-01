@@ -105,6 +105,10 @@ test('a camera that moved, an old carry or the same request start from a photo',
   const old = rig(clock);
   old.loop.setTarget('Guedila water', 2);
   assert.equal(old.loop.seed(carry, { x: 0.1, y: 0.2 }), false);
+  clock.now = 1000;
+  const reopened = rig(clock);
+  reopened.loop.setTarget('Guedila water', 2);
+  assert.equal(reopened.loop.seed(carry, { x: 0.1, y: 0.2, session: 2 }), false);
 });
 
 test('no camera motion known, no carry', async () => {

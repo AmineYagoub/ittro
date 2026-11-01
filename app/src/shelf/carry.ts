@@ -37,7 +37,7 @@ export function takeCarry(state: LoopState, pan: CameraPan | null, now: number):
 
 export function seedCarry(ctx: ReadsContext, carry: ShelfCarry, pan: CameraPan | null): boolean {
   const { deps, state } = ctx;
-  if (!pan || carry.request === state.request || deps.now() - carry.at > CARRY_MS) {
+  if (!pan || carry.request === state.request || deps.now() - carry.at > CARRY_MS || pan.session !== carry.pan.session) {
     return false;
   }
   const dx = pan.x - carry.pan.x;

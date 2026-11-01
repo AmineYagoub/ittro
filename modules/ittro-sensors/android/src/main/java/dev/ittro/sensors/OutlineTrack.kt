@@ -45,6 +45,7 @@ object OutlineTrack {
   private var handBox: FloatArray? = null
   private var handAt = 0L
   private var view: WeakReference<Outlines>? = null
+  private var session = 0
 
   fun attach(outlines: Outlines) {
     view = WeakReference(outlines)
@@ -53,6 +54,7 @@ object OutlineTrack {
   /** A fresh camera: no motion history, and the outline waits for its next still. */
   fun reset() {
     synchronized(lock) {
+      session += 1
       flow.reset()
       panX = 0f
       panY = 0f
@@ -94,13 +96,13 @@ object OutlineTrack {
     }
   }
 
-  /** The camera's motion since it opened, 0 to 1 of the frame, or null before the first frame. */
+  /** The camera's motion since it opened, 0 to 1 of the frame, and which opening; null before the first frame. */
   fun pan(): Map<String, Double>? {
     synchronized(lock) {
       if (ringTs[ringAt] == 0L) {
         return null
       }
-      return mapOf("x" to panX.toDouble(), "y" to panY.toDouble())
+      return mapOf("x" to panX.toDouble(), "y" to panY.toDouble(), "session" to session.toDouble())
     }
   }
 
