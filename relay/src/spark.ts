@@ -141,6 +141,9 @@ export async function callSparkJson<T>({ fetchImpl, apiBase, apiKey, input, effo
     },
     body: JSON.stringify({
       model: 'muse-spark-1.3',
+      // Meta keeps a response unless told not to: shelf photos and hand
+      // crops are never kept.
+      store: false,
       reasoning: { effort },
       input,
       text: { format: { type: 'json_schema', ...schema } as JsonSchemaFormat },

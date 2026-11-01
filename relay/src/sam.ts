@@ -158,6 +158,7 @@ export async function outlineProducts(
     },
     body: JSON.stringify({
       model: 'sam-3.1',
+      store: false,
       input: [
         {
           type: 'message',

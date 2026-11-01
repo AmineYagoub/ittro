@@ -136,3 +136,14 @@ test('rejects a missing photo size instead of guessing it', async () => {
 test('rejects an http error without retrying', async () => {
   await assert.rejects(outlineProducts(sseFetch(['busy'], 429), 'https://example.invalid', 'key', PHOTO), /sam http 429/);
 });
+
+test('a SAM call asks Meta not to keep the photo', async () => {
+  let sent: Record<string, unknown> = {};
+  const text = [delta(LINE), completed()].join('');
+  const capture = (async (_url: string, init: { body: string }) => {
+    sent = JSON.parse(init.body) as Record<string, unknown>;
+    return { ok: true, status: 200, text: async () => text };
+  }) as unknown as typeof fetch;
+  await outlineProducts(capture, 'https://example.invalid', 'key', PHOTO);
+  assert.equal(sent['store'], false);
+});

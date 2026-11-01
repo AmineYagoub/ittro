@@ -147,3 +147,13 @@ test('the read prompt holds a named variety to the label', async () => {
   assert.match(system, /label must name that same one/);
   assert.match(system, /Riz Basmati is no for white rice/);
 });
+
+test('a Muse Spark call asks Meta not to keep the photo', async () => {
+  let sent: Record<string, unknown> = {};
+  const capture = (async (_url: string, init: { body: string }) => {
+    sent = JSON.parse(init.body) as Record<string, unknown>;
+    return { ok: true, json: async () => completed({ phrase: 'bottle' }) };
+  }) as unknown as typeof fetch;
+  await pickPackagePhrase(capture, 'https://example.invalid', 'key', { request: 'water', image: 'aGk=', mime: 'image/jpeg' });
+  assert.equal(sent['store'], false);
+});
