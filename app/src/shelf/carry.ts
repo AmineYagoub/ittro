@@ -14,8 +14,11 @@ import type { ShelfCrop, ShelfOutline } from '../relay';
 
 export const CARRY_MS = 30000;
 
-// How far the camera may have moved, as a share of the frame.
-export const CARRY_MOVE = 0.04;
+// How far the camera may have moved, as a share of the frame. The crops
+// still show the same bottles after a move, and the flow measures it
+// exactly (t14: -0.103 against the screenshots), so carried outlines
+// shift by it and the next SAM pass corrects what is left.
+export const CARRY_MOVE = 0.25;
 
 export function takeCarry(state: LoopState, pan: CameraPan | null, now: number): ShelfCarry | null {
   if (!pan || state.request === '' || state.outlinedAt === null || state.sceneChanged) {

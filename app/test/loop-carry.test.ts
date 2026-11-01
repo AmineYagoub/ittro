@@ -91,12 +91,23 @@ test('t13: the next request is found from the carried crops, with no photo and n
   assert.ok(next.logs.some((line) => line.startsWith('shelf read carried')));
 });
 
+test('t14: a phone moved by a tenth of the frame still carries, shifted', async () => {
+  const clock = { now: 0 };
+  const carry = await masaadCarry(clock);
+  const next = rig(clock);
+  next.loop.setTarget('Guedila water', 2);
+  assert.equal(next.loop.seed(carry, { x: 0.1 - 0.103, y: 0.2 - 0.047 }), true);
+  assert.equal(await next.loop.carriedPass(), true);
+  // -0.103 of 960 px.
+  assert.equal(found(next.sent)[0]?.box.x1, GUEDILA.x1 - 99);
+});
+
 test('a camera that moved, an old carry or the same request start from a photo', async () => {
   const clock = { now: 0 };
   const carry = await masaadCarry(clock);
   const moved = rig(clock);
   moved.loop.setTarget('Guedila water', 2);
-  assert.equal(moved.loop.seed(carry, { x: 0.2, y: 0.2 }), false);
+  assert.equal(moved.loop.seed(carry, { x: 0.4, y: 0.2 }), false);
   assert.equal(await moved.loop.carriedPass(), false);
   const same = rig(clock);
   same.loop.setTarget('Masaad water', 2);
