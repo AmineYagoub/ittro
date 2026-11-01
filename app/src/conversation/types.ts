@@ -72,9 +72,7 @@ export interface MachineInput {
   snapshot: MachineSnapshot;
   relayUrl: string;
   relayCode: string;
-  // Ask "is that right?" before searching a clear request. Off in the
-  // app since 31 October (the founder's call); the confirm path stays
-  // for lists and its own tests.
+  // Ask "is that right?" before a clear request; off in the app since 31 October.
   askConfirm?: boolean;
 }
 
@@ -149,6 +147,7 @@ export interface ConversationContext {
   guideTarget: ShelfOutline | null;
   shelfTarget: ShelfOutline | null;
   shelfCrop: string | null;
+  readingSaidEpoch: number;
   guideLabel: string;
   guideKind: string;
   guideMatches: number;

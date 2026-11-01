@@ -88,10 +88,14 @@ export const storeOutlined = assign({
       : context.guideRecheck,
   checkedCount: ({ context, event }: EventArgs) =>
     event.type === 'SHELF_OUTLINED' ? context.checkedCount + event.outlines.length : context.checkedCount,
+  // "I see two products, reading their labels" once a search, not on
+  // every pass (t9 said it twice in eight seconds).
   pendingSearch: ({ context, event }: EventArgs) =>
-    event.type === 'SHELF_OUTLINED' && !(context.shelfTarget ?? context.guideTarget)
+    event.type === 'SHELF_OUTLINED' && !(context.shelfTarget ?? context.guideTarget) && context.readingSaidEpoch !== context.searchEpoch
       ? queueLine(context, { text: readingLine(event.outlines.length, event.kind, context.lang), chips: [], kind: 'status' })
       : context.pendingSearch,
+  readingSaidEpoch: ({ context, event }: EventArgs) =>
+    event.type === 'SHELF_OUTLINED' && !(context.shelfTarget ?? context.guideTarget) ? context.searchEpoch : context.readingSaidEpoch,
 });
 
 export const storeSwept = assign({

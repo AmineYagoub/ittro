@@ -61,6 +61,7 @@ export function initialContext({ input }: { input: MachineInput }): Conversation
     guideTarget: null,
     shelfTarget: null,
     shelfCrop: null,
+    readingSaidEpoch: -1,
     guideLabel: '',
     guideKind: '',
     guideMatches: 0,
