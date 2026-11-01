@@ -265,12 +265,20 @@ function shortAnswerOpen(context: ConversationContext, text: string): boolean {
   );
 }
 
+// A choice Ittro offered, heard while Ittro is quiet, is the shopper
+// taking it: the mic is gated while Ittro speaks (t12 dropped "ابحث
+// عن غيره" as echo twice, 5 and 14 s after the line ended).
+function offeredChoice(context: ConversationContext, text: string): boolean {
+  const said = normalize(text);
+  return !context.talkBusy && said.length > 0 && context.lastChips.some((chip) => normalize(chip) === said);
+}
+
 export const echoFull = ({ context, event }: EchoArgs): boolean => {
   const text = eventText(event);
   if (text === null) {
     return false;
   }
-  if (shortAnswerOpen(context, text)) {
+  if (shortAnswerOpen(context, text) || offeredChoice(context, text)) {
     return false;
   }
   return transcriptFate(text, ownSpeechCurrent(context), inEchoWindow(context), ownSpeechPast(context)).echo === true;

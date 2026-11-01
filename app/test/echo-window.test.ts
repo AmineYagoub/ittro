@@ -1,7 +1,8 @@
 // Fresh voice is never the shopper: the playing line's first
 // words never reach understanding, a just-played clip stays echo
 // after the line moves on, and a bare yes is the shopper's only
-// while its question is open.
+// while its question is open; a choice Ittro offered is the
+// shopper's once Ittro is quiet.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { answer, startListening } from './driver';
@@ -132,6 +133,26 @@ test('a bare yes is the shopper only while its question is open', async () => {
       }),
       true,
     );
+  } finally {
+    driver.stop();
+  }
+});
+
+test('an offered choice said back while Ittro is quiet is the shopper (t12)', async () => {
+  const driver = await startListening();
+  try {
+    const base = driver.context();
+    const heard = { type: 'FINAL_TEXT', text: 'ابحث عن غيره' } as const;
+    const offered = {
+      ...base,
+      lang: 'ar' as const,
+      voiceAt: Date.now(),
+      voiceLog: [{ text: 'قل ابحث عن غيره، أو انتهيت.', at: Date.now() }],
+      lastLine: 'نعم. هذا مسعد ماء. قل ابحث عن غيره، أو انتهيت.',
+      lastChips: ['ابحث عن غيره', 'انتهيت'],
+    };
+    assert.equal(echoFull({ context: { ...offered, talkBusy: false }, event: heard }), false);
+    assert.equal(echoFull({ context: { ...offered, talkBusy: true }, event: heard }), true);
   } finally {
     driver.stop();
   }
