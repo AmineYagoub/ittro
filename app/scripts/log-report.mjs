@@ -1,5 +1,5 @@
 // Turns a saved phone log into the dependability report: timing
-// per search (request confirmed, first outline, hand on product,
+// per search (request confirmed or started, first outline, hand on product,
 // verdict), each Meta call, each spoken sentence, link episodes and
 // the session's battery, heat and memory. Reads Metro console or
 // logcat saves; anything without an [ittro] stamp is ignored.
@@ -71,6 +71,11 @@ function searchesOf(events) {
     const confirmed = /^search request confirmed (".*")$/.exec(event.msg);
     if (confirmed) {
       marks.push({ index, kind: 'confirmed', request: quoted(confirmed[1]) });
+      return;
+    }
+    const started = /^search request started (".*") without a confirm turn$/.exec(event.msg);
+    if (started) {
+      marks.push({ index, kind: 'started', request: quoted(started[1]) });
     }
   });
   const searches = [];
@@ -81,10 +86,15 @@ function searchesOf(events) {
       open = null;
     }
   };
+  let started = null;
   for (const mark of marks) {
-    if (mark.kind === 'begin') {
+    if (mark.kind === 'started') {
+      started = mark;
+    } else if (mark.kind === 'begin') {
       close();
-      open = { request: mark.request, epoch: mark.epoch, from: mark.index, confirmed: null, outline: null, hand: null, verdict: null };
+      const from = started && started.request === mark.request ? events[started.index].t : null;
+      started = null;
+      open = { request: mark.request, epoch: mark.epoch, from: mark.index, confirmed: from, outline: null, hand: null, verdict: null };
     } else if (open) {
       open.confirmed = open.confirmed ?? events[mark.index].t;
     } else {

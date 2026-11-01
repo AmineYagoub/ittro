@@ -40,6 +40,18 @@ test('a full search reports every milestone', () => {
   assert.match(text, /outline: 1 ok p50 2390ms/);
 });
 
+test('a request started without a confirm turn counts from its start', () => {
+  const log = [
+    '[ittro] +34.97s search request started "Masaad water" without a confirm turn',
+    '[ittro] +34.97s search begin "Masaad water" epoch 1',
+    '[ittro] +37.20s search outlined epoch 1 count 2',
+  ].join('\n');
+  const report = parseLog(log);
+  assert.equal(report.searches.length, 1);
+  assert.equal(report.searches[0].confirmed, 34.97);
+  assert.equal(report.searches[0].outline, 37.2);
+});
+
 test('failures report episodes and failed calls', () => {
   const report = parseLog(fixture('failure.log'));
   assert.equal(report.searches.length, 1);
