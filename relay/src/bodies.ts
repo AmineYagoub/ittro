@@ -1,7 +1,10 @@
 // Shared shapes of the relay's photo routes: the JSON bodies the
 // phone posts and the field readers that reject anything but a
 // non-empty string before Meta is ever called, and the capped hints
-// a question about the view carries.
+// a question about the view carries. A body over 4 million characters
+// (a full photo is about 400 thousand) or one that is not a JSON object
+// reads as empty, so its route answers 400; text that goes into a
+// prompt is cut to a length a spoken sentence never needs.
 import type { AskExchange, AskHints } from './askView.ts';
 
 export interface OutlineBody {
@@ -37,12 +40,29 @@ export function mimeField(value: unknown): string {
   return value === 'image/png' ? 'image/png' : 'image/jpeg';
 }
 
+const BODY_MAX_CHARS = 4_000_000;
+
+/** The request's JSON object, or an empty one when the body is too big, not JSON, or not an object. */
+export async function jsonBody(request: Request): Promise<Record<string, unknown>> {
+  const text = await request.text().catch(() => '');
+  if (text.length === 0 || text.length > BODY_MAX_CHARS) {
+    return {};
+  }
+  try {
+    const parsed: unknown = JSON.parse(text);
+    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
 const HISTORY_MAX = 4;
 const INVENTORY_MAX = 12;
 const TURN_TEXT_MAX = 400;
 const NAME_MAX = 80;
 
-function shortText(value: unknown, max: number): string | null {
+/** A non-empty string, trimmed and cut to max characters, or null. */
+export function shortText(value: unknown, max: number): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim().slice(0, max) : null;
 }
 

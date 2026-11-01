@@ -206,7 +206,8 @@ const CLASSIFY_INSTRUCTIONS = [
   'shelf_label names what the shelf mostly holds in one or two words in the shopper\'s language (en, ar or fr), the way a',
   'shop sign would ("biscuits", "البسكويت"); null when no shelf is in view or it holds no clear kind. fits_request is true',
   'when the shelf holds the kind of product requested (any rice for rice, any water bottle for water), false when it holds',
-  'another kind or no shelf is in view.',
+  'another kind or no shelf is in view. When you cannot tell, fits_request is true: the shopper looks here before being',
+  'sent elsewhere.',
 ].join(' ');
 
 export async function classifyScene(

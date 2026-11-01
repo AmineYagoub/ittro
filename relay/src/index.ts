@@ -10,10 +10,10 @@ import { confirmRoute, detailRoute } from './confirm.ts';
 import { findRoute } from './find.ts';
 import { askViewRoute } from './askView.ts';
 import { helperRoutes } from './helperRoutes.ts';
-import { askFields, effortField, mimeField, textField } from './bodies.ts';
+import { askFields, effortField, jsonBody, mimeField, shortText, textField } from './bodies.ts';
 import type { OutlineBody, PhraseBody, ReadBody } from './bodies.ts';
 import { wrapSocket } from './streamWire.ts';
-import { addSpendUsd, clientIp, codesEqual, gate, overRateLimit, recordSamCost, recordSparkCost, spendTodayUsd } from './gate.ts';
+import { addSpendUsd, charged, clientIp, codesEqual, gate, overRateLimit, recordSamCost, recordSparkCost, spendTodayUsd } from './gate.ts';
 import type { Env } from './gate.ts';
 import type { StreamBudget } from './realtime.ts';
 import type { StreamSocket } from './streamWire.ts';
@@ -73,32 +73,28 @@ export default {
         return blocked;
       }
       try {
-        const context = (await request.json()) as Record<string, unknown> & {
-          transcript?: unknown;
-          language?: unknown;
-          step?: unknown;
-          pending_question?: unknown;
-          pending_request?: unknown;
-          last_line?: unknown;
-          effort?: unknown;
-        };
-        if (typeof context.transcript !== 'string' || context.transcript.trim().length === 0) {
+        const context = await jsonBody(request);
+        const transcript = shortText(context['transcript'], 500);
+        if (!transcript) {
           return Response.json({ ok: false, error: 'missing transcript' }, { status: 400 });
         }
         const understood = {
-          transcript: context.transcript,
-          language: typeof context.language === 'string' ? context.language : 'en',
-          step: typeof context.step === 'string' ? context.step : 'welcome',
-          pending_question: typeof context.pending_question === 'string' ? context.pending_question : null,
-          pending_request: typeof context.pending_request === 'string' ? context.pending_request : null,
-          last_line: typeof context.last_line === 'string' ? context.last_line : null,
-          effort: typeof context.effort === 'string' ? context.effort : undefined,
+          transcript,
+          language: shortText(context['language'], 8) ?? 'en',
+          step: shortText(context['step'], 40) ?? 'welcome',
+          pending_question: shortText(context['pending_question'], 80),
+          pending_request: shortText(context['pending_request'], 200),
+          last_line: shortText(context['last_line'], 500),
+          effort: shortText(context['effort'], 16) ?? undefined,
         };
         const image = textField(context['image']);
-        const answer = image
-          ? await understandWithStill(fetch, env.META_API_BASE, env.META_API_KEY, understood, { ...askFields(context), image, mime: mimeField(context['mime']) })
-          : await understandUtterance(fetch, env.META_API_BASE, env.META_API_KEY, understood);
-        await recordSparkCost(env);
+        const answer = await charged(
+          () => recordSparkCost(env),
+          () =>
+            image
+              ? understandWithStill(fetch, env.META_API_BASE, env.META_API_KEY, understood, { ...askFields(context), image, mime: mimeField(context['mime']) })
+              : understandUtterance(fetch, env.META_API_BASE, env.META_API_KEY, understood),
+        );
         return Response.json({ ok: true, answer });
       } catch (err) {
         return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
@@ -110,22 +106,18 @@ export default {
         return blocked;
       }
       try {
-        const body = (await request.json()) as OutlineBody;
+        const body = (await jsonBody(request)) as OutlineBody;
         const image = textField(body.image);
-        const phrase = textField(body.phrase);
+        const phrase = shortText(body.phrase, 400);
         const w = typeof body.w === 'number' ? body.w : 0;
         const h = typeof body.h === 'number' ? body.h : 0;
         if (!image || !phrase || !Number.isInteger(w) || w <= 0 || !Number.isInteger(h) || h <= 0) {
           return Response.json({ ok: false, error: 'missing image, phrase or photo size' }, { status: 400 });
         }
-        const result = await outlineProducts(fetch, env.META_API_BASE, env.META_API_KEY, {
-          image,
-          mime: mimeField(body.mime),
-          phrase,
-          w,
-          h,
-        });
-        await recordSamCost(env);
+        const result = await charged(
+          () => recordSamCost(env),
+          () => outlineProducts(fetch, env.META_API_BASE, env.META_API_KEY, { image, mime: mimeField(body.mime), phrase, w, h }),
+        );
         return Response.json({ ok: true, outlines: result.outlines, samMs: result.samMs, maskMs: result.maskMs });
       } catch (err) {
         return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
@@ -136,14 +128,14 @@ export default {
       if (blocked) {
         return blocked;
       }
-      return findRoute(await request.json(), env);
+      return findRoute(await jsonBody(request), env);
     }
     if (request.method === 'POST' && url.pathname === '/ask-view') {
       const blocked = await gate(request, env, Number(env.SPARK_COST_USD ?? '0.01'));
       if (blocked) {
         return blocked;
       }
-      return askViewRoute(await request.json(), env);
+      return askViewRoute(await jsonBody(request), env);
     }
     if (request.method === 'POST' && url.pathname === '/package-phrase') {
       const blocked = await gate(request, env, Number(env.SPARK_COST_USD ?? '0.01'));
@@ -151,18 +143,16 @@ export default {
         return blocked;
       }
       try {
-        const body = (await request.json()) as PhraseBody;
-        const wanted = textField(body.request);
+        const body = (await jsonBody(request)) as PhraseBody;
+        const wanted = shortText(body.request, 200);
         const image = textField(body.image);
         if (!wanted || !image) {
           return Response.json({ ok: false, error: 'missing request or image' }, { status: 400 });
         }
-        const phrase = await pickPackagePhrase(fetch, env.META_API_BASE, env.META_API_KEY, {
-          request: wanted,
-          image,
-          mime: mimeField(body.mime),
-        });
-        await recordSparkCost(env);
+        const phrase = await charged(
+          () => recordSparkCost(env),
+          () => pickPackagePhrase(fetch, env.META_API_BASE, env.META_API_KEY, { request: wanted, image, mime: mimeField(body.mime) }),
+        );
         return Response.json({ ok: true, phrase });
       } catch (err) {
         return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
@@ -174,8 +164,8 @@ export default {
         return blocked;
       }
       try {
-        const body = (await request.json()) as ReadBody;
-        const wanted = textField(body.request);
+        const body = (await jsonBody(request)) as ReadBody;
+        const wanted = shortText(body.request, 200);
         const crops = Array.isArray(body.crops) ? body.crops : null;
         if (!wanted || !crops) {
           return Response.json({ ok: false, error: 'missing request or crops' }, { status: 400 });
@@ -189,12 +179,10 @@ export default {
           }
           return { id, image, mime: mimeField(record.mime) };
         });
-        const result = await readShelfLabels(fetch, env.META_API_BASE, env.META_API_KEY, {
-          request: wanted,
-          crops: checked,
-          effort: effortField(body.effort),
-        });
-        await recordSparkCost(env);
+        const result = await charged(
+          () => recordSparkCost(env),
+          () => readShelfLabels(fetch, env.META_API_BASE, env.META_API_KEY, { request: wanted, crops: checked, effort: effortField(body.effort) }),
+        );
         return Response.json({ ok: true, reads: result.reads, readMs: result.readMs });
       } catch (err) {
         const status = (err as Error).message.includes('crop') && !(err as Error).message.includes('crop ids') ? 400 : 502;
@@ -207,19 +195,16 @@ export default {
         return blocked;
       }
       try {
-        const body = (await request.json()) as PhraseBody;
-        const wanted = textField(body.request);
+        const body = (await jsonBody(request)) as PhraseBody;
+        const wanted = shortText(body.request, 200);
         const image = textField(body.image);
         if (!wanted || !image) {
           return Response.json({ ok: false, error: 'missing request or image' }, { status: 400 });
         }
-        const scene = await classifyScene(fetch, env.META_API_BASE, env.META_API_KEY, {
-          request: wanted,
-          image,
-          mime: mimeField(body.mime),
-          language: textField(body.language) ?? 'en',
-        });
-        await recordSparkCost(env);
+        const scene = await charged(
+          () => recordSparkCost(env),
+          () => classifyScene(fetch, env.META_API_BASE, env.META_API_KEY, { request: wanted, image, mime: mimeField(body.mime), language: shortText(body.language, 8) ?? 'en' }),
+        );
         return Response.json({ ok: true, scene });
       } catch (err) {
         return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
@@ -230,14 +215,14 @@ export default {
       if (blocked) {
         return blocked;
       }
-      return confirmRoute(await request.json(), env);
+      return confirmRoute(await jsonBody(request), env);
     }
     if (request.method === 'POST' && url.pathname === '/read-detail') {
       const blocked = await gate(request, env, Number(env.SPARK_COST_USD ?? '0.01'));
       if (blocked) {
         return blocked;
       }
-      return detailRoute(await request.json(), env);
+      return detailRoute(await jsonBody(request), env);
     }
     if (url.pathname === '/realtime') {
       const code = url.searchParams.get('code') ?? '';

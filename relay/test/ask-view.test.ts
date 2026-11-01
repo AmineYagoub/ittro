@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { askView, isViewAnswer } from '../src/index.ts';
+import { normalizeView } from '../src/askView.ts';
 import { askFields } from '../src/bodies.ts';
 
 interface Sent {
@@ -48,7 +49,7 @@ test('the not-here summary asks with the product that was not found', async () =
 
 test('an empty answer or an unfinished response is an error, never silence', async () => {
   const empty = spark({ answer: '  ', offer: null, unreadable: [] });
-  await assert.rejects(askView(empty.fetchImpl, 'https://example.invalid', 'key', { ...HINTS, question: 'what is here?', wanted: null, image: 'aGk=', mime: 'image/jpeg' }), /schema gate/);
+  await assert.rejects(askView(empty.fetchImpl, 'https://example.invalid', 'key', { ...HINTS, question: 'what is here?', wanted: null, image: 'aGk=', mime: 'image/jpeg' }), /empty answer/);
   const cut = spark({ answer: 'x', offer: null, unreadable: [] }, 'incomplete');
   await assert.rejects(askView(cut.fetchImpl, 'https://example.invalid', 'key', { ...HINTS, question: 'what is here?', wanted: null, image: 'aGk=', mime: 'image/jpeg' }), /not completed/);
 });
@@ -58,10 +59,17 @@ test('a question needs words or the product not found', async () => {
   await assert.rejects(askView(fetchImpl, 'https://example.invalid', 'key', { ...HINTS, question: null, wanted: null, image: 'aGk=', mime: 'image/jpeg' }), /needs a question/);
 });
 
-test('the answer gate refuses long answers and empty offers', () => {
-  assert.equal(isViewAnswer({ answer: 'x'.repeat(401), offer: null, unreadable: [] }), false);
-  assert.equal(isViewAnswer({ answer: 'ok', offer: ' ', unreadable: [] }), false);
-  assert.equal(isViewAnswer({ answer: 'ok', offer: 'Riz blanc', unreadable: ['price'] }), true);
+test('an answer the schema allows is tidied for speech, never refused', () => {
+  assert.equal(isViewAnswer({ answer: 'x'.repeat(401), offer: '', unreadable: [] }), true);
+  assert.equal(isViewAnswer({ answer: 3, offer: null, unreadable: [] }), false);
+  assert.equal(isViewAnswer({ answer: 'ok', offer: 5, unreadable: [] }), false);
+  assert.deepEqual(normalizeView({ answer: ' ok ', offer: ' ', unreadable: [' ', 'price'] }), { answer: 'ok', offer: null, unreadable: ['price'] });
+  assert.equal(normalizeView({ answer: 'ok', offer: 'x'.repeat(101), unreadable: [] })?.offer, null);
+  const long = `I see white rice. ${'And more beans here '.repeat(30)}`;
+  const clipped = normalizeView({ answer: long, offer: null, unreadable: [] })?.answer ?? '';
+  assert.ok(clipped.length <= 401 && clipped.endsWith('here…'), clipped);
+  assert.equal(normalizeView({ answer: `${'One sentence. '.repeat(40)}`, offer: null, unreadable: [] })?.answer.endsWith('sentence.'), true);
+  assert.equal(normalizeView({ answer: '  ', offer: 'Riz', unreadable: [] }), null);
 });
 
 test('the hints are capped and malformed turns dropped', () => {

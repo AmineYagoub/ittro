@@ -6,7 +6,7 @@
 // the same call (decision record 0001).
 import { UNDERSTAND_SCHEMA, callSparkJson, isUnderstandAnswer } from './spark.ts';
 import type { SparkSchema, UnderstandAnswer } from './spark.ts';
-import { VIEW_PROPERTIES, VIEW_RULES, isViewAnswer } from './askView.ts';
+import { VIEW_PROPERTIES, VIEW_RULES, isViewAnswer, normalizeView } from './askView.ts';
 import type { AskHints, ViewAnswer } from './askView.ts';
 
 export interface UnderstandContext {
@@ -107,8 +107,7 @@ export async function understandUtterance(
 function isViewUnderstood(value: unknown): value is UnderstandAnswer & ViewAnswer {
   if (!isUnderstandAnswer(value)) return false;
   const v = value as unknown as Record<string, unknown>;
-  const view = { answer: v['answer'], offer: v['offer'], unreadable: v['unreadable'] };
-  return typeof v['answer'] === 'string' && (v['answer'].trim() === '' || isViewAnswer(view)) && Array.isArray(v['unreadable']);
+  return isViewAnswer({ answer: v['answer'], offer: v['offer'], unreadable: v['unreadable'] });
 }
 
 /** One call for a question: the sentence understood and, when it asks about the view, answered from the still. */
@@ -132,6 +131,6 @@ export async function understandWithStill(
   ];
   const answer = await callSparkJson({ fetchImpl, apiBase, apiKey, input, effort: 'minimal', schema: VIEW_UNDERSTAND_SCHEMA, guard: isViewUnderstood });
   const { answer: spoken, offer, unreadable, ...understood } = answer;
-  const view = understood.intent === 'ask_view' && spoken.trim() !== '' ? { answer: spoken.trim(), offer: offer?.trim() || null, unreadable } : null;
+  const view = understood.intent === 'ask_view' ? normalizeView({ answer: spoken, offer, unreadable }) : null;
   return { ...understood, view };
 }

@@ -203,3 +203,14 @@ test('any other intent with a still carries no view answer', async () => {
   assert.equal(result.intent, 'request_product');
   assert.equal(result.view, null);
 });
+
+test('a blank offer or a stray answer with a still never loses the sentence', async () => {
+  const still = { image: 'aGk=', mime: 'image/jpeg', language: 'en' as const, history: [], inventory: [], upset: false, brief: false };
+  const asked = okFetch(completed({ ...answer, intent: 'ask_view', question: 'is there honey?', answer: 'Yes, honey on the lower shelf.', offer: '', unreadable: [] }));
+  const view = await understandWithStill(asked as unknown as typeof fetch, 'https://example.invalid', 'key', context, still);
+  assert.deepEqual(view.view, { answer: 'Yes, honey on the lower shelf.', offer: null, unreadable: [] });
+  const yes = okFetch(completed({ ...answer, intent: 'confirm_yes', answer: 'x'.repeat(500), offer: '', unreadable: [] }));
+  const said = await understandWithStill(yes as unknown as typeof fetch, 'https://example.invalid', 'key', context, still);
+  assert.equal(said.intent, 'confirm_yes');
+  assert.equal(said.view, null);
+});

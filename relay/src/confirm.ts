@@ -6,8 +6,8 @@
 // never advised on: no medicines identified, no safety judged.
 import { callSparkJson } from './spark.ts';
 import type { SparkSchema } from './spark.ts';
-import { effortField, mimeField, textField } from './bodies.ts';
-import { recordSparkCost } from './gate.ts';
+import { effortField, mimeField, shortText, textField } from './bodies.ts';
+import { charged, recordSparkCost } from './gate.ts';
 import type { Env } from './gate.ts';
 import { settleConfirm } from './settle.ts';
 
@@ -232,19 +232,16 @@ function detailField(value: unknown): DetailKind | null {
 
 export async function confirmRoute(body: unknown, env: Env): Promise<Response> {
   const record = (body ?? {}) as { request?: unknown; image?: unknown; mime?: unknown; effort?: unknown };
-  const wanted = textField(record.request);
+  const wanted = shortText(record.request, 200);
   const image = textField(record.image);
   if (!wanted || !image) {
     return Response.json({ ok: false, error: 'missing request or image' }, { status: 400 });
   }
   try {
-    const result = await confirmInHand(fetch, env.META_API_BASE, env.META_API_KEY, {
-      request: wanted,
-      image,
-      mime: mimeField(record.mime),
-      effort: effortField(record.effort),
-    });
-    await recordSparkCost(env);
+    const result = await charged(
+      () => recordSparkCost(env),
+      () => confirmInHand(fetch, env.META_API_BASE, env.META_API_KEY, { request: wanted, image, mime: mimeField(record.mime), effort: effortField(record.effort) }),
+    );
     return Response.json({ ok: true, read: result.read, readMs: result.readMs });
   } catch (err) {
     return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
@@ -259,12 +256,10 @@ export async function detailRoute(body: unknown, env: Env): Promise<Response> {
     return Response.json({ ok: false, error: 'missing detail or image' }, { status: 400 });
   }
   try {
-    const result = await readLabelDetail(fetch, env.META_API_BASE, env.META_API_KEY, {
-      detail,
-      image,
-      mime: mimeField(record.mime),
-    });
-    await recordSparkCost(env);
+    const result = await charged(
+      () => recordSparkCost(env),
+      () => readLabelDetail(fetch, env.META_API_BASE, env.META_API_KEY, { detail, image, mime: mimeField(record.mime) }),
+    );
     return Response.json({ ok: true, read: result.read, readMs: result.readMs });
   } catch (err) {
     return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
