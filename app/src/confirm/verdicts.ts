@@ -37,8 +37,25 @@ function wayBack(context: ConversationContext): SpeechPart[] {
   return [{ text: whereSentence(shortProduct(request), dir, context.lang) }];
 }
 
+// The yes names the product as Ittro has been calling it ("ماء
+// قديلة"), not in the read's word order ("قديلة ماء", t13); a size the
+// read adds after a comma is kept.
+export function yesName(label: string, request: string | null): string {
+  const wanted = request ? shortProduct(request).trim() : '';
+  if (!wanted) {
+    return label;
+  }
+  const [head, ...rest] = label.split(/[,،]/);
+  if ((head ?? '').trim().toLowerCase() === wanted.toLowerCase()) {
+    return label;
+  }
+  const tail = rest.join(',').trim();
+  return tail ? `${wanted}${label.includes('،') ? '، ' : ', '}${tail}` : wanted;
+}
+
 function yesParts(label: string, context: ConversationContext): SpeechPart[] {
-  return [{ clip: 'yes' }, { text: thisIsLine(label, context.lang) }, { text: yesNext(context.lang) }];
+  const name = yesName(label, context.request ?? context.pendingRequest);
+  return [{ clip: 'yes' }, { text: thisIsLine(name, context.lang) }, { text: yesNext(context.lang) }];
 }
 
 function noParts(label: string, context: ConversationContext): SpeechPart[] {
@@ -76,7 +93,8 @@ export const storeYes = assign({
     storeConfirmedBrand(label);
     return mergeBrands(context.brands, label);
   },
-  confirmLabel: ({ event }: EventArgs) => (event.type === 'CONFIRM_YES' ? event.label : ''),
+  confirmLabel: ({ context, event }: EventArgs) =>
+    event.type === 'CONFIRM_YES' ? yesName(event.label, context.request ?? context.pendingRequest) : '',
   confirmCrop: ({ event }: EventArgs) => (event.type === 'CONFIRM_YES' ? event.crop : null),
   confirmParts: ({ context, event }: EventArgs) => (event.type === 'CONFIRM_YES' ? yesParts(event.label, context) : []),
   lastLine: ({ context, event }: EventArgs) =>
