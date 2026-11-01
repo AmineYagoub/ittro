@@ -7,6 +7,7 @@ import * as Speech from 'expo-speech';
 import type { Language } from './theme';
 import { logIttro } from './log';
 import { noteAudioEnd, noteAudioStart } from './voiceGate';
+import { dropVoice, pickedVoice } from './voicePick';
 
 const SPEECH_LOCALE: Record<Language, string> = { en: 'en-US', ar: 'ar-SA', fr: 'fr-FR' };
 
@@ -58,9 +59,11 @@ function speakOnce(text: string, lang: Language, rate: number): Promise<SpeakOut
         }
       });
     }, speechBudgetMs(text));
+    const voice = pickedVoice(lang);
     try {
       Speech.speak(text, {
         language: SPEECH_LOCALE[lang],
+        ...(voice ? { voice } : {}),
         rate,
         onStart: () => {
           noteAudioStart(speechBudgetMs(text));
@@ -122,6 +125,9 @@ export async function speakWithRetry(text: string, lang: Language, rate: number,
     return;
   }
   logIttro(retryLog(first, true));
+  if (dropVoice(lang)) {
+    logIttro(`voice for ${lang} failed, back to the default voice`);
+  }
   void Speech.stop();
   const second = await speakOnce(text, lang, rate);
   if (!alive() || second === 'done' || second === 'stopped') {
