@@ -60,6 +60,7 @@ export function initialContext({ input }: { input: MachineInput }): Conversation
     guiding: false,
     guideTarget: null,
     shelfTarget: null,
+    shelfCrop: null,
     guideLabel: '',
     guideKind: '',
     guideMatches: 0,

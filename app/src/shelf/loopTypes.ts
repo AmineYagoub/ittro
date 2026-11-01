@@ -71,6 +71,8 @@ export interface LoopState {
   foundKey: string;
   foundTrack: string | null;
   foundOutline: ShelfOutline | null;
+  // Each track's last label crop, for the verdict card's photo.
+  crops: Map<string, string>;
   turnRightNext: boolean;
   stats: LoopStats;
 }

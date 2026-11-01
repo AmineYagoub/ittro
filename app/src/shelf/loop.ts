@@ -42,6 +42,7 @@ function freshState(): LoopState {
     foundKey: '',
     foundTrack: null,
     foundOutline: null,
+    crops: new Map(),
     turnRightNext: true,
     stats: { samCalls: 0, readCalls: 0, readCrops: 0, classifyCalls: 0 },
   };
@@ -60,6 +61,7 @@ function searchReset(state: LoopState): void {
   state.blurrySkips = 0;
   state.foundTrack = null;
   state.foundOutline = null;
+  state.crops.clear();
   state.turnRightNext = true;
 }
 

@@ -148,6 +148,7 @@ export interface ConversationContext {
   guiding: boolean;
   guideTarget: ShelfOutline | null;
   shelfTarget: ShelfOutline | null;
+  shelfCrop: string | null;
   guideLabel: string;
   guideKind: string;
   guideMatches: number;
@@ -227,7 +228,7 @@ export type ConversationEvent =
   | { type: 'LINK_LIMITED' }
   | { type: 'LINK_BROKEN' }
   | { type: 'LINK_OK' }
-  | { type: 'SHELF_FOUND'; product: string; outline: ShelfOutline | null; matches: number; kind: string; position: GuidePosition }
+  | { type: 'SHELF_FOUND'; product: string; outline: ShelfOutline | null; matches: number; kind: string; position: GuidePosition; crop?: string | null }
   | { type: 'GUIDE_CUE'; cue: string; proximity: number; hand: GuideHand }
   | { type: 'GUIDE_ALIGNED'; proximity: number; hand: GuideHand }
   | { type: 'GUIDE_COVERING'; proximity: number; hand: GuideHand }

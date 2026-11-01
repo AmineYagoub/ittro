@@ -97,7 +97,8 @@ export const storeTouchedYes = assign({
     return mergeBrands(context.brands, label);
   },
   confirmLabel: ({ event }: EventArgs) => (event.type === 'CONFIRM_TOUCHED' ? event.label : ''),
-  confirmCrop: null,
+  // The label crop the shelf read said yes to: the card shows the product.
+  confirmCrop: ({ context }: ContextArgs) => context.shelfCrop,
   confirmParts: ({ context, event }: EventArgs) => (event.type === 'CONFIRM_TOUCHED' ? yesParts(event.label, context) : []),
   lastLine: ({ context, event }: EventArgs) =>
     event.type === 'CONFIRM_TOUCHED' ? shown(yesParts(event.label, context), context) : context.lastLine,

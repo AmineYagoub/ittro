@@ -37,6 +37,7 @@ export async function readBatch(
   );
   for (const crop of cuts) {
     enqueueRead(queue, { ...crop, hand: false, epoch });
+    state.crops.set(crop.id.replace(/^shelf-/, ''), `data:${crop.mime};base64,${crop.image}`);
   }
   dropEpoch(queue, epoch);
   const jobs = [];
@@ -89,6 +90,7 @@ function sendFound(ctx: ReadsContext, request: string, reads: ShelfRead[], epoch
     matches: reads.filter((read) => read.verdict === 'yes').length,
     kind: packageKind(phrase, deps.readContext().lang),
     position: positionFor(tracked.outline.box, tracked.outline.box.w),
+    crop: state.crops.get(tracked.track) ?? null,
   });
 }
 

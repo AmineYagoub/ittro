@@ -15,6 +15,7 @@ export const storeGuideTarget = assign({
   pendingQuestion: ({ context }: ContextArgs) => (context.step === 'alternative' ? null : context.pendingQuestion),
   guideTarget: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.outline : null),
   shelfTarget: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.outline : null),
+  shelfCrop: ({ context, event }: EventArgs) => (event.type === 'SHELF_FOUND' ? (event.crop ?? context.shelfCrop) : context.shelfCrop),
   guideLabel: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? shortProduct(event.product) : ''),
   guideKind: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.kind : ''),
   guideMatches: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.matches : 0),
@@ -31,6 +32,7 @@ export const storeGuideTarget = assign({
 export const adoptGuideTarget = assign({
   guideTarget: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.outline : null),
   shelfTarget: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.outline : null),
+  shelfCrop: ({ context, event }: EventArgs) => (event.type === 'SHELF_FOUND' ? (event.crop ?? context.shelfCrop) : context.shelfCrop),
   guideRecheck: false,
   guideOutOfView: false,
 });
