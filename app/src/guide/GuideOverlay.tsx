@@ -6,11 +6,11 @@
 // line carries their meaning.
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Polygon } from 'react-native-svg';
-import { mapBox, mapPoints, shapePoints } from '../shelf/outlines';
+import { mapBox, mapPoints, shapeCap, shapePoints } from '../shelf/outlines';
 import type { ShelfOutline } from '../relay';
 import type { GuideHand } from '../conversation/types';
 import { color, size } from '../theme';
-import { GUIDE_CLUSTER_BOTTOM, PILL_MAX_WIDTH, dirOfCue, pillBox } from './lines';
+import { GUIDE_CLUSTER_BOTTOM, PILL_MAX_WIDTH, capPill, dirOfCue, pillBox } from './lines';
 import { meterSegments } from './steer';
 import type { GuideDir } from './types';
 
@@ -49,8 +49,8 @@ function TargetShape({ target, width, height }: { target: ShelfOutline; width: n
   }
   return (
     <Svg style={StyleSheet.absoluteFill} width={width} height={height}>
-      <Polygon points={mapped} fill="none" stroke="#0B0E13B3" strokeWidth={15} strokeLinejoin="round" />
-      <Polygon points={mapped} fill="#2BD98A26" stroke={color.yes} strokeWidth={5} strokeLinejoin="round" />
+      <Polygon points={mapped} fill="#2BD98A38" stroke="#00000073" strokeWidth={9} strokeLinejoin="round" />
+      <Polygon points={mapped} fill="none" stroke={color.yes} strokeWidth={4.5} strokeLinejoin="round" />
     </Svg>
   );
 }
@@ -73,10 +73,11 @@ export function GuideOverlay({
   height: number;
 }): React.JSX.Element {
   const box = mapBox(target.box, width, height);
-  const pill = pillBox(box, width, height);
+  const cap = shapeCap(target, width, height);
+  const pill = cap ? capPill(cap, box, label, width, height) : pillBox(box, width, height);
   const filled = meterSegments(proximity);
   const segments = [0, 1, 2, 3, 4];
-  const shaped = shapePoints(target, width, height) !== null;
+  const shaped = cap !== null;
   return (
     <View style={styles.layer} pointerEvents="none" accessible={false} importantForAccessibility="no">
       {shaped ? (

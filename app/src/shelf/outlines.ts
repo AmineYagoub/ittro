@@ -108,6 +108,26 @@ export function shapePoints(outline: ShelfOutline, viewW: number, viewH: number)
   return mapPoints(points, outline.box.w, outline.box.h, viewW, viewH).join(',');
 }
 
+/** The top of the outline on screen, the cap of a bottle: where its name pill sits. */
+export function shapeCap(outline: ShelfOutline, viewW: number, viewH: number): { x: number; y: number } | null {
+  const points = outline.mask?.points ?? [];
+  if (points.length < 6) {
+    return null;
+  }
+  const mapped = mapPoints(points, outline.box.w, outline.box.h, viewW, viewH);
+  let top = Infinity;
+  for (let at = 1; at < mapped.length; at += 2) {
+    top = Math.min(top, mapped[at] as number);
+  }
+  const xs: number[] = [];
+  for (let at = 0; at + 1 < mapped.length; at += 2) {
+    if ((mapped[at + 1] as number) <= top + 6) {
+      xs.push(mapped[at] as number);
+    }
+  }
+  return { x: Math.round((Math.min(...xs) + Math.max(...xs)) / 2), y: top };
+}
+
 export function mapBox(box: ShelfBox, viewW: number, viewH: number): ViewBox {
   const scale = Math.max(viewW / box.w, viewH / box.h);
   const left = (viewW - box.w * scale) / 2 + box.x1 * scale;
