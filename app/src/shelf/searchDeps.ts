@@ -51,6 +51,7 @@ export function searchDeps(actor: { current: SearchActor | null }, stopped: () =
         guideLost: context?.guideOutOfView ?? false,
         guideRecheck: context?.guideRecheck ?? false,
         guideBox: context?.guideTarget ? (lastPlacedBox(Date.now()) ?? context.guideTarget.box) : null,
+        sweepPending: context?.pendingSearch.some((line) => line.kind === 'sweep') ?? false,
       };
     },
     send: (event) => {

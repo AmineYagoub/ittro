@@ -8,7 +8,14 @@
 // cloud pass tells the shopper. Every fortieth pan logs its rate and
 // cost, so the phone check reads pans per second, applied shifts and
 // heat straight from the log. An optional shot listener hears each
-// cloud photo, which the guide loop caches for its crops.
+// cloud photo, which the guide loop caches for its crops. Each photo
+// carries the still's number, which places SAM's cut on the live
+// camera, and the time its shot began, so a sweep stop reads only
+// stills from after the camera settled. The pan is measured on the
+// whole frame, and a hand near the lens is most of it: its motion read
+// as the shelf moving and dragged every outline after the hand, so
+// while a hand is in view the outlines hold until the next SAM pass
+// re-anchors them.
 import { useEffect, useMemo, useRef } from 'react';
 import { cameraPan, prepareShelfPhoto, thermalStatus, validTrackPan } from 'ittro-sensors';
 import type { TrackPan } from 'ittro-sensors';
@@ -187,9 +194,8 @@ export function useShelfSearch(
         } catch {
           grey = { data: new Uint8Array(0), w: 0, h: 0 };
         }
-        // The still's number places SAM's cut on the live camera.
         const shot = Number(/ittro-shot-(\d+)\.jpg$/.exec(uri)?.[1] ?? Number.NaN);
-        const photo = { image: prepared.photo, mime: 'image/jpeg', w: prepared.w, h: prepared.h, grey, ...(Number.isFinite(shot) ? { shot } : {}) };
+        const photo = { image: prepared.photo, mime: 'image/jpeg', w: prepared.w, h: prepared.h, grey, at: shotStart, ...(Number.isFinite(shot) ? { shot } : {}) };
         keepStill({ image: prepared.photo, mime: 'image/jpeg', w: prepared.w, h: prepared.h, at: Date.now() });
         const ring = [...held.current.ring, photo].slice(-3);
         held.current.ring = ring;
@@ -231,11 +237,6 @@ export function useShelfSearch(
         stats.count += 1;
         stats.panMs.push(pan.panMs);
         if (panFrozenByHand(lastHandFix(), Date.now())) {
-          // The pan is measured on the whole frame, and a hand near
-          // the lens is most of it: its motion read as the shelf
-          // moving and dragged every outline after the hand. While
-          // a hand is in view the outlines hold; the next SAM pass
-          // re-anchors them.
           stats.frozen += 1;
           return;
         }

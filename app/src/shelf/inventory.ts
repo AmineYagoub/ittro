@@ -3,7 +3,9 @@
 // where the camera pointed then. Nothing extra is asked for: the reads
 // already carry the names. Questions send the names as a hint, and the
 // not-here summary names what was seen. Entries age out after a while,
-// since the shopper moves on to other shelves.
+// since the shopper moves on to other shelves, and a new search (a new
+// product, or the same one looked for again at another shelf) starts
+// afresh, so no summary names what an earlier shelf held.
 import type { ShelfBox, ShelfRead } from '../relay';
 import type { CameraPan } from './loopTypes';
 
@@ -19,7 +21,10 @@ const SEEN_MAX = 40;
 
 const seen = new Map<string, SeenProduct>();
 
-function keyOf(name: string): string {
+let owner = '';
+
+/** A name as the inventory keys it: lower case, words only, so two spellings of one label meet. */
+export function nameKey(name: string): string {
   return name
     .toLowerCase()
     .split(/[^\p{L}\p{N}]+/u)
@@ -41,7 +46,7 @@ export function readName(read: ShelfRead): string | null {
 }
 
 export function noteSeen(name: string, box: ShelfBox, pan: CameraPan | null, now: number): void {
-  const key = keyOf(name);
+  const key = nameKey(name);
   if (key.length === 0) {
     return;
   }
@@ -68,6 +73,15 @@ export function seenNames(now: number, maxAgeMs: number, limit: number): string[
     .map((entry) => entry.name);
 }
 
+/** The inventory belongs to one search, named by its epoch and product: another search starts it afresh. */
+export function seenFor(search: string): void {
+  if (search !== owner) {
+    seen.clear();
+    owner = search;
+  }
+}
+
 export function forgetSeen(): void {
   seen.clear();
+  owner = '';
 }

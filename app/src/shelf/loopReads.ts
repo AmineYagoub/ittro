@@ -1,6 +1,8 @@
 // The cloud half of the shelf loop: new tracks read in a priority
 // batch first, so the found line never waits on the rest; then the
-// verdicts, the swept shelf, and the empty-shelf scenes.
+// verdicts, the swept shelf, and the empty-shelf scenes. While the hand
+// is guided an empty pass asks no scene: its lines would wait out the
+// guide and then send the shopper elsewhere.
 import { packageKind } from './match';
 import { createReadQueue, dropEpoch, enqueueRead, nextRead } from './queue';
 import type { ShelfBox, ShelfCrop, ShelfRead } from '../relay';
@@ -52,6 +54,21 @@ export async function readCrops(
     readMs: Math.max(0, ...answers.map((answer) => answer.readMs)),
     calls: answers.length,
   };
+}
+
+/** Asks the phrase from a blurry frame while a sharp one is awaited, so the next pass need not wait for it. */
+export function prefetchPhrase(ctx: ReadsContext, request: string, photo: { image: string; mime: string }): void {
+  const { deps, state } = ctx;
+  if (state.phrases.has(request) || state.phraseWait) {
+    return;
+  }
+  state.phraseWait = deps.fetchPhrase(request, photo.image, photo.mime).then((found) => {
+    state.phrases.set(request, found);
+    return found;
+  });
+  state.phraseWait.catch(() => {
+    state.phraseWait = null;
+  });
 }
 
 export async function readBatch(
@@ -226,6 +243,9 @@ export async function reportEmpty(
   phrase: string,
 ): Promise<void> {
   const { deps, state } = ctx;
+  if (deps.readContext().guiding) {
+    return;
+  }
   state.emptyPasses += 1;
   if (state.classifyAt !== null && deps.now() - state.classifyAt < QUIET_MS) {
     return;

@@ -115,9 +115,8 @@ test('a find that lands after the request changed says nothing', async () => {
   assert.deepEqual(sent, []);
 });
 
-test('the find takes a frame too soft for crop reads (t20: 724 read GUEDILA)', async () => {
+test('the find takes a frame sharp enough for it but too soft for crop reads (t20: 724 read GUEDILA)', async () => {
   const { sharpness } = await import('../src/shelf/tracker');
-  // A checker whose contrast lands between the find's bar and the reads'.
   let grey = { data: new Uint8Array(64), w: 8, h: 8 };
   for (let amp = 1; amp < 40 && sharpness(grey) === 0; amp += 1) {
     for (let cols = 2; cols <= 8; cols += 1) {

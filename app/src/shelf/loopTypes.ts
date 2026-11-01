@@ -16,6 +16,8 @@ export interface LoopPhoto {
   h: number;
   grey: GreyFrame;
   shot?: number;
+  /** When the still was taken, so a sweep stop reads only stills from after the camera settled. */
+  at?: number;
 }
 
 export interface LoopContext {
@@ -27,6 +29,8 @@ export interface LoopContext {
   guideLost?: boolean;
   guideRecheck?: boolean;
   guideBox?: ShelfBox | null;
+  /** A sweep cue still waits in the conversation's queue: the sweep's clocks hold. */
+  sweepPending?: boolean;
 }
 
 export interface LoopCut {
@@ -36,19 +40,19 @@ export interface LoopCut {
 
 export interface LoopDeps {
   now: () => number;
-  // Keeps the phrase that outlined, for the next search of this product.
+  /** Keeps the phrase that outlined, for the next search of this product. */
   keepPhrase?: (request: string, phrase: string) => void;
   outline: (image: string, mime: string, phrase: string, w: number, h: number) => Promise<{ outlines: ShelfOutline[]; samMs: number; maskMs: number }>;
   fetchPhrase: (request: string, image: string, mime: string) => Promise<string>;
-  // The grounding find (relay /find); absent, every pass takes the phrase path.
+  /** The grounding find (relay /find); absent, every pass takes the phrase path. */
   find?: (request: string, image: string, mime: string, w: number, h: number) => Promise<FoundShelf>;
   read: (request: string, crops: ShelfCrop[]) => Promise<{ reads: ShelfRead[]; readMs: number }>;
   classify: (request: string, image: string, mime: string, language: Language) => Promise<SceneView>;
   cutCrops: (image: string, tracks: LoopCut[]) => Promise<ShelfCrop[]>;
   readContext: () => LoopContext;
-  // Where the camera points now, for the inventory and the sweep; absent in tests.
+  /** Where the camera points now, for the inventory and the sweep; absent in tests. */
   pan?: () => CameraPan | null;
-  // The not-here summary at the end of a sweep (relay /ask-view).
+  /** The not-here summary at the end of a sweep (relay /ask-view). */
   notHere?: (wanted: string, image: string, mime: string, seen: string[]) => Promise<ViewReply>;
   send: (event: ConversationEvent) => void;
   log: (line: string) => void;
@@ -68,7 +72,7 @@ export interface LoopState {
   tracks: Tracked[];
   counter: number;
   phrases: Map<string, string>;
-  // The phrase asked from a blurry frame while a sharp one is awaited.
+  /** The phrase asked from a blurry frame while a sharp one is awaited. */
   phraseWait: Promise<string> | null;
   cloudBusy: boolean;
   outlinedAt: number | null;
@@ -86,13 +90,13 @@ export interface LoopState {
   foundKey: string;
   foundTrack: string | null;
   foundOutline: ShelfOutline | null;
-  // Each track's last label crop, for the verdict card's photo.
+  /** Each track's last label crop, for the verdict card's photo. */
   crops: Map<string, string>;
-  // Tracks and crops carried from the last request, read before a photo.
+  /** Tracks and crops carried from the last request, read before a photo. */
   carried: { phrase: string | null } | null;
   turnRightNext: boolean;
   sweep: SweepState;
-  // The sharpest still of the last pass, for the not-here summary.
+  /** The sharpest still of the last pass, for the not-here summary. */
   lastStill: LoopPhoto | null;
   stats: LoopStats;
 }
@@ -115,11 +119,11 @@ export interface ShelfLoop {
 export interface CameraPan {
   x: number;
   y: number;
-  // Each camera opening counts its motion from zero.
+  /** Each camera opening counts its motion from zero. */
   session?: number;
 }
 
-// The last request's tracks and label crops, with where the camera was.
+/** The last request's tracks and label crops, with where the camera was. */
 export interface ShelfCarry {
   request: string;
   tracks: Tracked[];

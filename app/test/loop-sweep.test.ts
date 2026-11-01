@@ -1,8 +1,10 @@
 // The sweep inside the shelf loop: a fruitless pass with a known pan
-// starts it, no pass runs while the camera turns, each stop gets one
-// read, and the end of the reach asks what is there instead. A yes at
-// a stop ends the sweep; without a pan the old turns stay, and the
-// swept shelf asks the same question without claiming the whole shelf.
+// starts it, no pass runs while the camera turns or settles, each stop
+// gets one read, and the end of the reach asks what is there instead. A
+// yes at a stop ends the sweep; without a pan the old turns stay, and
+// the swept shelf asks the same question without claiming the whole
+// shelf. A stop reads its own still, never a sharper one from before,
+// and reads an unsure label again before the sweep turns away.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShelfLoop } from '../src/shelf/loop';
@@ -11,6 +13,7 @@ import type { ShelfBox, ShelfOutline, ShelfRead } from '../src/relay';
 import type { ConversationEvent } from '../src/conversation/types';
 import type { ViewReply } from '../src/conversation/askTypes';
 import { forgetSeen } from '../src/shelf/inventory';
+import { sharpness } from '../src/shelf/tracker';
 
 function box(x1: number, x2: number): ShelfBox {
   return { x1, y1: 10, x2, y2: 90, w: 112, h: 96, confidence: 0.98 };
@@ -18,6 +21,11 @@ function box(x1: number, x2: number): ShelfBox {
 
 function photo(): LoopPhoto {
   return { image: 'frame', mime: 'image/jpeg', w: 112, h: 96, grey: { data: new Uint8Array(0), w: 0, h: 0 }, shot: 7 };
+}
+
+function sharpPhoto(image: string, amp: number, at: number): LoopPhoto {
+  const data = new Uint8Array(64).map((_, n) => (((n % 8) + Math.floor(n / 8)) % 2 === 0 ? 128 + amp : 128 - amp));
+  return { ...photo(), image, grey: { data, w: 8, h: 8 }, at };
 }
 
 const BAG: ShelfOutline = { id: 0, frame: 0, box: box(40, 70) };
@@ -102,8 +110,9 @@ test('a fruitless pass sweeps the shelf, reads once per stop, then says what is 
   ];
   for (const [x, y] of stops) {
     await turnTo(r, loop, x, y);
+    assert.equal(loop.cloudDue(), false, `settling at ${x},${y}`);
+    r.clock.now += 1500;
     assert.equal(loop.cloudDue(), true, `due at ${x},${y}`);
-    r.clock.now += 100;
     await loop.cloudPass([photo()]);
   }
   assert.deepEqual(cues(r.sent), ['start', 'stop', 'right', 'stop', 'left', 'stop', 'left', 'stop', 'down', 'stop']);
@@ -166,4 +175,44 @@ test('without a pan the loop keeps its turns and asks at the swept shelf, not cl
   const last = r.sent.filter((event) => event.type === 'NOT_HERE').pop();
   assert.ok(last?.type === 'NOT_HERE');
   assert.equal(last.whole, false);
+});
+
+test('a stop reads a still taken there once the camera settled, not a sharper one from before', async () => {
+  forgetSeen();
+  const r = rig({ x: 0, y: 0, session: 1 }, REPLY);
+  const outlined: string[] = [];
+  const outline = r.deps.outline;
+  r.deps.outline = async (image, ...rest) => {
+    outlined.push(image);
+    return outline(image, ...rest);
+  };
+  const loop = createShelfLoop(r.deps);
+  loop.setTarget('basmati', 1);
+  const origin = sharpPhoto('origin', 6, r.clock.now);
+  await loop.cloudPass([origin]);
+  await turnTo(r, loop, 0.6);
+  const early = sharpPhoto('early', 5, r.clock.now + 500);
+  r.clock.now += 1500;
+  const settled = sharpPhoto('settled', 4, r.clock.now);
+  assert.ok(sharpness(origin.grey) > sharpness(settled.grey) && sharpness(settled.grey) > 800);
+  await loop.cloudPass([origin, early, settled]);
+  assert.deepEqual(outlined, ['origin', 'settled']);
+});
+
+test('an unsure label at a stop is read again there before the sweep turns away', async () => {
+  forgetSeen();
+  const r = rig({ x: 0, y: 0, session: 1 }, REPLY);
+  const loop = createShelfLoop(r.deps);
+  loop.setTarget('basmati', 1);
+  await loop.cloudPass([photo()]);
+  await turnTo(r, loop, 0.6);
+  r.verdict.now = 'unsure';
+  r.clock.now += 1500;
+  await loop.cloudPass([photo()]);
+  assert.deepEqual(cues(r.sent), ['start', 'stop']);
+  assert.equal(loop.cloudDue(), true);
+  r.verdict.now = 'no';
+  r.clock.now += 500;
+  await loop.cloudPass([photo()]);
+  assert.deepEqual(cues(r.sent), ['start', 'stop', 'right']);
 });

@@ -3,19 +3,24 @@
 // passes outline and read in the background without blocking it. The
 // clock, the frames and the cloud are injected, so tests walk the
 // loop with simulated time and the phone drives it with real timers.
+// While the hand is guided to the found product the outlines still
+// refresh, but settled labels are not read again every pass (13 reads
+// in 40 s on the phone, each 2.3 to 4.7 s, against the budget and the
+// confirm). Another search starts a fresh shelf inventory.
 import type { ShelfCrop, ShelfOutline, ShelfRead } from '../relay';
 import { linkKindFor } from '../metaCall';
 import { pickSharpest, sharpness } from './tracker';
 import { anchorOutlines, moveOutlines } from './outlines';
 import { biggestFirst, needsRead, reconcileTracks } from './shelfTracks';
 import { outlineSignature, packageKind } from './match';
-import { QUIET_MS, maybeSwept, readBatch, reportEmpty, reportRefind, reportVerdicts, targetJumped } from './loopReads';
+import { QUIET_MS, maybeSwept, prefetchPhrase, readBatch, reportEmpty, reportRefind, reportVerdicts, targetJumped } from './loopReads';
 import type { LoopDeps, LoopPhoto, LoopStats, ShelfLoop } from './loopTypes';
 import { freshState, searchReset } from './loopState';
 import { runCarried, seedCarry, takeCarry } from './carry';
 import { findPass } from './loopFind';
-import { afterSweepRead, tickSweep } from './loopSweep';
+import { afterSweepRead, stopPhotos, tickSweep } from './loopSweep';
 import { sweepDue } from './sweep';
+import { seenFor } from './inventory';
 
 const REFRESH_MS = 15000;
 // An unsure label is read again from the next sharp frame soon after (t9:
@@ -55,6 +60,7 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
     setTarget(request: string, epoch: number): void {
       if (state.request !== request || state.epoch !== epoch) {
         searchReset(state);
+        seenFor(`${epoch}:${request}`);
       }
       state.request = request;
       state.epoch = epoch;
@@ -77,7 +83,7 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
       if (state.cloudBusy || state.request === '') {
         return false;
       }
-      const swept = sweepDue(state.sweep);
+      const swept = state.foundTrack === null ? sweepDue(state.sweep, deps.now()) : null;
       if (swept !== null) {
         return swept;
       }
@@ -131,22 +137,18 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
       }
 
       async function pass(): Promise<void> {
-        const sharpest = photos[pickSharpest(photos.map((frame) => frame.grey))] as LoopPhoto;
+        const usable = stopPhotos(state, photos);
+        if (usable.length === 0) {
+          deps.log('shelf stop waits for a still taken once the camera settled');
+          return;
+        }
+        const sharpest = usable[pickSharpest(usable.map((frame) => frame.grey))] as LoopPhoto;
         state.lastStill = sharpest;
         const picked = sharpness(sharpest.grey);
         const scored = sharpest.grey.data.length > 0;
         const findable = deps.find !== undefined && !hand && !deps.readContext().guiding;
         if (scored && picked < (findable ? FIND_MIN_SHARPNESS : READ_MIN_SHARPNESS) && state.blurrySkips < BLURRY_SKIP_MAX) {
-          if (!state.phrases.has(request) && !state.phraseWait) {
-            const asked = request;
-            state.phraseWait = deps.fetchPhrase(asked, sharpest.image, sharpest.mime).then((found) => {
-              state.phrases.set(asked, found);
-              return found;
-            });
-            state.phraseWait.catch(() => {
-              state.phraseWait = null;
-            });
-          }
+          prefetchPhrase(ctx, request, sharpest);
           state.blurrySkips += 1;
           deps.log(`shelf frame too blurry for a read (${Math.round(picked)}), waiting for a sharper one`);
           return;
@@ -229,15 +231,7 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
         const verifying =
           context.guiding && !context.handCovering && (context.guideLost || context.guideRecheck || targetJumped(state));
         if (context.guiding && !verifying) {
-          if (context.handCovering) {
-            deps.log('shelf target held under hand');
-          } else {
-            // The product is found and the hand is being guided: the
-            // outlines still refresh, but settled labels are not read
-            // again every pass (13 reads in 40 s on the phone, each
-            // 2.3 to 4.7 s, all against the budget and the confirm).
-            deps.log('shelf reads paused while guiding');
-          }
+          deps.log(context.handCovering ? 'shelf target held under hand' : 'shelf reads paused while guiding');
           deps.send({ type: 'LINK_OK' });
           return;
         }
