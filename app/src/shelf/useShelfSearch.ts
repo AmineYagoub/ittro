@@ -10,25 +10,19 @@
 // heat straight from the log. An optional shot listener hears each
 // cloud photo, which the guide loop caches for its crops.
 import { useEffect, useMemo, useRef } from 'react';
-import { cameraPan, cropShelfPhoto, prepareShelfPhoto, thermalStatus, validTrackPan } from 'ittro-sensors';
+import { cameraPan, prepareShelfPhoto, thermalStatus, validTrackPan } from 'ittro-sensors';
 import type { TrackPan } from 'ittro-sensors';
-import { classifySceneView, findShelf, outlineShelf, fetchPackagePhrase, readShelfCrops } from '../relay';
-import type { ShelfCrop } from '../relay';
-import type { Language } from '../theme';
 import { speech } from '../theme';
 import { playSound } from '../speech';
 import { createShelfLoop } from './loop';
-import { cachedPhrase, rememberPhrase } from './phraseCache';
+import { searchDeps } from './searchDeps';
 import type { LoopPhoto, ShelfCarry, ShelfLoop } from './loopTypes';
 import { decodeBase64, ingestGrey } from './tracker';
 import type { GreyFrame } from './tracker';
-import { CROP_MARGIN, expandBox } from './outlines';
 import type { ConversationContext, ConversationEvent } from '../conversation/types';
-import { handCoversTarget } from '../conversation/searchTarget';
 import { lastHandFix } from '../guide/frames';
 import type { HandFix } from '../guide/types';
 import { logIttro } from '../log';
-import { lastPlacedBox } from '../guide/placedBox';
 
 export interface SearchCamera {
   takeShot: () => Promise<string | null>;
@@ -111,50 +105,10 @@ export function useShelfSearch(
       return undefined;
     }
     const wanted: string = request;
-    const loop = createShelfLoop({
-      now: () => Date.now(),
-      outline: outlineShelf,
-      fetchPhrase: (wantedText, image, mime) => cachedPhrase(wantedText, image, mime, fetchPackagePhrase),
-      keepPhrase: rememberPhrase,
-      find: findShelf,
-      read: readShelfCrops,
-      classify: classifySceneView,
-      cutCrops: async (image, tracks) => {
-        const crops: ShelfCrop[] = [];
-        for (const entry of tracks) {
-          const grown = expandBox(entry.outline.box, CROP_MARGIN);
-          const cut = await cropShelfPhoto(image, grown.x1, grown.y1, grown.x2, grown.y2);
-          if (cut) {
-            crops.push({ id: `shelf-${entry.track}`, image: cut.image, mime: cut.mime });
-          }
-        }
-        return crops;
-      },
-      readContext: () => {
-        const context = actor.current?.getSnapshot().context;
-        return {
-          lang: (context?.lang ?? 'en') as Language,
-          alternative: context?.alternative ?? null,
-          checkedCount: context?.checkedCount ?? 0,
-          guiding: context?.guiding ?? false,
-          handCovering: handCoversTarget(context?.guideHand ?? null, lastPlacedBox(Date.now()) ?? context?.guideTarget?.box ?? null),
-          guideLost: context?.guideOutOfView ?? false,
-          guideRecheck: context?.guideRecheck ?? false,
-          guideBox: context?.guideTarget ? (lastPlacedBox(Date.now()) ?? context.guideTarget.box) : null,
-        };
-      },
-      send: (event) => {
-        if (!stopped) {
-          actor.current?.send(event);
-        }
-      },
-      log: (line) => {
-        note(line);
-      },
-    });
+    let stopped = false;
+    const loop = createShelfLoop(searchDeps(actor, () => stopped));
     const carried = held.current.carry;
     held.current = { loop, carry: null, ring: [], wanted, photoW: 0, stats: freshStats() };
-    let stopped = false;
     let shooting = false;
     syncTarget();
     if (carried) {

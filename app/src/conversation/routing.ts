@@ -38,15 +38,9 @@ import {
   welcomeAfterTour,
 } from './answers';
 import { switchCarry } from './translation';
-import {
-  adoptAlternative,
-  declineAlternative,
-  raiseSearchBegin,
-  raiseSearchEnd,
-  resumeGuideShelf,
-  saySearchingStatus,
-} from './search';
-import { raiseGuideEnd, raiseGuideGotIt, raiseGuideRestart } from '../guide/guideSay';
+import { raiseSearchBegin, raiseSearchEnd } from './search';
+import { alternativeRoutes, lookRoutes } from './searchRoutes';
+import { raiseGuideEnd } from '../guide/guideSay';
 import { raiseConfirmEnd } from '../confirm/confirmSay';
 import { confirmRoutes } from '../confirm/routing';
 import { raiseHelperEnd } from '../helper/helper';
@@ -169,30 +163,6 @@ const confirmSwitch: Guard = ({ context }) => {
   return context.step === 'confirm' && answer?.intent === 'speak_language' && validTarget(answer.target_language);
 };
 
-const alternativeYes: Guard = ({ context }) =>
-  context.step === 'alternative' && answerOf(context)?.intent === 'confirm_yes' && context.alternative !== null;
-
-const alternativeNo: Guard = ({ context }) =>
-  context.step === 'alternative' && answerOf(context)?.intent === 'confirm_no';
-
-const whereSearching: Guard = ({ context }) => answerOf(context)?.intent === 'where_is_it' && context.searching;
-
-const keepLooking: Guard = ({ context }) =>
-  answerOf(context)?.intent === 'keep_looking' && (context.pendingRequest ?? context.request) !== null;
-
-const gotItGuide: Guard = ({ context }) => answerOf(context)?.intent === 'got_it' && context.guiding;
-
-const gotItLost: Guard = ({ context }) => answerOf(context)?.intent === 'got_it';
-
-const guideMeTarget: Guard = ({ context }) => answerOf(context)?.intent === 'guide_me' && context.guideTarget !== null;
-
-const guideMeSearching: Guard = ({ context }) => answerOf(context)?.intent === 'guide_me' && context.searching;
-
-const guideMeShelf: Guard = ({ context }) =>
-  answerOf(context)?.intent === 'guide_me' && context.guideTarget === null && context.shelfTarget !== null;
-
-const guideMeLost: Guard = ({ context }) => answerOf(context)?.intent === 'guide_me';
-
 const switchLangCarry: Guard = ({ context }) => {
   const answer = answerOf(context);
   return (
@@ -270,8 +240,7 @@ export const routingTransitions: Route[] = [
   { guard: confirmNo, actions: [clearAsk, raiseSearchEnd, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'saying' },
   { guard: correctConfirmed, actions: [incomingConfirm, raiseSearchBegin, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'saying' },
   { guard: declineConfirmed, actions: [declineSearch, noteCleared, raiseSearchEnd, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'saying' },
-  { guard: alternativeYes, actions: [adoptAlternative, raiseSearchBegin], target: 'saying' },
-  { guard: alternativeNo, actions: [declineAlternative], target: 'saying' },
+  ...alternativeRoutes,
   { guard: switchLangCarry, actions: [switchCarry, noteLanguage], target: 'translating' },
   { guard: confirmSwitch, actions: [switchKeepConfirm, noteLanguage], target: 'saying' },
   { guard: sleepWake, actions: [chimeWake, wakeLines], target: 'saying' },
@@ -281,14 +250,7 @@ export const routingTransitions: Route[] = [
   { guard: repeatIntent, actions: [sayRepeat], target: 'saying' },
   { guard: stopIntent, actions: [sayStopping, raiseSearchEnd, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'sayingSleep' },
   { guard: freshIntent, actions: [freshAsk, noteCleared, raiseSearchEnd, raiseGuideEnd, raiseConfirmEnd, fireCancel, raiseHelperEnd], target: 'saying' },
-  { guard: whereSearching, actions: [saySearchingStatus], target: 'saying' },
-  { guard: keepLooking, actions: [saySearchingStatus, raiseSearchBegin], target: 'saying' },
-  { guard: gotItGuide, actions: [raiseGuideGotIt, raiseQuestion], target: 'listening' },
-  { guard: gotItLost, actions: [missLine], target: 'saying' },
-  { guard: guideMeTarget, actions: [raiseGuideRestart, raiseSearchBegin, raiseConfirmEnd, raiseQuestion], target: 'listening' },
-  { guard: guideMeSearching, actions: [saySearchingStatus], target: 'saying' },
-  { guard: guideMeShelf, actions: [resumeGuideShelf, raiseGuideRestart, raiseSearchBegin, raiseConfirmEnd, raiseQuestion], target: 'listening' },
-  { guard: guideMeLost, actions: [missLine], target: 'saying' },
+  ...lookRoutes,
   { guard: verboseIntent, actions: [sayVerbose, noteVerbose], target: 'saying' },
   { guard: rateIntent, actions: [changeRate], target: 'saying' },
   { guard: tourIntent, target: 'touring' },
