@@ -39,12 +39,23 @@ export function handOnBox(hand: HandBox | undefined, box: ShelfBox): boolean {
   return w > 0 && h > 0 && (w * h) / (handW * handH) >= HAND_SHARE;
 }
 
+// SAM's box often stops below a bottle's neck and cap, where a hand
+// takes it (t9: the fingertip on the Guedila's neck, 50 px above the
+// box, heard "a little lower" three times). The fifth of the box's
+// height above its top, within its inner width, is still the product.
+const NECK_SHARE = 0.2;
+
+function onNeck(tip: TipPoint, box: ShelfBox, margin: number): boolean {
+  const neck = NECK_SHARE * (box.y2 - box.y1);
+  return tip.x >= box.x1 + margin && tip.x <= box.x2 - margin && tip.y >= box.y1 - neck && tip.y < box.y1 + margin;
+}
+
 export function steerFor(tip: TipPoint, box: ShelfBox, hand?: HandBox): SteerVerdict {
   const margin = almostMargin(box);
   const boxWidth = Math.max(1, box.x2 - box.x1);
   const insideInner =
     tip.x >= box.x1 + margin && tip.x <= box.x2 - margin && tip.y >= box.y1 + margin && tip.y <= box.y2 - margin;
-  if (insideInner || handOnBox(hand, box)) {
+  if (insideInner || onNeck(tip, box, margin) || handOnBox(hand, box)) {
     return { kind: 'covering' };
   }
   const insideOuter = tip.x >= box.x1 - margin && tip.x <= box.x2 + margin && tip.y >= box.y1 - margin && tip.y <= box.y2 + margin;
