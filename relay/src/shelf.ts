@@ -181,7 +181,9 @@ const READ_INSTRUCTIONS = [
   'Copy only text you can really read on that product; anything unreadable is null, never a guess.',
   'brand_text is the brand or maker, size_text the variant or size. verdict is yes only when the crop is',
   'exactly what was requested, brand and size alike; no when it is something else; unsure when the label',
-  'does not settle it. A reflection of a product in glass, a window or a mirror, or a picture of one, is',
+  'does not settle it. When the request names a kind or variety (white rice, basmati, red lentils), the',
+  'label must name that same one: a label naming another variety is no, even when it loosely fits the words',
+  '(Riz Basmati is no for white rice, Riz blanc is no for basmati). A reflection of a product in glass, a window or a mirror, or a picture of one, is',
   'never the product: its verdict is no. spoken names the crop in a few words for speech. Answer every crop',
   'id exactly once.',
 ].join(' ');

@@ -130,3 +130,20 @@ test('a minimal read asks Meta with minimal effort', async () => {
   await readShelfLabels(record, 'https://example.invalid', 'key', { request: 'water', crops: [CROP], effort: 'minimal' });
   assert.equal(effort, 'minimal');
 });
+
+// Shelf video, 1 Nov: "أرز أبيض" (white rice) read yes on Riz Basmati in
+// three frames; the read must hold the shopper to the variety named.
+test('the read prompt holds a named variety to the label', async () => {
+  let system = '';
+  const record: typeof fetch = (async (_url: unknown, init: unknown) => {
+    const body = JSON.parse(String((init as { body: string }).body)) as { input: { role: string; content: string }[] };
+    system = body.input.find((part) => part.role === 'system')?.content ?? '';
+    return {
+      ok: true,
+      json: async () => completed({ reads: [{ id: 'shelf-0', brand_text: null, size_text: null, verdict: 'no', spoken: 'rice' }] }),
+    };
+  }) as unknown as typeof fetch;
+  await readShelfLabels(record, 'https://example.invalid', 'key', { request: 'أرز أبيض', crops: [CROP] });
+  assert.match(system, /label must name that same one/);
+  assert.match(system, /Riz Basmati is no for white rice/);
+});
