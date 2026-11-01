@@ -220,3 +220,32 @@ test('the target moving with a covering hand is contact', async () => {
   }
   assert.equal(env.sent.filter((event) => event.type === 'GUIDE_CONTACT').length, 1);
 });
+
+test('a rest read failing after guiding stopped reports no lost link (t17)', async () => {
+  const sent: ConversationEvent[] = [];
+  let now = 10000;
+  let fail!: (error: Error) => void;
+  const gate = new Promise<{ reads: ShelfRead[]; readMs: number }>((_, reject) => {
+    fail = reject;
+  });
+  const loop = createGuideLoop({
+    now: () => now,
+    send: (event) => {
+      sent.push(event);
+    },
+    log: () => undefined,
+    cutCrop: async () => ({ id: 'hand-1', image: 'crop', mime: 'image/jpeg' }),
+    read: () => gate,
+  });
+  loop.setTarget(TARGET);
+  loop.setPhoto({ image: 'photo', mime: 'image/jpeg' });
+  await loop.handFrame(fix(180, 520, now), [TARGET, OTHER], 1280, 960);
+  now += 300;
+  await loop.handFrame(fix(181, 520, now), [TARGET, OTHER], 1280, 960);
+  now += 300;
+  const pending = loop.handFrame(fix(180, 520, now), [TARGET, OTHER], 1280, 960);
+  loop.reset();
+  fail(new Error('no route to the relay: timed out after 15000ms'));
+  await pending;
+  assert.equal(sent.filter((event) => event.type.startsWith('LINK')).length, 0);
+});

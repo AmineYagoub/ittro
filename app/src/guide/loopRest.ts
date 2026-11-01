@@ -1,7 +1,9 @@
 // The rest read behind the guide loop: a fingertip resting on a
 // product that is not the target reads that product, and a no comes
 // back with the way toward the target. Pure against the loop state,
-// so the loop keeps its size and the read keeps its tests.
+// so the loop keeps its size and the read keeps its tests. A read that
+// ends after guiding stopped (a yes, a pause) says nothing, not even a
+// lost link (t17 said the internet was lost 5 s after the yes).
 import type { ShelfBox, ShelfOutline } from '../relay';
 import { linkKindFor } from '../metaCall';
 import { linkEvent } from '../conversation/link';
@@ -54,12 +56,12 @@ export async function restRead(
       return;
     }
     const answer = await deps.read(state.label, [crop]);
+    if (state.restAnchor !== reading || !state.restRead) {
+      return;
+    }
     deps.send({ type: 'LINK_OK' });
     const verdict = answer.reads[0];
     if (!verdict || verdict.verdict !== 'no') {
-      return;
-    }
-    if (state.restAnchor !== reading || !state.restRead) {
       return;
     }
     const label = [verdict.brand_text, verdict.size_text].filter((part) => part && part.length > 0).join(' ') || verdict.spoken;
@@ -69,6 +71,8 @@ export async function restRead(
     deps.send({ type: 'GUIDE_WRONG', label, cue });
   } catch (error) {
     deps.log(`guide rest read failed: ${String((error as Error)?.message ?? error)}`);
-    deps.send(linkEvent(linkKindFor(error)));
+    if (state.restAnchor === reading && state.restRead) {
+      deps.send(linkEvent(linkKindFor(error)));
+    }
   }
 }
