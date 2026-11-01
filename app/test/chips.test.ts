@@ -48,7 +48,7 @@ async function atConfirm(): Promise<Driver> {
 async function atAlternative(): Promise<Driver> {
   const driver = await atConfirm();
   await driver.heard('Yes');
-  driver.send({ type: 'CLOSE_MATCH', wanted: 'Masaad water', found: 'Masaad juice' });
+  driver.send({ type: 'NOT_HERE', wanted: 'Masaad water', answer: 'No Masaad water on this shelf. I see Masaad juice.', offer: 'Masaad juice', checked: 4, whole: true });
   await driver.flush();
   assert.equal(driver.context().step, 'alternative');
   return driver;

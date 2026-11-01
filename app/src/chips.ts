@@ -23,6 +23,8 @@ export const GUIDE_CHIP: Record<Language, string> = { en: 'guide me', ar: 'أر�
 
 export const READ_AGAIN_CHIP: Record<Language, string> = { en: 'read again', ar: 'اقرأ مجددًا', fr: 'relisez' };
 
+export const KEEP_LOOKING_CHIP: Record<Language, string> = { en: 'keep looking', ar: 'واصل البحث', fr: 'continuez à chercher' };
+
 export const FIND_ANOTHER_CHIP: Record<Language, string> = { en: 'find another', ar: 'ابحث عن غيره', fr: 'cherchez un autre' };
 
 export const DONE_CHIP: Record<Language, string> = { en: 'done', ar: 'انتهيت', fr: 'c’est fini' };

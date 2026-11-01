@@ -1,34 +1,10 @@
-// Shelf verdict decisions: which read is the product, which is a
-// close alternative, and how the package kind is named aloud. A close
-// match shares a real word with the request; sizes never match, since
-// a different size is the point of the alternative.
+// Shelf naming helpers: how the package kind is named aloud, where to
+// ask when the scene check names no aisle, and a signature that tells
+// a new set of outlines from the last one. What to offer when the
+// product is not here is Muse Spark's call (shelf/loopSweep.ts): word
+// overlap never matched across scripts.
 import type { Language } from '../theme';
-import type { ShelfOutline, ShelfRead } from '../relay';
-
-function words(text: string): string[] {
-  return text
-    .split(/[^\p{L}\p{N}]+/u)
-    .map((word) => word.toLowerCase())
-    .filter((word) => word.length >= 3)
-    .filter((word) => !/\d/.test(word));
-}
-
-export function findCloseMatch(request: string, reads: ShelfRead[]): string | null {
-  const wanted = new Set(words(request));
-  if (wanted.size === 0) {
-    return null;
-  }
-  for (const read of reads) {
-    if (read.verdict !== 'no') {
-      continue;
-    }
-    const names = [read.spoken, read.brand_text ?? '', read.size_text ?? ''].join(' ');
-    if (words(names).some((word) => wanted.has(word))) {
-      return read.spoken;
-    }
-  }
-  return null;
-}
+import type { ShelfOutline } from '../relay';
 
 export function aisleFallback(lang: Language): string {
   if (lang === 'ar') {

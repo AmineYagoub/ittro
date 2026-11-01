@@ -1,6 +1,7 @@
 // The shelf loop's state: fresh at start, and reset for each new
 // request or epoch.
 import type { LoopState } from './loopTypes';
+import { idleSweep } from './sweep';
 
 export function freshState(): LoopState {
   return {
@@ -29,6 +30,8 @@ export function freshState(): LoopState {
     crops: new Map(),
     carried: null,
     turnRightNext: true,
+    sweep: idleSweep(),
+    lastStill: null,
     stats: { samCalls: 0, readCalls: 0, readCrops: 0, classifyCalls: 0, findCalls: 0 },
   };
 }
@@ -50,4 +53,6 @@ export function searchReset(state: LoopState): void {
   state.crops.clear();
   state.carried = null;
   state.turnRightNext = true;
+  state.sweep = idleSweep();
+  state.lastStill = null;
 }

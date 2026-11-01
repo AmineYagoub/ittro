@@ -6,6 +6,8 @@ import type { FoundShelf, SceneView, ShelfBox, ShelfCrop, ShelfOutline, ShelfRea
 import type { GreyFrame } from './tracker';
 import type { Tracked } from './shelfTracks';
 import type { ConversationEvent } from '../conversation/types';
+import type { ViewReply } from '../conversation/askTypes';
+import type { SweepState } from './sweep';
 
 export interface LoopPhoto {
   image: string;
@@ -44,8 +46,10 @@ export interface LoopDeps {
   classify: (request: string, image: string, mime: string) => Promise<SceneView>;
   cutCrops: (image: string, tracks: LoopCut[]) => Promise<ShelfCrop[]>;
   readContext: () => LoopContext;
-  // Where the camera points now, for the shelf inventory; absent in tests.
+  // Where the camera points now, for the inventory and the sweep; absent in tests.
   pan?: () => CameraPan | null;
+  // The not-here summary at the end of a sweep (relay /ask-view).
+  notHere?: (wanted: string, image: string, mime: string, seen: string[]) => Promise<ViewReply>;
   send: (event: ConversationEvent) => void;
   log: (line: string) => void;
 }
@@ -87,6 +91,9 @@ export interface LoopState {
   // Tracks and crops carried from the last request, read before a photo.
   carried: { phrase: string | null } | null;
   turnRightNext: boolean;
+  sweep: SweepState;
+  // The sharpest still of the last pass, for the not-here summary.
+  lastStill: LoopPhoto | null;
   stats: LoopStats;
 }
 
@@ -101,6 +108,7 @@ export interface ShelfLoop {
   carry: (pan: CameraPan | null) => ShelfCarry | null;
   seed: (carry: ShelfCarry, pan: CameraPan | null) => boolean;
   carriedPass: () => Promise<boolean>;
+  sweepTick: () => void;
   stats: () => LoopStats;
 }
 

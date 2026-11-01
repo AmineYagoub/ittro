@@ -4,13 +4,12 @@
 // mid-sentence is lost; listening speaks them when it can.
 import { assignConversation as assign, raiseConversation as raise } from './actors';
 import type { ContextArgs, EventArgs } from './actions';
-import { ASK_CHIP, NO_CHIP, YES_CHIP } from '../chips';
+import { ASK_CHIP } from '../chips';
 import { raiseLinkKind } from './link';
 import { logIttro } from '../log';
-import { shortProduct, stillLooking } from '../requestLines';
+import { lookingFor, shortProduct, stillLooking } from '../requestLines';
 import {
   checkingLine,
-  closeMatchLine,
   holdPhoneLine,
   readingLine,
   searchingLine,
@@ -117,18 +116,6 @@ export const storeWrongShelf = assign({
       : context.pendingSearch,
 });
 
-export const storeCloseMatch = assign({
-  alternative: ({ event }: EventArgs) => (event.type === 'CLOSE_MATCH' ? event.found : null),
-  pendingSearch: ({ context, event }: EventArgs) =>
-    event.type === 'CLOSE_MATCH'
-      ? queueLine(context, {
-          text: closeMatchLine(event.wanted, event.found, context.lang),
-          chips: [YES_CHIP[context.lang], NO_CHIP[context.lang]],
-          kind: 'alternative',
-        })
-      : context.pendingSearch,
-});
-
 export const storeHandHold = assign({
   pendingSearch: ({ context }: ContextArgs) =>
     queueLine(context, { text: checkingLine(context.lang), chips: [], kind: 'status' }),
@@ -219,7 +206,6 @@ export const searchTalkOn = {
   SHELF_OUTLINED: { actions: [storeOutlined, logOutlined] },
   SHELF_SWEPT: { actions: [storeSwept] },
   WRONG_SHELF: { actions: [storeWrongShelf] },
-  CLOSE_MATCH: { actions: [storeCloseMatch] },
   HAND_HOLD: { actions: [storeHandHold] },
   SEARCH_FAILED: { actions: [raiseLinkKind] },
   SHELF_FOUND: { guard: foundWithoutOutline, actions: [storeFound] },
@@ -250,9 +236,7 @@ export const adoptAlternative = assign({
   step: 'welcome',
   pendingQuestion: null,
   alternative: null,
-  pendingSay: ({ context }: ContextArgs) => [
-    { text: searchingStatusLine(context.alternative ?? context.request ?? '', context.checkedCount, context.lang), chips: [] },
-  ],
+  pendingSay: ({ context }: ContextArgs) => [{ text: lookingFor(context.alternative ?? context.request ?? '', context.lang), chips: [] }],
 });
 
 export const declineAlternative = assign({

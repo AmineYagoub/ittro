@@ -14,6 +14,8 @@ import type { LoopDeps, LoopPhoto, LoopStats, ShelfLoop } from './loopTypes';
 import { freshState, searchReset } from './loopState';
 import { runCarried, seedCarry, takeCarry } from './carry';
 import { findPass } from './loopFind';
+import { afterSweepRead, tickSweep } from './loopSweep';
+import { sweepDue } from './sweep';
 
 const REFRESH_MS = 15000;
 // An unsure label is read again from the next sharp frame soon after (t9:
@@ -75,6 +77,10 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
       if (state.cloudBusy || state.request === '') {
         return false;
       }
+      const swept = sweepDue(state.sweep);
+      if (swept !== null) {
+        return swept;
+      }
       if (state.outlinedAt === null || state.sceneChanged || deps.now() - state.outlinedAt >= REFRESH_MS) {
         return true;
       }
@@ -112,14 +118,25 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
       state.cloudBusy = true;
       const epoch = state.epoch;
       const request = state.request;
+      const outlinedBefore = state.outlinedAt;
       try {
+        await pass();
+        if (state.outlinedAt !== outlinedBefore) {
+          await afterSweepRead(ctx, request, epoch);
+        }
+      } catch (error) {
+        fail(error);
+      } finally {
+        state.cloudBusy = false;
+      }
+
+      async function pass(): Promise<void> {
         const sharpest = photos[pickSharpest(photos.map((frame) => frame.grey))] as LoopPhoto;
+        state.lastStill = sharpest;
         const picked = sharpness(sharpest.grey);
         const scored = sharpest.grey.data.length > 0;
         const findable = deps.find !== undefined && !hand && !deps.readContext().guiding;
         if (scored && picked < (findable ? FIND_MIN_SHARPNESS : READ_MIN_SHARPNESS) && state.blurrySkips < BLURRY_SKIP_MAX) {
-          // The phrase names the package, which a blurry frame still shows:
-          // ask for it now rather than after the sharp frame (t9: 2.8 s).
           if (!state.phrases.has(request) && !state.phraseWait) {
             const asked = request;
             state.phraseWait = deps.fetchPhrase(asked, sharpest.image, sharpest.mime).then((found) => {
@@ -169,7 +186,6 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
           if (stale(epoch)) {
             return;
           }
-          // The shelf answers to the short word: the next passes ask it first.
           if (outlined.outlines.length > 0) {
             state.phrases.set(request, shorter);
             deps.keepPhrase?.(request, shorter);
@@ -255,13 +271,9 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
           }
         }
         if (!verifying) {
-          maybeSwept(ctx, passReads, epoch);
+          await maybeSwept(ctx, request, passReads, epoch);
         }
         deps.send({ type: 'LINK_OK' });
-      } catch (error) {
-        fail(error);
-      } finally {
-        state.cloudBusy = false;
       }
     },
 
@@ -275,6 +287,10 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
 
     carriedPass() {
       return runCarried(ctx);
+    },
+
+    sweepTick() {
+      tickSweep(ctx);
     },
 
     stats(): LoopStats {

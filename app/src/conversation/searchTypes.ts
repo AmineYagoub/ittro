@@ -4,9 +4,10 @@
 import type { LinkKind } from '../metaCall';
 import type { ShelfOutline } from '../relay';
 import type { GuidePosition, SpokenLine } from './types';
+import type { SweepCue } from '../shelf/sweep';
 
 export interface SearchAnnouncement extends SpokenLine {
-  kind: 'status' | 'alternative';
+  kind: 'status' | 'alternative' | 'sweep';
 }
 
 export interface SearchContext {
@@ -28,10 +29,11 @@ export type SearchEvent =
   | { type: 'SHELF_OUTLINED'; outlines: ShelfOutline[]; kind: string }
   | { type: 'SHELF_SWEPT'; checked: number }
   | { type: 'WRONG_SHELF'; kind: string; aisle: string }
-  | { type: 'CLOSE_MATCH'; wanted: string; found: string }
   | { type: 'HAND_HOLD' }
   | { type: 'SEARCH_FAILED'; kind: LinkKind }
   | { type: 'SHELF_FOUND'; product: string; outline: ShelfOutline | null; matches: number; kind: string; position: GuidePosition; crop?: string | null }
   | { type: 'NO_SHELF'; floor: boolean }
   | { type: 'OUTLINES_MOVED'; outlines: ShelfOutline[] }
-  | { type: 'SHELF_TURN'; direction: 'left' | 'right' };
+  | { type: 'SHELF_TURN'; direction: 'left' | 'right' }
+  | { type: 'SWEEP_CUE'; cue: SweepCue; product: string }
+  | { type: 'NOT_HERE'; wanted: string; answer: string; offer: string | null; checked: number; whole: boolean };

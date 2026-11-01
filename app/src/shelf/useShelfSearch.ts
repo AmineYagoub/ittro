@@ -116,6 +116,10 @@ export function useShelfSearch(
       loop.seed(carried, cameraPan());
     }
     const cloudTimer = setInterval(() => {
+      const context = actor.current?.getSnapshot().context;
+      if (context && shouldTickForSearch(context.searching, context.guiding, context.confirming)) {
+        loop.sweepTick();
+      }
       void cloudTick();
     }, CLOUD_EVERY_MS);
     const soundTimer = setInterval(() => {

@@ -50,6 +50,7 @@ import {
 import { consumedFinal, logConsumedFinal } from './consumed';
 import { understandInput } from './askHints';
 import { ackHeard, askingState } from './askView';
+import { sweepTalkOn } from './sweepTalk';
 import type { ContextArgs } from './actions';
 import { buttonsLines } from './answers';
 import { UNDERSTAND_TIMEOUT_MS, hasLinkLine, raiseLinkDown, raiseLinkForError, raiseLinkOk, sayLinkLine, understandTimedOut } from './link';
@@ -93,6 +94,7 @@ export const talkState = {
   initial: 'boot',
   on: {
     ...searchTalkOn,
+    ...sweepTalkOn,
     ...guideTalkOn,
     ...earbudTalkOn,
     ...helperTalkOn,

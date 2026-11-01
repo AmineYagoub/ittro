@@ -2,7 +2,7 @@
 // label crops cut on the phone, and what it reads from the
 // conversation. useShelfSearch makes one set per search.
 import { cameraPan, cropShelfPhoto } from 'ittro-sensors';
-import { classifySceneView, findShelf, outlineShelf, fetchPackagePhrase, readShelfCrops } from '../relay';
+import { askAboutView, classifySceneView, findShelf, outlineShelf, fetchPackagePhrase, readShelfCrops } from '../relay';
 import type { ShelfCrop } from '../relay';
 import type { Language } from '../theme';
 import { cachedPhrase, rememberPhrase } from './phraseCache';
@@ -18,6 +18,11 @@ export function searchDeps(actor: { current: SearchActor | null }, stopped: () =
   return {
     now: () => Date.now(),
     pan: cameraPan,
+    notHere: async (wanted, image, mime, seen) => {
+      const language = actor.current?.getSnapshot().context.lang ?? 'en';
+      const answer = await askAboutView({ question: null, wanted, language, image, mime, history: [], inventory: seen, upset: false, brief: false });
+      return answer.view;
+    },
     outline: outlineShelf,
     fetchPhrase: (wantedText, image, mime) => cachedPhrase(wantedText, image, mime, fetchPackagePhrase),
     keepPhrase: rememberPhrase,

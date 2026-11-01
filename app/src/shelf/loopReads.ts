@@ -1,7 +1,7 @@
 // The cloud half of the shelf loop: new tracks read in a priority
 // batch first, so the found line never waits on the rest; then the
 // verdicts, the swept shelf, and the empty-shelf scenes.
-import { aisleFallback, findCloseMatch, packageKind } from './match';
+import { aisleFallback, packageKind } from './match';
 import { createReadQueue, dropEpoch, enqueueRead, nextRead } from './queue';
 import type { ShelfBox, ShelfCrop, ShelfRead } from '../relay';
 import type { LoopDeps, LoopState } from './loopTypes';
@@ -9,6 +9,7 @@ import type { Tracked } from './shelfTracks';
 import { boxOverlap } from './outlines';
 import { positionFor } from '../guide/steer';
 import { noteSeen, readName } from './inventory';
+import { beginSweep, sayNotHere } from './loopSweep';
 
 export const QUIET_MS = 8000;
 
@@ -130,7 +131,7 @@ function sendFound(ctx: ReadsContext, request: string, reads: ShelfRead[], epoch
 }
 
 export function reportVerdicts(ctx: ReadsContext, request: string, reads: ShelfRead[], epoch: number): void {
-  const { deps, state } = ctx;
+  const { state } = ctx;
   const target = nearestOutline(state, reads);
   if (target) {
     state.fruitlessPasses = 0;
@@ -139,12 +140,6 @@ export function reportVerdicts(ctx: ReadsContext, request: string, reads: ShelfR
       state.foundKey = key;
       sendFound(ctx, request, reads, epoch, target);
     }
-    return;
-  }
-  const close = findCloseMatch(request, reads);
-  if (close && deps.readContext().alternative !== close) {
-    state.fruitlessPasses = 0;
-    deps.send({ type: 'CLOSE_MATCH', wanted: request, found: close });
   }
 }
 
@@ -205,9 +200,12 @@ export function targetJumped(state: LoopState): boolean {
   return boxOverlap(entry.outline.box, state.foundOutline.box) < TARGET_STEADY_IOU;
 }
 
-export function maybeSwept(ctx: ReadsContext, reads: ShelfRead[], epoch: number): void {
+export async function maybeSwept(ctx: ReadsContext, request: string, reads: ShelfRead[], epoch: number): Promise<void> {
   const { deps, state } = ctx;
   if (reads.length === 0 || !reads.every((read) => read.verdict === 'no')) {
+    return;
+  }
+  if (beginSweep(ctx) || state.sweep.phase !== 'idle') {
     return;
   }
   state.fruitlessPasses += 1;
@@ -215,7 +213,7 @@ export function maybeSwept(ctx: ReadsContext, reads: ShelfRead[], epoch: number)
   if (state.fruitlessPasses >= EMPTY_BEFORE_SWEPT && state.sweptEpoch !== epoch && checked > 0) {
     state.fruitlessPasses = 0;
     state.sweptEpoch = epoch;
-    deps.send({ type: 'SHELF_SWEPT', checked });
+    await sayNotHere(ctx, request, epoch, checked, false);
   }
 }
 
@@ -252,6 +250,9 @@ export async function reportEmpty(
       state.lastScene = key;
       deps.send({ type: 'WRONG_SHELF', kind, aisle: scene.aisle_hint ?? aisleFallback(context.lang) });
     }
+    return;
+  }
+  if (beginSweep(ctx) || state.sweep.phase !== 'idle') {
     return;
   }
   if (state.emptyPasses >= EMPTY_BEFORE_TURN) {

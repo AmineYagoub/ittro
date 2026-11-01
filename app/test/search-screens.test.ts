@@ -1,5 +1,5 @@
 // Walks the shelf screens: turning the phone, the wrong shelf, the
-// close alternative, the found line and holding the phone. Each line
+// not-here offer, the found line and holding the phone. Each line
 // carries the computed names and counts from the design.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -51,7 +51,7 @@ test('a wrong shelf points to a person, with yes-no chips absent', async () => {
 });
 
 
-test('a close match asks, and yes adopts it as the request', async () => {
+test('the not-here offer asks, and yes adopts it as the request', async () => {
   resetStorage();
   const driver = await startListening();
   try {
@@ -63,10 +63,13 @@ test('a close match asks, and yes adopts it as the request', async () => {
     });
     await driver.heard("I'm looking for Masaad 1.5 litres");
     await driver.heard('Yes');
-    driver.send({ type: 'CLOSE_MATCH', wanted: 'Masaad 1.5 litres', found: 'Masaad 0.5 litres' });
+    driver.send({ type: 'NOT_HERE', wanted: 'Masaad 1.5 litres', answer: 'No Masaad 1.5 litres on this shelf. I see Masaad 0.5 litres.', offer: 'Masaad 0.5 litres', checked: 6, whole: true });
     await driver.flush();
     assert.equal(driver.context().step, 'alternative');
-    assert.match(driver.spoken[driver.spoken.length - 1] ?? '', /Masaad 0.5 litres\. Do you want that one/);
+    assert.equal(
+      driver.spoken[driver.spoken.length - 1],
+      'I checked the whole shelf. No Masaad 1.5 litres on this shelf. I see Masaad 0.5 litres. Do you want Masaad 0.5 litres?',
+    );
     await driver.heard('Yes');
     assert.equal(driver.context().request, 'Masaad 0.5 litres');
     assert.equal(driver.context().step, 'welcome');
@@ -77,7 +80,7 @@ test('a close match asks, and yes adopts it as the request', async () => {
 });
 
 
-test('a close match answered no keeps the standing request', async () => {
+test('the not-here offer answered no keeps the standing request', async () => {
   resetStorage();
   const driver = await startListening();
   try {
@@ -92,7 +95,7 @@ test('a close match answered no keeps the standing request', async () => {
     });
     await driver.heard("I'm looking for Masaad 1.5 litres");
     await driver.heard('Yes');
-    driver.send({ type: 'CLOSE_MATCH', wanted: 'Masaad 1.5 litres', found: 'Masaad 0.5 litres' });
+    driver.send({ type: 'NOT_HERE', wanted: 'Masaad 1.5 litres', answer: 'No Masaad 1.5 litres on this shelf.', offer: 'Masaad 0.5 litres', checked: 6, whole: true });
     await driver.flush();
     await driver.heard('No thanks');
     assert.equal(driver.context().request, 'Masaad 1.5 litres');

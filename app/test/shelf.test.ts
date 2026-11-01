@@ -9,7 +9,7 @@ import type { GreyFrame } from '../src/shelf/tracker';
 import { createReadQueue, dropEpoch, enqueueRead, nextRead, queueSize } from '../src/shelf/queue';
 import { biggestFirst, needsRead, reconcileTracks } from '../src/shelf/shelfTracks';
 import type { Tracked } from '../src/shelf/shelfTracks';
-import { aisleFallback, findCloseMatch, outlineSignature, packageKind } from '../src/shelf/match';
+import { aisleFallback, outlineSignature, packageKind } from '../src/shelf/match';
 
 function patternFrame(w: number, h: number, paint: (x: number, y: number) => number): GreyFrame {
   const data = new Uint8Array(w * h);
@@ -133,15 +133,6 @@ test('only new and unsure tracks need a read, biggest first', () => {
     biggestFirst(needsRead(tracks)).map((entry) => entry.track),
     ['t2', 't3'],
   );
-});
-
-test('a close match shares a real word, never just a size', () => {
-  const reads = [
-    { id: 'shelf-0', brand_text: 'Masaad', size_text: '0.5 litres', verdict: 'no' as const, spoken: 'Masaad 0.5 litres' },
-    { id: 'shelf-1', brand_text: 'Guedila', size_text: '1.5 litres', verdict: 'no' as const, spoken: 'Guedila water' },
-  ];
-  assert.equal(findCloseMatch('Masaad 1.5 litres', reads), 'Masaad 0.5 litres');
-  assert.equal(findCloseMatch('Elio oil', reads), null);
 });
 
 test('the package kind names the shelf aloud in every language', () => {

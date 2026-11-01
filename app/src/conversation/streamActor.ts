@@ -6,7 +6,8 @@
 // endpointing stay alive, but nothing Ittro says can come back as a
 // transcript. The earbud button interrupts a line; the text echo
 // check in the statechart stays as a second net. Restarts wait 1 s,
-// 2 s, 4 s and on, and the log says why the socket closed.
+// 2 s, 4 s and on, and the log says why the socket closed. A start
+// keeps a socket still on its way to ready (t20 closed one 3.7 s in).
 import { fromCallback } from 'xstate';
 import { addAudioChunkListener, startAudioStream, stopAudioStream } from 'ittro-sensors';
 import type { StreamCommand, StreamEmitted, StreamInput } from './types';
@@ -269,7 +270,6 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
 
     const start = (nextKeywords: string[]): void => {
       keywords = nextKeywords;
-      // A socket still on its way to ready is kept (t20 closed one 3.7 s in).
       if (opening) {
         return;
       }
