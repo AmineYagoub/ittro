@@ -29,9 +29,15 @@ class IttroCameraView(context: Context, appContext: AppContext) : ExpoView(conte
   private var surface: android.view.Surface? = null
 
   init {
-    // ExpoView is a LinearLayout, which stacks its children: the outline goes over the preview in a FrameLayout
-    val layers = FrameLayout(context)
-    layers.addView(preview, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+    // ExpoView is a LinearLayout, which stacks its children: the outline goes over the preview in a FrameLayout.
+    // The preview is a 4:3 stream laid out to cover the screen, centred and cropped: the same mapping the
+    // outline draws with.
+    val layers = CoverLayout(context, preview)
+    try {
+      pickPreviewSize(context)?.let { preview.holder.setFixedSize(it.width, it.height) }
+    } catch (e: Exception) {
+    }
+    layers.addView(preview)
     layers.addView(outlines, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
     addView(layers, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT))
     OutlineTrack.attach(outlines)
@@ -89,5 +95,40 @@ class IttroCameraView(context: Context, appContext: AppContext) : ExpoView(conte
       onPan = { pan -> onTrackPan(pan) },
       onError = { message -> onCameraError(mapOf("message" to message)) },
     )
+  }
+}
+
+// Lays the preview out at 3:4, large enough to cover the view and
+// centred, so its edges crop off screen as the outline's mapping
+// assumes; every other child fills the view.
+private class CoverLayout(context: Context, private val preview: SurfaceView) : FrameLayout(context) {
+  override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+    val w = MeasureSpec.getSize(widthMeasureSpec)
+    val h = MeasureSpec.getSize(heightMeasureSpec)
+    setMeasuredDimension(w, h)
+    for (i in 0 until childCount) {
+      val child = getChildAt(i)
+      val (cw, ch) = if (child === preview) cover(w, h) else Pair(w, h)
+      child.measure(MeasureSpec.makeMeasureSpec(cw, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(ch, MeasureSpec.EXACTLY))
+    }
+  }
+
+  override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+    val w = right - left
+    val h = bottom - top
+    for (i in 0 until childCount) {
+      val child = getChildAt(i)
+      val x = (w - child.measuredWidth) / 2
+      val y = (h - child.measuredHeight) / 2
+      child.layout(x, y, x + child.measuredWidth, y + child.measuredHeight)
+    }
+  }
+
+  private fun cover(w: Int, h: Int): Pair<Int, Int> {
+    if (w <= 0 || h <= 0) {
+      return Pair(w, h)
+    }
+    // upright frames are 3 wide by 4 tall
+    return if (w * 4 >= h * 3) Pair(w, w * 4 / 3) else Pair(h * 3 / 4, h)
   }
 }

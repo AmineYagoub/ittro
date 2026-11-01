@@ -2,6 +2,8 @@ package dev.ittro.sensors
 
 import android.content.Context
 import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
+import android.view.SurfaceHolder
 import android.os.Build
 import android.util.Size
 import android.view.Surface
@@ -13,6 +15,8 @@ import android.view.Surface
 private const val STILL_MIN_LONG_SIDE = 1280
 
 private const val HAND_MIN_WIDTH = 480
+
+private const val PREVIEW_MIN_SHORT_SIDE = 1080
 
 private const val FOUR_THIRDS = 4.0 / 3.0
 
@@ -34,6 +38,21 @@ fun pickHandSize(sizes: Array<Size>?): Size? {
   }
   val near = sizes.filter { isFourThirds(it) && minOf(it.width, it.height) >= HAND_MIN_WIDTH }
   return (near.ifEmpty { sizes.toList() }).minByOrNull { it.width * it.height }
+}
+
+// The preview stream in the stills' 4:3 shape, so the picture on
+// screen is the same frame the outlines are cut from. Left to itself
+// the surface took the screen's size and the camera stretched some
+// other stream into it, and outlines landed beside their products.
+fun pickPreviewSize(context: Context): Size? {
+  val manager = context.getSystemService(CameraManager::class.java) ?: return null
+  val id = manager.cameraIdList.firstOrNull {
+    manager.getCameraCharacteristics(it).get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_BACK
+  } ?: manager.cameraIdList.firstOrNull() ?: return null
+  val map = manager.getCameraCharacteristics(id).get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP) ?: return null
+  val sizes = map.getOutputSizes(SurfaceHolder::class.java) ?: return null
+  val fit = sizes.filter { isFourThirds(it) && minOf(it.width, it.height) >= PREVIEW_MIN_SHORT_SIDE }
+  return (fit.ifEmpty { sizes.filter { isFourThirds(it) } }).minByOrNull { it.width * it.height }
 }
 
 fun uprightDeg(context: Context, features: CameraCharacteristics): Int {
