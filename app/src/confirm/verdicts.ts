@@ -10,6 +10,8 @@ import { shortProduct } from '../requestLines';
 import { logIttro } from '../log';
 import { partsText, thisIsLine, whereSentence } from '../guide/lines';
 import type { GuideDir } from '../guide/types';
+import { lastHandFix } from '../guide/frames';
+import { lastPlacedBox } from '../guide/placedBox';
 import {
   backToShelfLine,
   detailMiss,
@@ -22,6 +24,8 @@ import {
 } from './lines';
 import type { ConversationContext, SpeechPart } from '../conversation/types';
 
+const HAND_FRESH_MS = 3000;
+
 export function shown(parts: SpeechPart[], context: ConversationContext): string {
   return partsText(parts, context.lang);
 }
@@ -32,8 +36,11 @@ function wayBack(context: ConversationContext): SpeechPart[] {
   if (!target || !request || target.box.w <= 0) {
     return [];
   }
-  const center = (target.box.x1 + target.box.x2) / 2;
-  const dir: GuideDir = center < target.box.w / 2 ? 'left' : 'right';
+  const now = Date.now();
+  const box = lastPlacedBox(now) ?? target.box;
+  const hand = lastHandFix();
+  const from = hand && now - hand.atMs <= HAND_FRESH_MS ? hand.x : box.w / 2;
+  const dir: GuideDir = (box.x1 + box.x2) / 2 < from ? 'left' : 'right';
   return [{ text: whereSentence(shortProduct(request), dir, context.lang) }];
 }
 

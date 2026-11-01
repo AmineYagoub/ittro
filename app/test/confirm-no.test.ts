@@ -9,6 +9,7 @@ import { answer, startListening } from './driver';
 import type { Driver } from './driver';
 import type { ShelfOutline } from '../src/relay';
 import { resetStorage } from './stubs.mjs';
+import { noteHandFix } from '../src/guide/frames';
 
 const TARGET: ShelfOutline = {
   id: 7,
@@ -126,6 +127,25 @@ test('a helper no without a shelf target searches the shelf again', async () => 
     assert.equal(driver.search(), 'active');
     assert.equal(driver.context().guiding, false);
   } finally {
+    driver.stop();
+  }
+});
+
+test('the way back runs from the hand, not from the middle of the frame (t17)', async () => {
+  resetStorage();
+  const driver = await startListening({ request: 'Masaad water' });
+  const left = { ...TARGET, box: { ...TARGET.box, x1: 400, x2: 560 } };
+  try {
+    driver.send({ type: 'SHELF_FOUND', product: 'Masaad water', outline: left, matches: 1, kind: 'bottles', position: 'left' });
+    await driver.flush();
+    driver.send({ type: 'CONFIRM_BEGIN' });
+    await driver.flush();
+    noteHandFix({ x: 200, y: 500, confidence: 0.9, handWidth: 120, atMs: Date.now() });
+    driver.send({ type: 'CONFIRM_NO', epoch: driver.context().confirmEpoch, label: 'Guedila water', crop: CROP });
+    await driver.flush();
+    assert.match(driver.context().lastLine, /Masaad water is to your right/);
+  } finally {
+    noteHandFix(null);
     driver.stop();
   }
 });
