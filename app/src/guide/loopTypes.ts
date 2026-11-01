@@ -23,7 +23,7 @@ export interface GuideLoop {
   syncTarget: (box: ShelfBox) => void;
   setPhoto: (photo: GuideLoopPhoto) => void;
   reset: () => void;
-  handFrame: (fix: HandFix | null, outlines: ShelfOutline[], photoW: number, photoH: number) => Promise<void>;
+  handFrame: (fix: HandFix | null, outlines: ShelfOutline[], photoW: number, photoH: number, placed?: boolean) => Promise<void>;
 }
 
 export interface GuideLoopState {

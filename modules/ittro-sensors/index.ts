@@ -51,6 +51,10 @@ export interface HandFrame {
   frameMs: number;
   frame: number;
   dropped: number;
+  // The drawn outline's key and how far the camera moved it, in photo pixels.
+  outlineKey?: string;
+  outlineDx?: number;
+  outlineDy?: number;
 }
 
 export interface TrackPan {

@@ -106,6 +106,14 @@ object OutlineTrack {
     }
   }
 
+  /** Where the drawn outline is now: its key and how far it moved from where JavaScript placed it, in photo pixels. */
+  fun placement(): Map<String, Any>? {
+    synchronized(lock) {
+      val t = target ?: return null
+      return mapOf("outlineKey" to t.key, "outlineDx" to t.dx.toDouble(), "outlineDy" to t.dy.toDouble())
+    }
+  }
+
   fun hand(box: FloatArray?) {
     synchronized(lock) {
       handBox = box

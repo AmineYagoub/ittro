@@ -28,6 +28,7 @@ import { handCoversTarget } from '../conversation/searchTarget';
 import { lastHandFix } from '../guide/frames';
 import type { HandFix } from '../guide/types';
 import { logIttro } from '../log';
+import { lastPlacedBox } from '../guide/placedBox';
 
 export interface SearchCamera {
   takeShot: () => Promise<string | null>;
@@ -134,10 +135,10 @@ export function useShelfSearch(
           alternative: context?.alternative ?? null,
           checkedCount: context?.checkedCount ?? 0,
           guiding: context?.guiding ?? false,
-          handCovering: handCoversTarget(context?.guideHand ?? null, context?.guideTarget?.box ?? null),
+          handCovering: handCoversTarget(context?.guideHand ?? null, lastPlacedBox(Date.now()) ?? context?.guideTarget?.box ?? null),
           guideLost: context?.guideOutOfView ?? false,
           guideRecheck: context?.guideRecheck ?? false,
-          guideBox: context?.guideTarget?.box ?? null,
+          guideBox: context?.guideTarget ? (lastPlacedBox(Date.now()) ?? context.guideTarget.box) : null,
         };
       },
       send: (event) => {

@@ -33,6 +33,14 @@ const CONTACT_POINTS = 4;
 const CONTACT_SHIFT_PX = 6;
 const CONTACT_ALIGN = 0.7;
 const MIN_CONFIDENCE = 0.3;
+const IN_FRAME_SHARE = 0.4;
+
+function shareInFrame(box: ShelfBox): number {
+  const across = Math.max(0, Math.min(box.x2, box.w) - Math.max(box.x1, 0));
+  const down = Math.max(0, Math.min(box.y2, box.h) - Math.max(box.y1, 0));
+  const area = Math.max(1, (box.x2 - box.x1) * (box.y2 - box.y1));
+  return (across * down) / area;
+}
 
 // The fingertip and, when the tracker sent it, the whole hand's box.
 function handOf(tip: TipPoint, fix: HandFix): { x: number; y: number; box?: HandBox } {
@@ -58,14 +66,20 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
   // hand on the product holds the box, because SAM cuts the box
   // short under a hand and the cut must never read as a loss; the
   // hold lasts a patience, then a truly gone product still reports.
-  function trackTarget(outlines: ShelfOutline[], photoW: number, covered: boolean): void {
+  // With the camera's own placement the box is where the product is,
+  // so it is in view while most of it is inside the frame.
+  function trackTarget(outlines: ShelfOutline[], photoW: number, covered: boolean, placed: boolean): void {
     const target = state.target;
     if (!target) {
       return;
     }
     let bestIoU = 0;
-    for (const outline of outlines) {
-      bestIoU = Math.max(bestIoU, boxOverlap(target, outline.box));
+    if (placed) {
+      bestIoU = shareInFrame(target) >= IN_FRAME_SHARE ? 1 : 0;
+    } else {
+      for (const outline of outlines) {
+        bestIoU = Math.max(bestIoU, boxOverlap(target, outline.box));
+      }
     }
     if (covered && bestIoU < TARGET_MATCH_IOU) {
       if (!state.heldUnderHand) {
@@ -193,13 +207,13 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
       Object.assign(state, freshGuideState());
     },
 
-    async handFrame(fix: HandFix | null, outlines: ShelfOutline[], photoW: number, photoH: number): Promise<void> {
+    async handFrame(fix: HandFix | null, outlines: ShelfOutline[], photoW: number, photoH: number, placed = false): Promise<void> {
       const target = state.target;
       if (!target) {
         return;
       }
       const seen = fix && fix.confidence >= MIN_CONFIDENCE ? { x: fix.x, y: fix.y, ...(fix.box ? { box: fix.box } : {}) } : null;
-      trackTarget(outlines, photoW, handCoversTarget(seen, target));
+      trackTarget(outlines, photoW, handCoversTarget(seen, target), placed);
       const tracked = state.target as ShelfBox;
       if (!fix || fix.confidence < MIN_CONFIDENCE) {
         miss();

@@ -19,6 +19,7 @@ import type { FrameStats } from './frames';
 import { createGuideLoop } from './loop';
 import type { GuideLoop } from './loopTypes';
 import { tickGapMs } from './steer';
+import { placedBox } from './placedBox';
 
 export interface GuideActor {
   send: (event: ConversationEvent) => void;
@@ -188,12 +189,13 @@ export function useGuide(actor: { current: GuideActor | null }, active: boolean)
           held.current.targetKey = key;
           loop.setTarget(target, context.guideLabel);
         }
-        loop.syncTarget(target.box);
+        const placed = placedBox(target, context.guideLabel, frame, Date.now());
+        loop.syncTarget(placed ?? target.box);
         heatWatch();
         stats.noteFrame(frame);
         const photoW = target.box.w;
         const photoH = target.box.h;
-        void loop.handFrame(fix, context.outlines, photoW, photoH);
+        void loop.handFrame(fix, context.outlines, photoW, photoH, placed !== null);
         if (stats.frames() >= HAND_SUMMARY_EVERY) {
           summarize(stats);
         }

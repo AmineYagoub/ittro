@@ -99,6 +99,7 @@ class HandFrames(
         if (found != null) {
           payload.putAll(found)
         }
+        OutlineTrack.placement()?.let { payload.putAll(it) }
         onFrame(payload)
       }
     }, frameHandler)
