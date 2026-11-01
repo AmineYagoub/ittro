@@ -30,6 +30,7 @@ interface SensorsNative {
   prepareShelfPhoto: (uri: string) => Promise<ShelfPhoto | null>;
   cropShelfPhoto: (photo: string, x1: number, y1: number, x2: number, y2: number) => Promise<ShelfCrop | null>;
   setHandDelegate: (delegate: string) => boolean;
+  getCameraPan: () => { x: number; y: number } | null;
   takeCameraShot: () => Promise<string | null>;
 }
 
@@ -250,6 +251,19 @@ export function setHandDelegate(delegate: HandDelegate): boolean {
     return native.setHandDelegate(delegate);
   } catch {
     return false;
+  }
+}
+
+// How far the camera has moved since it opened, 0 to 1 of the frame,
+// measured natively on every frame; null with no camera.
+export function cameraPan(): { x: number; y: number } | null {
+  if (!native) {
+    return null;
+  }
+  try {
+    return native.getCameraPan() ?? null;
+  } catch {
+    return null;
   }
 }
 

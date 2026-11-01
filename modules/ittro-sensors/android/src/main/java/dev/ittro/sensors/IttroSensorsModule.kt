@@ -194,6 +194,10 @@ class IttroSensorsModule : Module() {
       shotCrop(photo, x1, y1, x2, y2)
     }
 
+    Function("getCameraPan") {
+      OutlineTrack.pan()
+    }
+
     Function("setHandDelegate") { delegate: String ->
       IttroCamera.setHandDelegate(delegate)
     }

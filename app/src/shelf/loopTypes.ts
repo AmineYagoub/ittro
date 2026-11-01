@@ -77,6 +77,8 @@ export interface LoopState {
   foundOutline: ShelfOutline | null;
   // Each track's last label crop, for the verdict card's photo.
   crops: Map<string, string>;
+  // Tracks and crops carried from the last request, read before a photo.
+  carried: { phrase: string | null } | null;
   turnRightNext: boolean;
   stats: LoopStats;
 }
@@ -89,5 +91,23 @@ export interface ShelfLoop {
   cloudDue: () => boolean;
   trackShift: (dx: number, dy: number, changed: boolean, scale: number) => void;
   cloudPass: (photos: LoopPhoto[], hand?: ShelfCrop | null) => Promise<void>;
+  carry: (pan: CameraPan | null) => ShelfCarry | null;
+  seed: (carry: ShelfCarry, pan: CameraPan | null) => boolean;
+  carriedPass: () => Promise<boolean>;
   stats: () => LoopStats;
+}
+
+export interface CameraPan {
+  x: number;
+  y: number;
+}
+
+// The last request's tracks and label crops, with where the camera was.
+export interface ShelfCarry {
+  request: string;
+  tracks: Tracked[];
+  crops: Array<[string, string]>;
+  phrase: string | null;
+  at: number;
+  pan: CameraPan;
 }

@@ -94,6 +94,16 @@ object OutlineTrack {
     }
   }
 
+  /** The camera's motion since it opened, 0 to 1 of the frame, or null before the first frame. */
+  fun pan(): Map<String, Double>? {
+    synchronized(lock) {
+      if (ringTs[ringAt] == 0L) {
+        return null
+      }
+      return mapOf("x" to panX.toDouble(), "y" to panY.toDouble())
+    }
+  }
+
   fun hand(box: FloatArray?) {
     synchronized(lock) {
       handBox = box

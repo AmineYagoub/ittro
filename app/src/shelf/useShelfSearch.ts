@@ -10,7 +10,7 @@
 // heat straight from the log. An optional shot listener hears each
 // cloud photo, which the guide loop caches for its crops.
 import { useEffect, useMemo, useRef } from 'react';
-import { cropShelfPhoto, prepareShelfPhoto, thermalStatus, validTrackPan } from 'ittro-sensors';
+import { cameraPan, cropShelfPhoto, prepareShelfPhoto, thermalStatus, validTrackPan } from 'ittro-sensors';
 import type { TrackPan } from 'ittro-sensors';
 import { classifySceneView, outlineShelf, fetchPackagePhrase, readShelfCrops } from '../relay';
 import type { ShelfCrop } from '../relay';
@@ -19,7 +19,7 @@ import { speech } from '../theme';
 import { playSound } from '../speech';
 import { createShelfLoop } from './loop';
 import { cachedPhrase } from './phraseCache';
-import type { LoopPhoto, ShelfLoop } from './loopTypes';
+import type { LoopPhoto, ShelfCarry, ShelfLoop } from './loopTypes';
 import { decodeBase64, ingestGrey } from './tracker';
 import type { GreyFrame } from './tracker';
 import { CROP_MARGIN, expandBox } from './outlines';
@@ -63,6 +63,7 @@ export function panFrozenByHand(hand: HandFix | null, now: number): boolean {
 
 interface HeldSearch {
   loop: ShelfLoop | null;
+  carry: ShelfCarry | null;
   ring: LoopPhoto[];
   wanted: string;
   photoW: number;
@@ -100,7 +101,7 @@ export function useShelfSearch(
   ready: { current: boolean },
   shots?: ShotListeners,
 ): TrackShots {
-  const held = useRef<HeldSearch>({ loop: null, ring: [], wanted: '', photoW: 0, stats: freshStats() });
+  const held = useRef<HeldSearch>({ loop: null, carry: null, ring: [], wanted: '', photoW: 0, stats: freshStats() });
   const shotsRef = useRef<ShotListeners | undefined>(shots);
   shotsRef.current = shots;
 
@@ -148,10 +149,14 @@ export function useShelfSearch(
         note(line);
       },
     });
-    held.current = { loop, ring: [], wanted, photoW: 0, stats: freshStats() };
+    const carried = held.current.carry;
+    held.current = { loop, carry: null, ring: [], wanted, photoW: 0, stats: freshStats() };
     let stopped = false;
     let shooting = false;
     syncTarget();
+    if (carried) {
+      loop.seed(carried, cameraPan());
+    }
     const cloudTimer = setInterval(() => {
       void cloudTick();
     }, CLOUD_EVERY_MS);
@@ -166,6 +171,7 @@ export function useShelfSearch(
       stopped = true;
       clearInterval(cloudTimer);
       clearInterval(soundTimer);
+      held.current.carry = held.current.loop?.carry(cameraPan()) ?? null;
       held.current.loop?.reset();
       held.current.loop = null;
     };
@@ -179,7 +185,17 @@ export function useShelfSearch(
 
     async function cloudTick(): Promise<void> {
       const eye = camera.current;
-      if (stopped || !eye || !ready.current || shooting || !loop.cloudDue()) {
+      if (stopped || !eye || !ready.current || shooting) {
+        return;
+      }
+      const carriedRead = await loop.carriedPass().catch((error: unknown) => {
+        loop.fail(error);
+        return true;
+      });
+      if (carriedRead) {
+        return;
+      }
+      if (stopped || shooting || !loop.cloudDue()) {
         return;
       }
       shooting = true;

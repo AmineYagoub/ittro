@@ -73,6 +73,10 @@ export function setHandDelegate() {
   return true;
 }
 
+export function cameraPan() {
+  return null;
+}
+
 export async function takeCameraShot() {
   return null;
 }

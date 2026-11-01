@@ -10,7 +10,9 @@ import { anchorOutlines, moveOutlines } from './outlines';
 import { biggestFirst, needsRead, reconcileTracks } from './shelfTracks';
 import { outlineSignature, packageKind } from './match';
 import { QUIET_MS, maybeSwept, readBatch, reportEmpty, reportRefind, reportVerdicts, targetJumped } from './loopReads';
-import type { LoopDeps, LoopPhoto, LoopState, LoopStats, ShelfLoop } from './loopTypes';
+import type { LoopDeps, LoopPhoto, LoopStats, ShelfLoop } from './loopTypes';
+import { freshState, searchReset } from './loopState';
+import { runCarried, seedCarry, takeCarry } from './carry';
 
 const REFRESH_MS = 15000;
 // An unsure label is read again from the next sharp frame soon after (t9:
@@ -20,54 +22,6 @@ const EMPTY_BEFORE_CLEAR = 3;
 const PRIORITY_BATCH = 2;
 const READ_MIN_SHARPNESS = 800;
 const BLURRY_SKIP_MAX = 2;
-
-function freshState(): LoopState {
-  return {
-    request: '',
-    epoch: -1,
-    tracks: [],
-    counter: 0,
-    phrases: new Map(),
-    phraseWait: null,
-    cloudBusy: false,
-    outlinedAt: null,
-    readAt: null,
-    sceneChanged: false,
-    lastSignature: '',
-    lastScene: '',
-    failAt: null,
-    classifyAt: null,
-    emptyPasses: 0,
-    emptyOutlines: 0,
-    fruitlessPasses: 0,
-    blurrySkips: 0,
-    sweptEpoch: -1,
-    foundKey: '',
-    foundTrack: null,
-    foundOutline: null,
-    crops: new Map(),
-    turnRightNext: true,
-    stats: { samCalls: 0, readCalls: 0, readCrops: 0, classifyCalls: 0 },
-  };
-}
-
-function searchReset(state: LoopState): void {
-  state.tracks = [];
-  state.outlinedAt = null;
-  state.readAt = null;
-  state.sceneChanged = false;
-  state.lastSignature = '';
-  state.lastScene = '';
-  state.emptyPasses = 0;
-  state.emptyOutlines = 0;
-  state.fruitlessPasses = 0;
-  state.blurrySkips = 0;
-  state.foundTrack = null;
-  state.foundOutline = null;
-  state.phraseWait = null;
-  state.crops.clear();
-  state.turnRightNext = true;
-}
 
 export function createShelfLoop(deps: LoopDeps): ShelfLoop {
   const state = freshState();
@@ -290,6 +244,18 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
       } finally {
         state.cloudBusy = false;
       }
+    },
+
+    carry(pan) {
+      return takeCarry(state, pan, deps.now());
+    },
+
+    seed(carry, pan) {
+      return seedCarry(ctx, carry, pan);
+    },
+
+    carriedPass() {
+      return runCarried(ctx);
     },
 
     stats(): LoopStats {
