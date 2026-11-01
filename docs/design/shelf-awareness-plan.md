@@ -28,6 +28,36 @@ And when the product is not in view, Ittro today alternates "turn right", "turn 
 - **A choice still ends in the hand.** Any product picked from an answer goes through the in-hand check before the green yes.
 - **No new data flow.** The same still that goes to Meta for the shelf read goes with the question. This is `server` scope and privacy-sensitive: the founder reviews it before it is pushed.
 
+## First: two changes from the Meta API audit (1 Nov)
+
+### A. `store: false` on every Meta call
+
+The Responses API stores every response unless the request says `store: false` (dev.meta.ai/docs/protocols/responses). The relay never says it, so Meta keeps every shelf photo and hand crop. `relay/src/spark.ts` (all Muse Spark calls) and `relay/src/sam.ts` (all SAM calls) each gain `store: false`, with a test that the request body carries it. Both models accept it (probed 1 Nov, http 200).
+
+### B. Find by grounding, then a SAM box prompt
+
+Muse Spark can return the box of a named object on a 0–1000 grid (image understanding, "perception grounding"). SAM 3.1 can cut the object inside a given box (`<0f>1<|box;x1=..;y1=..;x2=..;y2=..;w=..;h=..|>`, up to 16 boxes per call). Together they replace today's first pass (package phrase, SAM on every package, crop reads in two batches).
+
+Replay on the founder's shelf video (21 frames × 8 Arabic requests, run twice, both runs the same):
+
+| | Today's search (11 frames) | Grounding + box prompt (21 frames) |
+|---|---|---|
+| Right when the product is in view | all but Bifa on f018 | 78 of 79 (Bifa on f018, a sliver) |
+| Right when it is not | all | 80 of 80 (no invented product) |
+| Calls per find | 3–4 (phrase, SAM, 1–2 reads) | 2 (grounding, SAM) |
+| Time to the outline | 8–12 s first pass, 3–7 s after | median 3.7–4.1 s, p90 5.2–5.8 s, from the first pass |
+
+Two prompt rounds were needed. The first invented four Masaad bottles on honey jars and returned the request as the label. Asking for the printed name, never the request's words, plus an `is_requested` flag fixed that. A general request (rice) must match every variety and a named variety (basmati) only itself, or rice missed 4 frames. The prompt that passed is in `ground-replay-v3.mts` (scratchpad, 1 Nov) and moves into `relay/src/find.ts`.
+
+The design:
+
+- A relay route `POST /find` does grounding (Muse Spark, minimal effort, strict schema) then one SAM call with every returned box, and answers outlines in today's `ShelfOutline` shape with `brand_text` from the printed name. The app's shelf loop calls it in place of phrase + outline + reads for a fresh shelf.
+- The tracking, the guide, refind, carry and the in-hand check stay as they are. Rechecks keep the crop reads, which hold the refind rules.
+- `metadata.include_confidence` is read but not used to filter: the invented bottles scored 0.89–0.98, so confidence can't catch a wrong name.
+- The old path stays behind a flag until phone test t17 shows the new one at least as fast on the phone, and never with a wrong yes.
+
+It also makes "ask, then go" (part 3) instant: the ask answer can carry the box of the product it offers.
+
 ## Design
 
 ### 1. Shelf inventory (shared, no extra call)
@@ -83,6 +113,10 @@ Each step is one commit with its tests; lint, tsc and the relay tests pass befor
 
 | Step | What | Files | Est. |
 |---|---|---|---|
+| A | `store: false` on Spark and SAM, with a test | `relay/src/spark.ts`, `sam.ts`, tests | 15 min |
+| B1 | `/find`: grounding then SAM box prompts, the v3 prompt, tests with a stubbed Meta | `relay/src/find.ts`, `index.ts`, `test/find.test.ts` | 1.5 h |
+| B2 | Shelf loop finds through `/find` on a fresh shelf, old path behind a flag | `shelf/loop.ts`, `relay.ts`, `useShelfSearch.ts` | 2 h |
+| B3 | Replay the video through the app's loop with `/find`, then phone test t17 | scratchpad harness | 1 h |
 | 0 | Split the full files, no behaviour change | `conversation/types.ts`, `routing.ts` → `searchTypes.ts`, `searchGuards.ts` | 30 min |
 | 1 | `/ask-view` route, schema, prompt, tests with a stubbed Meta | `relay/src/askView.ts`, `index.ts`, `test/askView.test.ts` | 1.5 h |
 | 2 | `ask_view` intent and `question` field | `relay/src/understand.ts`, app answer type | 45 min |
@@ -93,11 +127,14 @@ Each step is one commit with its tests; lint, tsc and the relay tests pass befor
 | 7 | Sweep with memory, slower, stop, down, walk | `shelf/sweep.ts`, `sweepLines.ts`, `loopReads.ts` | 2.5 h |
 | 8 | Somewhere else: shelf kind + ask someone + look again | `searchLines.ts`, `search.ts` | 45 min |
 
-About 11 hours of building, plus checks. Tiers, so the demo never waits on all of it:
+About 15 hours of building, plus checks. Tiers, so the demo never waits on all of it (times in Algeria):
 
-- **Tier 1 (the demo moment):** steps 0–6. Done and phone-checked by 2 Nov 12:00 (Algeria).
-- **Tier 2:** step 7, the sweep. By 2 Nov 18:00.
-- **Tier 3:** step 8. By 2 Nov 18:00.
+- **Tier 0 (privacy and the faster find):** A and B1–B3, right after t16. Phone-checked (t17) by 1 Nov 23:00.
+- **Tier 1 (the demo moment):** steps 0–6. Phone-checked (t18) by 2 Nov 14:00.
+- **Tier 2:** step 7, the sweep. Phone-checked (t19) by 2 Nov 20:00.
+- **Tier 3:** step 8. By 2 Nov 20:00.
+
+Step A ships whatever happens to the rest.
 
 A tier that misses its time is cut from the build that records the video, and the video keeps the path that passed.
 
@@ -118,8 +155,9 @@ Pass bar: 6 of 6, twice. Also a not-here run: "بسمتي" over frames f004–f0
 
 ## Phone checks
 
-- **t17 (tier 1).** On the shelf: "what's here?" → a correct list within 5 s of the question ending; "which is cheaper?" → an honest answer; "take me to it" → found, guided, green yes in hand. Ask twice more at other spots.
-- **t18 (tier 2).** Start pointed away from the Basmati, ask for it, follow the cues only: Ittro must reach it without crossing the same stretch twice, and say "stop" where the reads happen. Then ask for a product that isn't there: the sweep ends, Ittro offers the closest one.
+- **t17 (tier 0).** On the shelf, the same requests as t16 through `/find`: the outline on the right product, time to the found line against t16, no wrong yes across ten requests, two of them for products not there.
+- **t18 (tier 1).** On the shelf: "what's here?" → a correct list within 5 s of the question ending; "which is cheaper?" → an honest answer; "take me to it" → found, guided, green yes in hand. Ask twice more at other spots.
+- **t19 (tier 2).** Start pointed away from the Basmati, ask for it, follow the cues only: Ittro must reach it without crossing the same stretch twice, and say "stop" where the reads happen. Then ask for a product that isn't there: the sweep ends, Ittro offers the closest one.
 
 ## Demo moment (if tier 1 passes)
 
@@ -130,7 +168,7 @@ Pass bar: 6 of 6, twice. Also a not-here run: "بسمتي" over frames f004–f0
 - **Wrong answers the shopper can't check.** Kept small by the rules and the offline table; anything bought still passes the in-hand check.
 - **Shelf tags.** A tag between two products may be given to the wrong one. The rule makes the model say it can't tell rather than pick one.
 - **Flow drift over a long sweep.** The pan is good over one or two frame widths (in t14 it measured the move as −0.103, which matched the screenshots). The sweep stays within ±1.2 and starts again at every request.
-- **Pan direction.** The sign is checked on the phone in t18 before any line is trusted.
+- **Pan direction.** The sign is checked on the phone in t19 before any line is trusted.
 - **Time.** Tiers and the cut rule above.
 
 ## Not in this plan
