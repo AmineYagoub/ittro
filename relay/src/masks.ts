@@ -5,9 +5,9 @@
 import { decodeMaskToRaster } from '@meta-sam/parser';
 import type { SegmentationMask, SegmentationMaskBounds } from '@meta-sam/parser';
 
-export const MASK_ROWS = 32;
+export const MASK_ROWS = 64;
 
-export const MASK_POINTS = 48;
+export const MASK_POINTS = 128;
 
 function frameX(bounds: SegmentationMaskBounds, maskW: number, mx: number): number {
   const span = bounds.right - bounds.left;
