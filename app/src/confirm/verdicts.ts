@@ -84,27 +84,6 @@ export const storeYes = assign({
   lastChips: ({ context }: ContextArgs) => [FIND_ANOTHER_CHIP[context.lang], DONE_CHIP[context.lang]],
 });
 
-export const storeTouchedYes = assign({
-  confirming: false,
-  confirmVerdict: 'yes',
-  confirmFinal: true,
-  step: 'verdict',
-  pendingQuestion: 'verdict_done',
-  ...clearHelperNo,
-  brands: ({ context, event }: EventArgs) => {
-    const label = event.type === 'CONFIRM_TOUCHED' ? event.label : null;
-    storeConfirmedBrand(label);
-    return mergeBrands(context.brands, label);
-  },
-  confirmLabel: ({ event }: EventArgs) => (event.type === 'CONFIRM_TOUCHED' ? event.label : ''),
-  // The label crop the shelf read said yes to: the card shows the product.
-  confirmCrop: ({ context }: ContextArgs) => context.shelfCrop,
-  confirmParts: ({ context, event }: EventArgs) => (event.type === 'CONFIRM_TOUCHED' ? yesParts(event.label, context) : []),
-  lastLine: ({ context, event }: EventArgs) =>
-    event.type === 'CONFIRM_TOUCHED' ? shown(yesParts(event.label, context), context) : context.lastLine,
-  lastChips: ({ context }: ContextArgs) => [FIND_ANOTHER_CHIP[context.lang], DONE_CHIP[context.lang]],
-});
-
 export const storeNo = assign({
   confirming: false,
   confirmVerdict: 'no',

@@ -35,7 +35,6 @@ import {
   storeMoved,
   storeNo,
   storePicture,
-  storeTouchedYes,
   storeUnsure,
   storeYes,
 } from './verdicts';
@@ -68,7 +67,7 @@ function logVerdict({ event }: EventArgs): void {
 
 function logTouched({ event }: EventArgs): void {
   if (event.type === 'CONFIRM_TOUCHED') {
-    logIttro(`confirm verdict yes by touch label ${JSON.stringify(event.label)}`);
+    logIttro(`confirm touched label ${JSON.stringify(event.label)}, checking in hand`);
   }
 }
 
@@ -78,7 +77,9 @@ export const confirmRegion = {
   on: {
     CONFIRM_BEGIN: { actions: [beginConfirm], target: '#confirm.checking' },
     CONFIRM_AUTO: { actions: [beginQuiet], target: '#confirm.checking' },
-    CONFIRM_TOUCHED: { actions: [beginQuiet, logTouched, storeTouchedYes, raiseQuestion], target: '#confirm.yes' },
+    // A touch is one witness: what the hand holds is read before the
+    // yes, as in ~/ittro/native (t10 touched a reflection and got yes).
+    CONFIRM_TOUCHED: { actions: [beginConfirm, logTouched], target: '#confirm.checking' },
     CONFIRM_DETAIL_ASK: { guard: wantsDetail, actions: [beginDetail], target: '#confirm.readingDetail' },
     CONFIRM_END: { actions: [endConfirm], target: '#confirm.idle' },
   },
