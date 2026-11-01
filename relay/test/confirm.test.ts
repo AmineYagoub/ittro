@@ -205,7 +205,7 @@ test('the detail route rejects an unknown detail without calling Meta', async ()
   assert.equal(res.status, 400);
 });
 
-test('the confirm instructions name the held product as brand plus kind', async () => {
+test('the confirm instructions name the held product by brand and kind in the natural order', async () => {
   let system = '';
   const record: typeof fetch = (async (_url: unknown, init: unknown) => {
     const body = JSON.parse(String((init as { body: string }).body)) as { input: { content: string }[] };
@@ -213,7 +213,8 @@ test('the confirm instructions name the held product as brand plus kind', async 
     return { ok: true, json: async () => completed({ verdict: 'unsure', picture_problem: null, asked: ASKED, read: { brand: 'El Taaounia', product: null, variant: null, size: null }, label_name: 'El Taaounia', unreadable: ['product', 'variant', 'size'] }) };
   }) as unknown as typeof fetch;
   await confirmInHand(record, 'https://example.invalid', 'key', PHOTO);
-  assert.match(system, /brand plus kind/);
+  assert.match(system, /brand and kind in the natural word order/);
+  assert.match(system, /in Arabic the kind first, ماء قديلة/);
   assert.match(system, /transliterated/);
   assert.match(system, /plainly is/);
 });
