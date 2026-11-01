@@ -103,6 +103,26 @@ Ittro has no store map and says so through what it offers:
 - **Ask someone nearby.** "Ask someone nearby where the rice is. When you're there, say look again." The shopper's "look again" (`keep_looking`) restarts the sweep at the new shelf.
 - **The helper.** The existing `ask_someone` sends the still to the paired helper.
 
+### 7. How it sounds: closer to a person
+
+From the 1 Nov research on what makes Gemini Live feel natural. Gemini Live itself is not used: it would replace Meta's transcription and Muse Spark, and the judges check that Meta's models are used. These copy its qualities on the Meta stack.
+
+1. **One call for a question.** While the camera is on a shelf, the understanding call carries the sharpest still. When the sentence is a shelf question, Muse Spark answers it in the same call (`ask_view` plus `answer`, `offer`, `unreadable`). That takes about 2.5–3.5 s, where understanding then asking takes 4–7 s. `/ask-view` stays for the not-here summary (part 5) and for the case without a fresh still.
+2. **Something within half a second.** When the shopper stops talking, a short acknowledgement plays at once ("نشوف…", "لحظة…", "voyons…", "let me look…") with the working tick, chosen at random from a few per language so it never sounds canned. Then the answer follows.
+3. **Written answers, fixed safety lines.** Answers to questions and the not-here summary are written by Muse Spark to a voice style in the prompt: at most two short sentences, no lists, everyday words, the shopper's own dialect mirrored (Darija in, light Darija out), numbers and prices said the way people say them. Hand cues, the green yes and the in-hand verdict stay as fixed lines: a blind shopper needs those predictable.
+4. **Memory for follow-ups.** Each question carries the last three or four exchanges and the shelf inventory (part 1), so "أيهم أرخص؟" then "خذني إليه" or "والآخر؟" resolve. After a barge-in, the history holds only the part of the answer that was actually spoken.
+5. **Tone that follows the shopper.** The call is told when the shopper repeated themselves or said "لا لا" in the last turns; the answer is then shorter and calmer, and offers help.
+6. **The shopper stays in control.** "Faster", "slower" and "shorter" (already intents) apply to written answers too, and the sounds stay: research on blind users backs earcons and fast speech even where commercial voice guidelines discourage them.
+
+**The voice.** Meta has no speech synthesis (Voice Transcribe only transcribes), so every language is spoken by Android's engine today (`app/src/speechEngine.ts`: `en-US`, `fr-FR`, `ar-SA`).
+
+- **Voice A first.** List the installed voices (`Speech.getAvailableVoicesAsync()`) and pick the most natural per language: neural or network voices first, an Algerian or Maghreb Arabic one if present. It is logged at start so phone runs show which voice spoke.
+- **Voice B if A still sounds robotic.** Azure neural voices through the relay, streamed: `ar-DZ-AminaNeural` or `ar-DZ-IsmaelNeural` (Algerian), and the matching French and English voices. This is a new service and a new data flow (the reply text goes to Azure), so it needs a decision record the founder approves, a key outside git, and a fallback to voice A when Azure is slow or down.
+
+**Decision records.** Voice behaviour and data flows both need a record the founder decides (`docs/contributing/workflow.md`). Part 7 and voice A change how Ittro talks, so one record covers them before step 1; voice B gets its own.
+
+**Targets, measured on the phone:** the first sound or acknowledgement within 0.5 s of the end of speech; the full answer within 3.5 s at the median.
+
 ## Files near the 300-line limit
 
 `app/src/conversation/types.ts` (300), `actions.ts` (300), `routing.ts` (299), `answers.ts` (297) and `app/src/shelf/useShelfSearch.ts` (298) cannot grow. Step 0 moves the search event types out of `types.ts` and the search guards out of `routing.ts` into their own files before anything is added.
@@ -117,22 +137,25 @@ Each step is one commit with its tests; lint, tsc and the relay tests pass befor
 | B1 | `/find`: grounding then SAM box prompts, the v3 prompt, tests with a stubbed Meta | `relay/src/find.ts`, `index.ts`, `test/find.test.ts` | 1.5 h |
 | B2 | Shelf loop finds through `/find` on a fresh shelf, old path behind a flag | `shelf/loop.ts`, `relay.ts`, `useShelfSearch.ts` | 2 h |
 | B3 | Replay the video through the app's loop with `/find`, then phone test t17 | scratchpad harness | 1 h |
+| C | Decision record for part 7 and voice A; voice A: pick and log the best installed voice per language | `docs/decisions/`, `speechEngine.ts`, a voice picker | 1 h |
 | 0 | Split the full files, no behaviour change | `conversation/types.ts`, `routing.ts` → `searchTypes.ts`, `searchGuards.ts` | 30 min |
-| 1 | `/ask-view` route, schema, prompt, tests with a stubbed Meta | `relay/src/askView.ts`, `index.ts`, `test/askView.test.ts` | 1.5 h |
-| 2 | `ask_view` intent and `question` field | `relay/src/understand.ts`, app answer type | 45 min |
-| 3 | Ask slice: holding line, answer, timeout, failure line | `conversation/askView.ts`, `relay.ts`, lines | 2 h |
+| 1 | `/ask-view` route, the voice style, history and tone hints (part 7, items 3–5), tests with a stubbed Meta | `relay/src/askView.ts`, `index.ts`, `test/askView.test.ts` | 1.5 h |
+| 2 | `ask_view` intent and `question` field; the understanding call answers shelf questions when it carries a still (part 7, item 1) | `relay/src/understand.ts`, app answer type | 1.5 h |
+| 3 | Ask slice: instant acknowledgement (part 7, item 2), answer, timeout, failure line | `conversation/askView.ts`, `relay.ts`, lines | 2 h |
 | 4 | Ask, then go: offer chips → request with carry | `askView.ts`, `search.ts` | 1 h |
 | 5 | Inventory from reads | `shelf/inventory.ts`, `loopReads.ts` | 45 min |
 | 6 | Not-here summary on the end of a sweep | `loopReads.ts`, `askView.ts`, lines | 1 h |
 | 7 | Sweep with memory, slower, stop, down, walk | `shelf/sweep.ts`, `sweepLines.ts`, `loopReads.ts` | 2.5 h |
 | 8 | Somewhere else: shelf kind + ask someone + look again | `searchLines.ts`, `search.ts` | 45 min |
+| D | Voice B (only if A falls short): decision record, Azure route, fallback to A | `docs/decisions/`, `relay/src/voice.ts`, `speechEngine.ts` | 3 h |
 
-About 15 hours of building, plus checks. Tiers, so the demo never waits on all of it (times in Algeria):
+About 17 hours of building (20 with voice B), plus checks. Tiers, so the demo never waits on all of it (times in Algeria):
 
 - **Tier 0 (privacy and the faster find):** A and B1–B3, right after t16. Phone-checked (t17) by 1 Nov 23:00.
-- **Tier 1 (the demo moment):** steps 0–6. Phone-checked (t18) by 2 Nov 14:00.
+- **Tier 1 (the demo moment):** C and steps 0–6. Phone-checked (t18) by 2 Nov 14:00.
 - **Tier 2:** step 7, the sweep. Phone-checked (t19) by 2 Nov 20:00.
 - **Tier 3:** step 8. By 2 Nov 20:00.
+- **Voice B:** only if voice A sounds robotic in t18, and only after the founder approves its decision record.
 
 Step A ships whatever happens to the rest.
 
@@ -156,7 +179,7 @@ Pass bar: 6 of 6, twice. Also a not-here run: "بسمتي" over frames f004–f0
 ## Phone checks
 
 - **t17 (tier 0).** On the shelf, the same requests as t16 through `/find`: the outline on the right product, time to the found line against t16, no wrong yes across ten requests, two of them for products not there.
-- **t18 (tier 1).** On the shelf: "what's here?" → a correct list within 5 s of the question ending; "which is cheaper?" → an honest answer; "take me to it" → found, guided, green yes in hand. Ask twice more at other spots.
+- **t18 (tier 1).** On the shelf: "what's here?" → a correct list within 5 s of the question ending; "which is cheaper?" → an honest answer; "take me to it" → found, guided, green yes in hand. Ask twice more at other spots. Measured from the log: the acknowledgement within 0.5 s of the end of speech, the answer within 3.5 s at the median; and a follow-up ("والآخر؟") resolved from the history.
 - **t19 (tier 2).** Start pointed away from the Basmati, ask for it, follow the cues only: Ittro must reach it without crossing the same stretch twice, and say "stop" where the reads happen. Then ask for a product that isn't there: the sweep ends, Ittro offers the closest one.
 
 ## Demo moment (if tier 1 passes)
