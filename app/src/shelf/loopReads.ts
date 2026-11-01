@@ -3,7 +3,7 @@
 // verdicts, the swept shelf, and the empty-shelf scenes.
 import { aisleFallback, findCloseMatch, packageKind } from './match';
 import { createReadQueue, dropEpoch, enqueueRead, nextRead } from './queue';
-import type { ShelfRead } from '../relay';
+import type { ShelfCrop, ShelfRead } from '../relay';
 import type { LoopDeps, LoopState } from './loopTypes';
 import type { Tracked } from './shelfTracks';
 import { boxOverlap } from './outlines';
@@ -28,6 +28,27 @@ export interface ReadsContext {
   deps: LoopDeps;
   state: LoopState;
   stale: (epoch: number) => boolean;
+}
+
+// The relay reads one to eight crops per call (relay/src/shelf.ts).
+export const READ_MAX = 8;
+
+/** Reads crops in calls of at most eight, side by side (t16: eleven honey jars got a 400). */
+export async function readCrops(
+  deps: LoopDeps,
+  request: string,
+  crops: ShelfCrop[],
+): Promise<{ reads: ShelfRead[]; readMs: number; calls: number }> {
+  const chunks: ShelfCrop[][] = [];
+  for (let at = 0; at < crops.length; at += READ_MAX) {
+    chunks.push(crops.slice(at, at + READ_MAX));
+  }
+  const answers = await Promise.all(chunks.map((chunk) => deps.read(request, chunk)));
+  return {
+    reads: answers.flatMap((answer) => answer.reads),
+    readMs: Math.max(0, ...answers.map((answer) => answer.readMs)),
+    calls: answers.length,
+  };
 }
 
 export async function readBatch(
@@ -57,11 +78,11 @@ export async function readBatch(
   if (jobs.length === 0) {
     return [];
   }
-  const answer = await deps.read(request, jobs.map((queued) => ({ id: queued.id, image: queued.image, mime: queued.mime })));
+  const answer = await readCrops(deps, request, jobs.map((queued) => ({ id: queued.id, image: queued.image, mime: queued.mime })));
   if (ctx.stale(epoch)) {
     return [];
   }
-  state.stats.readCalls += 1;
+  state.stats.readCalls += answer.calls;
   state.stats.readCrops += jobs.length;
   state.readAt = deps.now();
   deps.log(`shelf read ${answer.readMs}ms verdicts ${answer.reads.map((read) => read.verdict).join(',')}`);

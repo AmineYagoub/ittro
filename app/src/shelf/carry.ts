@@ -7,7 +7,7 @@
 import { biggestFirst } from './shelfTracks';
 import { moveOutlines } from './outlines';
 import { packageKind } from './match';
-import { reportVerdicts } from './loopReads';
+import { readCrops, reportVerdicts } from './loopReads';
 import type { ReadsContext } from './loopReads';
 import type { CameraPan, LoopState, ShelfCarry } from './loopTypes';
 import type { ShelfCrop, ShelfOutline } from '../relay';
@@ -87,11 +87,11 @@ export async function runCarried(ctx: ReadsContext): Promise<boolean> {
   try {
     const outlines = state.tracks.map((entry) => entry.outline);
     deps.send({ type: 'SHELF_OUTLINED', outlines, kind: packageKind(carried.phrase ?? request, deps.readContext().lang) });
-    const answer = await deps.read(request, crops);
+    const answer = await readCrops(deps, request, crops);
     if (ctx.stale(epoch)) {
       return true;
     }
-    state.stats.readCalls += 1;
+    state.stats.readCalls += answer.calls;
     state.stats.readCrops += crops.length;
     state.readAt = deps.now();
     deps.log(`shelf read carried ${answer.readMs}ms verdicts ${answer.reads.map((read) => read.verdict).join(',')}`);
