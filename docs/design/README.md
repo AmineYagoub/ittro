@@ -23,7 +23,7 @@ Read `DESIGN.md` first. Ittro is **English first, voice only and never silent**:
 | `tokens/tokens.json` | Colours, verdict colours, type sizes, dimensions, haptic patterns, the silence-budget timings, sound file names | Copy into `src/theme.ts` |
 | `sounds/*.wav` | The eleven interface sounds: heard, listening, working tick, lost, proximity tick, helper pulse, pausing, waking, yes, no, not sure (DESIGN.md, "Sounds") | `assets/sounds/`, preloaded at start |
 | `voice/SCRIPT.md`, `voice/clips.json` | The 30 fixed spoken cues (directions, reach forward, pick it up, checking, yes, no, hand and phone problems) in English, Arabic and French | Read SCRIPT.md for when each plays |
-| `voice/<id>.en.wav`, `voice/<id>.fr.wav` | The English and French cues, recorded with Meta MMS-TTS (16 kHz mono) | `assets/voice/`, preloaded at start; Arabic cues are made on the phone (DESIGN.md, "Voice") |
+| `voice/<id>.en.wav`, `voice/<id>.fr.wav` | The English and French cues, recorded with Meta MMS-TTS (16 kHz mono) | `assets/voice/`, preloaded at start; Arabic cues are spoken live by the phone's voice (DESIGN.md, "Voice") |
 | `voice/make_voice.py` | Re-records the English and French cues with MMS | Only if a cue changes |
 | `sounds/make_sounds.py` | Makes the sounds from scratch with Python alone | Run again if a sound needs changing |
 | `screens/00-identity.png` | The identity board and voice rules | Reference only |

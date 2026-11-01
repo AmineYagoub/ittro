@@ -54,7 +54,7 @@ drain under 15%, every link episode ends, and no wrong yes.
 ## Run 2: the 10-product set (founder with Claude)
 
 Target: 10 real products found or honestly missed, zero wrong yes,
-verdict under 30 s from the confirmed request.
+verdict under 30 s from the request.
 
 Proposed set (founder substitutes what is on the shelf, keeping the
 constraints: 10 products, two of the same brand in different sizes):
@@ -76,13 +76,13 @@ Steps per product:
 
 1. Start the log capture (one file per product:
    `run-<date>-p01.log` … `run-<date>-p10.log`).
-2. Ask for the product by voice ("I'm looking for …"), say yes.
+2. Ask for the product by voice ("I'm looking for …"); one clear product is searched at once, with no yes needed.
 3. Follow Ittro to the shelf, pick the guided product, hold it up.
 4. Record: found or not, wrong yes or not, verdict kind.
 5. Stop the capture. Run the report script for the times.
 
 The set passes when the ten reports show: no wrong yes anywhere,
-each found product verdicts yes under 30 s from the confirmed
+each found product verdicts yes under 30 s from the
 request, product 10 never verdicts yes, and products 1 and 2 are
 told apart (wrong size is a no, not a yes).
 
@@ -95,7 +95,8 @@ Per search the report shows one line, for example:
    confirmed +41.5s, first outline -9.7s, hand on product 11.4s, verdict yes 17.1s
 ```
 
-Deltas count from the confirmed request (the shopper's yes).
+Deltas count from the request: the shopper's yes when Ittro asked
+"Is that right?", or the moment a clear request started the search.
 `verdict none` means Ittro never confirmed: check the log for the
 last `confirm` and `state` lines before judging it a miss.
 

@@ -2,12 +2,48 @@
 
 A dated log of what was built each day, for the hackathon submission. New work only: everything here dates from 26 October 2026 onward.
 
+## 1 November 2026
+
+- Who wrote it: Claude (Claude Code), not Muse Code. The founder's rule of 31 October was that if Muse Code's fix-4 round failed its phone run, Claude would take over the core path (target tracking, guiding, the in-hand check, the mic gate). It failed on t6, so every commit on `review/demo-fixes` from 68b7bf0 (31 October) onward was written by Claude and carries no Muse Code trailer. Muse Code's last commit is 8748fd0.
+- Phone runs t9–t15 (the founder's hand, real Masaad and Guedila bottles; t15 on a real shop shelf), each fixed by cause from its log. t13 passed the full Arabic path twice: request → SAM outline on the bottle, following the phone → touch → spoken check → green yes in 3.5–4.3 s → «ابحث عن غيره» → a new search → «انتهيت».
+- Outline: the guided product is drawn with SAM 3.1's own outline, not its box (a88d7ee). The relay keeps a bottle's neck and shoulders, up to 128 points from 64–128 mask rows (2972142, ec4efe1). The outline is drawn natively over the camera and moved on every frame by the picture's motion around it, as the 26 October project did; hand detection moved to its own thread, and a cut that arrives late is placed by the motion since its still (efb0975). The preview is a 4:3 stream laid out the way outlines are mapped (5b29192), and the name pill sits on the bottle's cap (72718fe).
+- Guiding and the touch:
+  - A touch now checks what the hand holds before the green yes (f328462), and the yes card shows the shelf crop (b6fd18f).
+  - A bottle's neck above SAM's box counts as the product (1f430fb).
+  - A hand reaching over the product holds its whole outline (880f3c2).
+  - The guide steers by where the camera has the product, not where it was (cb2a4ef).
+  - An offered choice ("find another, or done") said while Ittro is quiet is the shopper's, never echo (541e2ad).
+  - The yes names the product as Ittro has been calling it (b016ce7).
+- Search:
+  - Reflections are never the product, and a recheck stays on the guided product (f686000, 83ac4fb).
+  - The shelf phrase is asked while waiting for a sharp frame (da13772), and the short word SAM answered to is asked first after (a4e8a66).
+  - "I see N products" is said once a search (63643b2).
+  - The next request reads the last shelf at once, with no photo and no SAM, if the camera opening is the same and it moved less than a quarter of the frame (f6d6492, 244be49, a8bc182).
+- Offline replay of the founder's 10 s shelf video (22 frames, live Meta calls, outside the repo) found two bugs:
+  - Eleven jars made a nine-crop read, which the relay refuses; crops now go in calls of at most eight (8bb867d).
+  - "White rice" read yes on Riz Basmati; a variety named in the request must now be the one on the label (40625fd).
+- The same video tested Muse Spark grounding followed by a SAM box prompt as a faster find: 78 of 79 present and 80 of 80 absent cases right, median 3.7–4.1 s to the outline. Not in the app yet.
+- Plan for after phone run t16, design only: `docs/design/shelf-awareness-plan.md` covers `store: false` on every Meta call, the grounding find, asking what's in view, a sweep with memory, not-here answers, a more natural conversation and one voice per language.
+- Proven on the Mac: 398 app tests, 99 relay tests, tsc and all three lints clean. The sensors index moved its camera types to `camera.ts` at the 300-line limit (6004ca7), and the phone log report times a search from its start when there is no confirm turn (see measure.md).
+- Weak:
+  - t16 has not run, so everything from b016ce7 on is unproven on the phone.
+  - The relay runs locally through adb reverse; the deployed relay predates these fixes.
+  - English and French speak cues in the MMS voice and sentences in the phone's voice.
+  - Arabic and French lines await a native speaker's review.
+
 ## 31 October 2026
 
 - Outside review, not Muse Code: two independent code reviews of 1aa578b were run at the founder's request, and one reviewer also wrote commit 7669d82 ("Demo fixes: gate the mic while speaking, one guide target, deadlines everywhere") on branch `review/demo-fixes`. Muse Code did not write that commit, and it carries no Muse Code trailer. It mutes the microphone uplink while Ittro speaks, makes the rectangle and the steering follow one target, adds deadlines to every relay and Meta call, pauses shelf reads while guiding, freezes the pan while a hand moves, and raises the relay limits for demo day (120 calls a minute, 15 USD a day). Kept as written, by the founder's decision; the Muse Code commits after it build on top of it.
 
 - Demo hold-up round 3 (branch `review/demo-fixes`, on top of the reviewer's 7669d82): all 11 phone-run-4 findings fixed by cause from the t5 log, each with a Mac test that would have caught it, proven with no phone use (349 app tests, 96 relay tests, tsc and all three lints clean; the t5 replay fails on 7669d82 at the exact phone fault and passes now). The target is kept by what it reads, not where it sits: a pause drops the target so resume says one line and looks fresh; a hand on the product freezes the box in the statechart, the guide loop and the shelf loop; a jumped box holds and asks for a label recheck; the shelf loop re-reads to confirm after a jump, a loss or a recheck and every guide state adopts the re-found box silently, lost ones resuming aiming. The t5 tips and boxes replay through the loop and the statechart to the green yes verdict with out of view never spoken. Contact waits for the covering announcement so a reaching hand always moves on to the check. The mic gate follows the audio the speaker plays: engine start/end callbacks bracket it, a late start re-closes it, a settle poll holds it while the engine reports speaking, the tail is 800 ms, clips gate before the first sound. A yes needs every asked attribute read and matched (contradiction becomes no, missing becomes unsure, sizes by number and unit); a missing or stale hand voids the answer into a reread. The check crops three hand widths around the hand and flies two reads at once (live Meta: a quarter-size image reads in 3.4 s against 4.7 s full frame, and downscaling alone misreads, so crops win both ways). The caption clears the direction cluster by construction. The unused /spark and /transcribe routes are gone; KV counters are sharded four ways. The hands log rebases on a native counter restart; the 9 to 7/s and detect p50 100 to 123 ms deltas are session variance, not the round (no added work on the native path). The phone check list is in the report.
 - Weak: the 1 s / 5 s / 4 s targets are proven only in the driver clock and one live crop-vs-full read (3.4 s vs 4.7 s); the verdict-in-4 s needs the phone's capture plus a crop read. Same-product-by-read assumes the recheck read is right; a misread under a moving hand holds the old box until the next pass. Barge-in by voice stays closed through each line plus ~1 s (button still interrupts). Screen PNGs 05/27/29 and all-screens.png still show the old outlines (HTML updated; re-export needed).
+- Claude takes over (see 1 November for the rule): phone runs t6–t8 with the founder's hand.
+  - The check crops the held product, not just the hand (68b7bf0), and a turned label keeps it reading (1a285d3).
+  - The kind is judged from the item when the label doesn't print it (2c35e3f), and a held product may sway within a hand width (caf1a28).
+  - A fingertip on the confirmed product starts the check, as in the 26 October project (d0d97e8), and a hand wrapped round the product touches it (234e087).
+  - «هذا هو؟» is "is this the right one?" (0614b62), and the products line agrees with its count (2017fd0).
+  - A clear request starts the search at once, with no "Is that right?" turn, by the founder's call (32ebe5c).
+  - The shelf phrase is kept per product across searches (b256d22).
 
 ## 30 October 2026
 

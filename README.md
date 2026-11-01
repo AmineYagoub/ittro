@@ -14,10 +14,10 @@ Four Meta models, each doing one job. The phone never holds the Meta API key: th
 |---|---|---|
 | Muse Voice Transcribe | Relay `/realtime` stream, always on | Hears every sentence, biased to English, Arabic and French from the first second |
 | Muse Spark | Relay, strict structured output on every call | Understands requests and commands (`/understand`), picks the package word (`/package-phrase`), reads shelf labels (`/read-shelf`), classifies scenes (`/classify-scene`), confirms the held product (`/confirm-hand`), reads details word for word (`/read-detail`) |
-| SAM 3.1 | Relay `/outline` | Outlines every product on the shelf; masks ship to the phone as small polygons parsed with Meta's `@meta-sam/parser` |
+| SAM 3.1 | Relay `/outline` | Outlines every product on the shelf; masks are parsed with Meta's `@meta-sam/parser` and ship to the phone as polygons of up to 128 points, and the guided product's outline is drawn natively and follows the camera on every frame |
 | MMS-TTS | On the phone | The 30 fixed direction and verdict cues in English and French are MMS recordings (`facebook/mms-tts-eng`, `facebook/mms-tts-fra`) shipped with the app and starting in under 50 ms |
 
-Honest notes: sentences with names and label text are spoken by the phone's voice, as is all Arabic; the on-device MMS synthesis runner was attempted during the event but never finished. Hand tracking (MediaPipe, on the phone) is not a Meta model. A relay answer counts only when it completed and parses; anything else is an error, never an empty default.
+Honest notes: sentences with names and label text are spoken by the phone's voice, as is all Arabic, so English and French switch voices between a cue and a sentence; the on-device MMS synthesis runner was attempted during the event but never finished. Hand tracking (MediaPipe, on the phone) is not a Meta model. A relay answer counts only when it completed and parses; anything else is an error, never an empty default.
 
 ## Architecture
 
@@ -30,7 +30,7 @@ conversation
 │   │            → speculating / understanding → routing
 │   │            (sleeping, touring, pairing, sending)
 │   ├── silence: quiet → waiting → reminding (8 s, 20 s, 60 s)
-│   ├── search:  idle ⇄ active (starts while Ittro asks "Is that right?")
+│   ├── search:  idle ⇄ active (starts as soon as one clear product is asked for)
 │   ├── guide:   idle → aiming → directing → almost → reaching → picking
 │   │            (noHand, handLost, wrongItem, targetLost)
 │   ├── confirm: idle → checking → yes / no / unsure / picture / giveup
@@ -43,7 +43,7 @@ conversation
 
 Around it: the relay (Cloudflare Worker: strict Spark gate, rate limit, $3/day budget, helper pairing and the helper page), and the `ittro-sensors` native module (24 kHz mic stream, live camera frames for hand tracking, earbud and volume-down buttons, photo prep). The full spec is [docs/design/DESIGN.md](docs/design/DESIGN.md); the screens it names are in [docs/design/screens](docs/design/screens).
 
-Targets: first outline under 3 s after "yes", the right product in the hand under 30 s, a verdict about 3 s after the hand stops.
+Targets: first outline under 3 s after the request, the right product in the hand under 30 s, a verdict about 3 s after the hand stops.
 
 Phone numbers (fill after the phone runs, never invent): 20-minute session drain/heat/memory — _pending_; 10-product set found/wrong-yes/verdicts — _pending_. Procedure: [docs/measure.md](docs/measure.md). Demo script: [docs/demo-script.md](docs/demo-script.md).
 
@@ -78,6 +78,9 @@ New work only, 26 October 2026 onward; the dated log is [docs/BUILD_LOG.md](docs
 - 27 Oct: repo from template, Expo app with camera screen, Kotlin sensor skeleton, relay with strict Spark gate, trilingual design pack (31 screens, 11 sounds, 30 voice cues).
 - 28 Oct: spoken conversation as one statechart, proven on the real phone; realtime Voice Transcribe streaming; silence clock, epoch stale-guards, language switching; shelf search (SAM outlines, label reads, tracker, masks); background-talk ignore; re-say of dropped lines.
 - 29 Oct: lone product names always answered; hand guiding from live camera frames with clips, ticks and meter; in-hand confirm with yes/no/unsure/picture verdicts and word-for-word detail reads; earbud and volume buttons; helper pairing, asking and answers; link states, brand memory, per-search timing logs and the phone measurement procedure.
+- 30 Oct: fixes from the first phone runs: each line said once, Ittro never answers its own voice, the found product announced by name at once, only the found product outlined, label reads at minimal effort.
+- 31 Oct: an outside reviewer's commit (mic muted while Ittro speaks, one guide target, deadlines on every call); the target kept by what it reads; a clear request searched at once; the touch on the guided product starts the check.
+- 1 Nov: SAM's own outline drawn natively and following the camera, a 4:3 preview, finer outlines; reflections never the product; the last shelf read again at once for the next request; a named variety must be the one on the label.
 
 Not built here (tools and materials, not the entry): the project template, the Expo starter, npm libraries, the Android SDK, Meta's models and MMS voices, the Readex Pro font, pre-event research, `@meta-sam/parser`, MediaPipe and its hand model. See "Not built during the event" in [docs/BUILD_LOG.md](docs/BUILD_LOG.md).
 

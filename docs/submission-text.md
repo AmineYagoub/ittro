@@ -27,8 +27,8 @@ can ask a helper, who answers from a web page with no install.
 
 - Muse Voice Transcribe streams the always-on microphone through the relay, biased to English, Arabic and French.
 - Muse Spark understands every request and command, picks the package word, reads shelf labels, classifies scenes, confirms the held product and reads dates, sizes, prices and ingredients word for word — all with strict structured output.
-- SAM 3.1 outlines the products; masks reach the phone as small polygons parsed with Meta's @meta-sam/parser.
-- MMS-TTS voices Ittro: the 30 fixed English and French cues are MMS recordings shipped with the app.
+- SAM 3.1 outlines the products; its masks, parsed with Meta's @meta-sam/parser, reach the phone as polygons, and the chosen product's outline is drawn natively and follows it as the camera moves.
+- MMS-TTS voices the 30 fixed English and French cues (directions, checking, yes, no), recorded and shipped with the app; longer sentences and all Arabic use the phone's own voice.
 
 Only the relay calls Meta; the phone never holds the API key.
 
@@ -36,7 +36,7 @@ Only the relay calls Meta; the phone never holds the API key.
 
 [VIDEO LINK — paste the final link after the logged-out play check in docs/submission-checklist.md]
 
-One real search end to end: ask, confirm, guide, a wrong bottle
+One real search end to end: ask, guide, touch, a wrong bottle
 caught ("No. This is Guedila water."), the right one confirmed,
 and a switch to Arabic. Filmed on a real phone in a real shop.
 

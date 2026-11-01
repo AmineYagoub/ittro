@@ -29,7 +29,7 @@ The shopper can say these at any time, in the current language. Muse Spark under
 
 | Say | Ittro does |
 |---|---|
-| *what you want* ("I'm looking for Masaad water") | Repeats it back and asks "Is that right?" If the shelf shows several sizes and none was said, it asks which one. |
+| *what you want* ("I'm looking for Masaad water") | One clear product: says "Looking for Masaad water." and looks at once ("no" stops it, "no, Guedila" corrects it). Several products: repeats them back and asks "Is that right?" first (screen 30). |
 | yes / no | Answers the question just asked |
 | where is it? | Says where the product is from the hand, or what it is doing to find it |
 | is this the right one? / are you sure? | Reads the product in the hand again, from a new picture |
@@ -112,11 +112,11 @@ For the moments Ittro can't settle: an unreadable label, a product it can't find
 What the test project and the research taught about speed:
 
 1. **Two loops.** The phone tracks the hand and the target on every frame and does all the steering. Meta's models run on events: Voice Transcribe always listens, SAM 3.1 finds and re-finds, Muse Spark understands and reads. Guidance never waits for the cloud.
-2. **Start looking while asking.** As soon as a request is understood, Ittro asks "Is that right?" and, at the same time, picks the package word from a photo, runs SAM and reads the shelf. Guidance waits for "yes", but the answer is often ready by then: "Masaad is to your right. Move your hand right."
-3. **Read before being asked.** When a fingertip rests on a product for 0.5 s, Ittro reads it from the sharpest recent frame. The verdict comes by itself; "is this the right one?" is answered at once from the stored answer.
+2. **Start looking at once.** One clear product is searched as soon as it is understood, with no "Is that right?" turn (founder's call, 31 Oct; saves about 4 s). The package word SAM is asked for is kept per product, so a product searched before starts its outlines at once, and a new request first reads the shelf already outlined if the camera has moved less than a quarter of the frame.
+3. **The touch is the question.** When the hand covers the guided product for 0.6 s (the fingertip on it, a bottle's neck just above SAM's cut, or a fifth of the hand over it), Ittro says it is checking, reads the hand and the product it holds, and only that read's yes is the green yes. "Is this the right one?" asks the same check.
 4. **Recorded direction cues.** The 30 fixed cues in `voice/SCRIPT.md` (directions, almost there, reach forward, pick it up, checking, yes, no, I can't confirm yet, hand and phone problems) are clips in each language, starting in under 50 ms. Text-to-speech only for sentences with names and label text. "Yes." and "No." clips start the verdict at once while the rest of the sentence is synthesised.
 5. **One queue, in this order:** the product in the hand, the shopper's question, finding a lost target, the first shelf reads, the rest.
-6. **Targets:** first outline under 3 s after "yes" (p50), the right product in the hand under 30 s, a verdict about 3 s after the hand stops, with the checking sound in between.
+6. **Targets:** first outline under 3 s after the request (p50), the right product in the hand under 30 s, a verdict about 3 s after the hand stops, with the checking sound in between.
 7. **Every answer is checked before it is spoken:** same step, same hand, not too old. An outdated answer is never spoken; Ittro reads again. If the shopper asked, it says "Your hand moved. Keep it on the product so I can read it."
 
 ## Silence budget
@@ -177,15 +177,18 @@ The files are in `sounds/`, as 16-bit mono WAV at 44.1 kHz. Each one's loudness 
 
 ## Voice
 
-| Language | Voice | Fixed cues (`voice/SCRIPT.md`) | Sentences with names and label text |
-|---|---|---|---|
-| English | Meta MMS-TTS, `facebook/mms-tts-eng` | `voice/<id>.en.wav`, shipped with the app | MMS on the phone |
-| French | Meta MMS-TTS, `facebook/mms-tts-fra` | `voice/<id>.fr.wav`, shipped with the app | MMS on the phone |
-| Arabic | The phone's own text-to-speech | Made on first launch with `synthesizeToFile` from `voice/clips.json`, kept until the Arabic voice or speed changes | The phone's voice |
+What the app does today (1 Nov):
 
-- MMS ignores punctuation. Split each sentence at `. , : ? !`, speak the parts one by one, and add 0.3 s after a full stop and 0.12 s after a comma. Fix the random seed so a sentence sounds the same every time.
-- "Speak faster" and "speak slower" change MMS's speaking rate for sentences and the playback speed of clips, with pitch kept.
-- MMS runs on the phone through ONNX Runtime (ONNX copies: `Xenova/mms-tts-eng`, `Xenova/mms-tts-fra`). Day-1 test on the phone: if a 12-word sentence takes more than about 1 s to synthesise, keep the MMS clips but speak English and French sentences with the phone's voice.
+| Language | Fixed cues (`voice/SCRIPT.md`) | Sentences with names and label text |
+|---|---|---|
+| English | Meta MMS-TTS recordings, `facebook/mms-tts-eng`: `voice/<id>.en.wav`, shipped with the app | The phone's own text-to-speech (`en-US`) |
+| French | Meta MMS-TTS recordings, `facebook/mms-tts-fra`: `voice/<id>.fr.wav`, shipped with the app | The phone's own text-to-speech (`fr-FR`) |
+| Arabic | The phone's own text-to-speech, spoken live from the cue text in `app/src/voiceClips.ts` | The phone's own text-to-speech (`ar-SA`) |
+
+- With TalkBack on, every cue and sentence goes through TalkBack instead.
+- So in English and French a cue and the sentence around it are two different voices. The shelf plan (`docs/design/shelf-awareness-plan.md`, step C) compares the MMS clips with the best installed phone voice and keeps one voice per language.
+- "Speak faster" and "speak slower" change the phone voice's rate for sentences and the playback speed of clips.
+- MMS on the phone was the plan: ONNX Runtime with `Xenova/mms-tts-eng` and `Xenova/mms-tts-fra`, splitting sentences at punctuation with a fixed seed. The runner was tried on 28 Oct and never finished (native library crashes, see `docs/BUILD_LOG.md`), so sentences use the phone's voice.
 - MMS is licensed CC BY-NC 4.0: free and open-source use only, with credit to Meta in the README and the app's licence notes.
 - Arabic MMS was tested and rejected on 27 Oct: the model drops the vowel marks and mispronounces. Teaching it the harakat (fine-tuning on diacritized speech) is left for after the hackathon.
 
@@ -303,6 +306,7 @@ PNG renders are in `screens/` at 2×, each next to an HTML file with the exact l
 
 ### 03 Confirm the request
 
+- Since 31 Oct the app skips this screen for one clear product and says "Looking for Masaad water." instead; it stays for a list of several products (screen 30).
 - The camera, dimmed with ink at 55%. Listening indicator.
 - Says: "You asked for Masaad water. Is that right? Say yes or no."
 - Chips: yes, no. A new product name instead of yes or no corrects the request.
@@ -323,7 +327,7 @@ PNG renders are in `screens/` at 2×, each next to an HTML file with the exact l
 
 ### 06 Guiding the hand
 
-- The target gets a solid yes-green outline (5 wide) over an ink halo (11 wide, 70%), a 12% green fill and a green name pill. The name is in the spoken line. The outline tracks the product at camera speed between shelf reads and never drifts off it.
+- The target gets SAM 3.1's own outline of it (up to 128 points, so a bottle keeps its neck and shoulders): a 4.5 dp yes-green line over a 9 dp shadow line, a 22% green fill and a green name pill centred over its top. The name is in the spoken line. The outline is drawn natively over the camera and moved on every frame by the picture's motion around it, so it follows the product when the phone moves; a cut that arrives late is placed by the motion since its photo. If SAM sends no mask, the box is drawn instead.
 - A dashed brand-light arrow runs from the fingertip toward the target, only while a hand is tracked.
 - Panel: a brand-blue circle (64) with the direction arrow, then the line. Says: "Masaad is to your right. Move your hand right." The first sentence, with the name, is synthesised; every cue after it is a clip.
 - Proximity meter: 5 segments, filled as the fingertip gets closer. It mirrors the ticks you hear and feel. Close in, "Almost there." once, then only the ticks speak. When the fingertip covers the target, screen 23. "Pick it up." needs evidence of contact, never just a stop or an overlap.
