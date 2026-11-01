@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { cameraPan, cropShelfPhoto, prepareShelfPhoto, thermalStatus, validTrackPan } from 'ittro-sensors';
 import type { TrackPan } from 'ittro-sensors';
-import { classifySceneView, outlineShelf, fetchPackagePhrase, readShelfCrops } from '../relay';
+import { classifySceneView, findShelf, outlineShelf, fetchPackagePhrase, readShelfCrops } from '../relay';
 import type { ShelfCrop } from '../relay';
 import type { Language } from '../theme';
 import { speech } from '../theme';
@@ -116,6 +116,7 @@ export function useShelfSearch(
       outline: outlineShelf,
       fetchPhrase: (wantedText, image, mime) => cachedPhrase(wantedText, image, mime, fetchPackagePhrase),
       keepPhrase: rememberPhrase,
+      find: findShelf,
       read: readShelfCrops,
       classify: classifySceneView,
       cutCrops: async (image, tracks) => {

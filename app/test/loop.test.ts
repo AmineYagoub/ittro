@@ -138,7 +138,7 @@ test('finished reads are reused and only new tracks are read', async () => {
     ['shelf-t1', 'shelf-t2'],
     ['shelf-t3'],
   ]);
-  assert.deepEqual(rig.loop.stats(), { samCalls: 2, readCalls: 2, readCrops: 3, classifyCalls: 0 });
+  assert.deepEqual(rig.loop.stats(), { samCalls: 2, readCalls: 2, readCrops: 3, classifyCalls: 0, findCalls: 0 });
 });
 
 test('an unsure read is tried again while yes and no stand', async () => {

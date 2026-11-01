@@ -2,7 +2,7 @@
 // runs on, the photos it keeps, and the statistics it reports. The
 // loop itself lives in loop.ts; the cloud half in loopReads.ts.
 import type { Language } from '../theme';
-import type { SceneView, ShelfBox, ShelfCrop, ShelfOutline, ShelfRead } from '../relay';
+import type { FoundShelf, SceneView, ShelfBox, ShelfCrop, ShelfOutline, ShelfRead } from '../relay';
 import type { GreyFrame } from './tracker';
 import type { Tracked } from './shelfTracks';
 import type { ConversationEvent } from '../conversation/types';
@@ -38,6 +38,8 @@ export interface LoopDeps {
   keepPhrase?: (request: string, phrase: string) => void;
   outline: (image: string, mime: string, phrase: string, w: number, h: number) => Promise<{ outlines: ShelfOutline[]; samMs: number; maskMs: number }>;
   fetchPhrase: (request: string, image: string, mime: string) => Promise<string>;
+  // The grounding find (relay /find); absent, every pass takes the phrase path.
+  find?: (request: string, image: string, mime: string, w: number, h: number) => Promise<FoundShelf>;
   read: (request: string, crops: ShelfCrop[]) => Promise<{ reads: ShelfRead[]; readMs: number }>;
   classify: (request: string, image: string, mime: string) => Promise<SceneView>;
   cutCrops: (image: string, tracks: LoopCut[]) => Promise<ShelfCrop[]>;
@@ -51,6 +53,7 @@ export interface LoopStats {
   readCalls: number;
   readCrops: number;
   classifyCalls: number;
+  findCalls: number;
 }
 
 export interface LoopState {

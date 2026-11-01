@@ -128,6 +128,22 @@ export async function outlineShelf(
   return postMeta('outline', '/outline', { image, mime, phrase, w, h });
 }
 
+export interface FoundShelf {
+  // Each outline carries the name printed on the package.
+  outlines: Array<ShelfOutline & { label: string }>;
+  groundMs: number;
+  samMs: number;
+  maskMs: number;
+}
+
+async function postFind(request: string, image: string, mime: string, w: number, h: number): Promise<FoundShelf> {
+  return postMeta('find', '/find', { request, image, mime, w, h });
+}
+
+// The grounding find, unless the build turns it off (EXPO_PUBLIC_FIND=off)
+// to compare it with the phrase path on the phone.
+export const findShelf = process.env['EXPO_PUBLIC_FIND'] === 'off' ? undefined : postFind;
+
 export async function fetchPackagePhrase(request: string, image: string, mime: string): Promise<string> {
   const body = await postMeta<{ phrase: string }>('package-phrase', '/package-phrase', { request, image, mime });
   return body.phrase;

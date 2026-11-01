@@ -29,7 +29,7 @@ export function freshState(): LoopState {
     crops: new Map(),
     carried: null,
     turnRightNext: true,
-    stats: { samCalls: 0, readCalls: 0, readCrops: 0, classifyCalls: 0 },
+    stats: { samCalls: 0, readCalls: 0, readCrops: 0, classifyCalls: 0, findCalls: 0 },
   };
 }
 

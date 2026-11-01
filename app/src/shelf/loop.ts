@@ -13,6 +13,7 @@ import { QUIET_MS, maybeSwept, readBatch, reportEmpty, reportRefind, reportVerdi
 import type { LoopDeps, LoopPhoto, LoopStats, ShelfLoop } from './loopTypes';
 import { freshState, searchReset } from './loopState';
 import { runCarried, seedCarry, takeCarry } from './carry';
+import { findPass } from './loopFind';
 
 const REFRESH_MS = 15000;
 // An unsure label is read again from the next sharp frame soon after (t9:
@@ -130,6 +131,15 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
           return;
         }
         state.blurrySkips = 0;
+        if (!hand && !deps.readContext().guiding && (await findPass(ctx, request, epoch, sharpest, nextId, picked))) {
+          if (!stale(epoch)) {
+            deps.send({ type: 'LINK_OK' });
+          }
+          return;
+        }
+        if (stale(epoch)) {
+          return;
+        }
         let phrase = state.phrases.get(request);
         if (!phrase && state.phraseWait) {
           phrase = await state.phraseWait.catch(() => undefined);
