@@ -16,13 +16,9 @@ import { voiceGateClosed } from '../voiceGate';
 import { logIttro } from '../log';
 
 const READY_TIMEOUT_MS = 12000;
-
 const MIC_RETRY_MS = 5000;
-
 const SILENCE_FRAME_BYTES = 3840;
-
 const MIC_SUMMARY_EVERY = 100;
-
 const PRE_READY_BUFFER = 25;
 
 interface RelayMessage {
@@ -47,6 +43,7 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
     let socket: WebSocket | null = null;
     let micStop: (() => void) | null = null;
     let ready = false;
+    let opening = false;
     let live = true;
     let keywords = input.keywords;
     let readyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -88,6 +85,7 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
       }
       retry.cancel();
       ready = false;
+      opening = false;
       const current = socket;
       socket = null;
       if (current) {
@@ -182,8 +180,10 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
         return;
       }
       socket = current;
+      opening = true;
       startMic();
       readyTimer = setTimeout(() => {
+        opening = false;
         if (!ready) {
           retry.failed();
           sendBack({ type: 'STREAM_FAILED', message: 'the stream never answered' });
@@ -208,6 +208,7 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
         }
         if (message.type === 'ready') {
           ready = true;
+          opening = false;
           retry.ready();
           if (readyTimer) {
             clearTimeout(readyTimer);
@@ -244,6 +245,7 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
           return;
         }
         reported = true;
+        opening = false;
         retry.failed();
         const wasReady = ready;
         const body = event as unknown as SocketClosedEvent;
@@ -267,6 +269,10 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
 
     const start = (nextKeywords: string[]): void => {
       keywords = nextKeywords;
+      // A socket still on its way to ready is kept (t20 closed one 3.7 s in).
+      if (opening) {
+        return;
+      }
       retry.start(reopen);
     };
 
