@@ -96,6 +96,12 @@ export function createMicStats(now: () => number): MicStats {
     },
   };
 }
+
+/** The mic's log line: frame rate, gaps, frames lost before ready or on send, and frames the voice gate silenced. */
+export function micLine(summary: MicSummary, gated: number): string {
+  return `mic ${summary.ratePerSecond.toFixed(1)}/s gap p50 ${summary.gapP50}ms p95 ${summary.gapP95}ms max ${summary.gapMax}ms seqgaps ${summary.seqGaps} notready ${summary.notReady} senderr ${summary.sendErr} gated ${gated}`;
+}
+
 // The frame that goes up the wire: the room, or silence while the
 // voice gate is closed or the chunk failed to decode.
 export function uplinkFrame(heard: Uint8Array | null, silence: Uint8Array, gateClosed: boolean): Uint8Array {

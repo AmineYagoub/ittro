@@ -1,18 +1,19 @@
 // The mic-and-socket stream: opens the relay socket and the mic
 // together, buffering up to two seconds of 24 kHz frames until the
-// relay answers ready, then forwards live until Meta endpoints a
-// sentence. While Ittro speaks (and 300 ms after), the uplink
-// carries silence frames instead of the room: the stream and its
-// endpointing stay alive, but nothing Ittro says can come back as a
-// transcript. The earbud button interrupts a line; the text echo
-// check in the statechart stays as a second net. Restarts wait 1 s,
-// 2 s, 4 s and on, and the log says why the socket closed. A start
-// keeps a socket still on its way to ready (t20 closed one 3.7 s in).
+// relay answers ready, then forwards live. While Ittro's voice plays
+// (and a tail after), the uplink carries silence instead of the room,
+// so nothing Ittro says comes back as a transcript; the echo check in
+// the statechart stays as a second net. Restarts wait 1 s, 2 s, 4 s
+// and on, and the log says why the socket closed. A start keeps a
+// socket still on its way to ready (t20 closed one 3.7 s in). A
+// stream that has heard nothing for 30 s is reopened as Ittro starts
+// a line (t22 went deaf for 150 s with its socket open).
 import { fromCallback } from 'xstate';
 import { addAudioChunkListener, startAudioStream, stopAudioStream } from 'ittro-sensors';
 import type { StreamCommand, StreamEmitted, StreamInput } from './types';
-import { createMicStats, decodeChunk, uplinkFrame } from './micStats';
+import { createMicStats, decodeChunk, micLine, uplinkFrame } from './micStats';
 import { createStreamRetry } from './streamRetry';
+import { createQuietWatch } from './streamQuiet';
 import { voiceGateClosed } from '../voiceGate';
 import { logIttro } from '../log';
 
@@ -30,14 +31,7 @@ interface RelayMessage {
   message?: string;
 }
 
-interface SocketClosedEvent {
-  code: unknown;
-  reason: unknown;
-}
-
-function note(line: string): void {
-  logIttro(line);
-}
+const note = logIttro;
 
 export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamInput>(
   ({ sendBack, receive, input }) => {
@@ -52,15 +46,13 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
     let pending: Uint8Array[] = [];
     const retry = createStreamRetry(input.retryBaseMs, note);
     const stats = createMicStats(() => Date.now());
+    const quiet = createQuietWatch(() => Date.now());
 
     const silence = new Uint8Array(SILENCE_FRAME_BYTES);
     let gated = 0;
 
     const summarizeMic = (): void => {
-      const summary = stats.snapshot();
-      note(
-        `mic ${summary.ratePerSecond.toFixed(1)}/s gap p50 ${summary.gapP50}ms p95 ${summary.gapP95}ms max ${summary.gapMax}ms seqgaps ${summary.seqGaps} notready ${summary.notReady} senderr ${summary.sendErr} gated ${gated}`,
-      );
+      note(micLine(stats.snapshot(), gated));
       gated = 0;
       stats.reset();
     };
@@ -138,6 +130,12 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
           }
           const heard = decodeChunk(event.chunk);
           const closed = voiceGateClosed();
+          const silentMs = quiet.due(closed);
+          if (silentMs > 0 && ready) {
+            note(`stream heard nothing for ${Math.round(silentMs / 1000)} s, reopening as Ittro speaks`);
+            closeSocket();
+            openSocket();
+          }
           if (closed && heard) {
             gated += 1;
           }
@@ -207,6 +205,7 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
         } catch {
           return;
         }
+        quiet.heard();
         if (message.type === 'ready') {
           ready = true;
           opening = false;
@@ -249,7 +248,7 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
         opening = false;
         retry.failed();
         const wasReady = ready;
-        const body = event as unknown as SocketClosedEvent;
+        const body = event as unknown as { code: unknown; reason: unknown };
         const code = typeof body.code === 'number' ? body.code : '?';
         const reason = typeof body.reason === 'string' && body.reason.length > 0 ? body.reason : '-';
         note(`stream socket closed code ${code} reason ${reason.slice(0, 80)} ${wasReady ? 'after' : 'before'} ready`);

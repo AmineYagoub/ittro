@@ -37,8 +37,21 @@ export function stopAudioStream() {
   return true;
 }
 
-export function addAudioChunkListener() {
-  return { remove() {} };
+const audioListeners = new Set();
+
+export function addAudioChunkListener(listener) {
+  audioListeners.add(listener);
+  return {
+    remove() {
+      audioListeners.delete(listener);
+    },
+  };
+}
+
+export function emitAudioChunk(chunk, sequence) {
+  for (const listener of [...audioListeners]) {
+    listener({ chunk, sequence });
+  }
 }
 
 export function setButtonsActive() {
