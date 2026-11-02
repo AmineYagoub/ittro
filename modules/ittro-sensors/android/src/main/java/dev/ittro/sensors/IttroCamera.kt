@@ -11,6 +11,7 @@ import android.media.ImageReader
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import android.util.Log
 import android.view.Surface
 import java.io.File
 import java.util.concurrent.CountDownLatch
@@ -21,8 +22,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 // Camera2 session, written fresh against the framework API. The
 // preview draws the shelf, the still reader feeds the shelf search
 // exactly the files it expects, and the hand reader analyses every
-// frame it can keep up with on its own thread. Opening twice or
-// shooting before ready never crashes; it reports and carries on.
+// frame it can keep up with on its own thread. The gyroscope reads on
+// a thread of its own while the camera is open, scaled by this lens
+// (Gyro). Opening twice or shooting before ready never crashes; it
+// reports and carries on.
 private const val SHOT_TIMEOUT_MS = 5000L
 
 object IttroCamera {
@@ -33,6 +36,7 @@ object IttroCamera {
   private var cameraThread: HandlerThread? = null
   private var handsThread: HandlerThread? = null
   private var framesThread: HandlerThread? = null
+  private var gyroThread: HandlerThread? = null
   private var device: CameraDevice? = null
   private var session: CameraCaptureSession? = null
   private var handReader: ImageReader? = null
@@ -84,6 +88,10 @@ object IttroCamera {
         jpegDeg = rotation
       }
       OutlineTrack.reset()
+      val gyroHandler = thread("IttroGyro")
+      if (!Gyro.start(app, gyroHandler, features, rotation)) {
+        Log.i("IttroOutline", "gyro unavailable, the flow alone moves the outline")
+      }
       HandFrames(app, tracker, rotation, framesHandler, handsHandler, onHandFrame, onPan).attach(hands)
       stills.setOnImageAvailableListener({ reader ->
         val image = reader.acquireLatestImage() ?: return@setOnImageAvailableListener
@@ -122,6 +130,7 @@ object IttroCamera {
         cameraThread = cameraHandler.looper.thread as HandlerThread
         handsThread = handsHandler.looper.thread as HandlerThread
         framesThread = framesHandler.looper.thread as HandlerThread
+        gyroThread = gyroHandler.looper.thread as HandlerThread
         handReader = hands
         stillReader = stills
       }
@@ -203,12 +212,15 @@ object IttroCamera {
       stillReader = null
       shotLatch?.countDown()
       shotLatch = null
+      Gyro.stop()
       cameraThread?.quitSafely()
       handsThread?.quitSafely()
       framesThread?.quitSafely()
+      gyroThread?.quitSafely()
       cameraThread = null
       handsThread = null
       framesThread = null
+      gyroThread = null
       opening.set(false)
     }
   }

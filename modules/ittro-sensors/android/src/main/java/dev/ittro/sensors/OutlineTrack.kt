@@ -13,17 +13,19 @@ import kotlin.math.abs
 // how the picture moved; the outline moves with the whole picture.
 // It no longer follows the patch under it: a clear bottle gives that
 // patch little to match, and in t31 it crept the outline 24 px of 960
-// left with the camera still. While the hand is over the outline it
-// holds, so an arm outside the hand's box can't drag it (t31: 30 px
-// in the second before the touch). JavaScript sends the outline as
-// SAM cut it from a still, with the still's number; the still's sensor
-// time finds the camera's motion since, in a ring of recent frames, so
-// an outline that arrives seconds late still lands on the product. The
-// ring holds about 70 s at 30 frames a second: a still is often 11 to
-// 16 s old by the time its outline is read (t18), and one older than
-// the ring would be drawn where the product was. The same ring tells
-// JavaScript where the camera pointed for a still, so a move since is
-// known even for a still taken as the camera opened (t32).
+// left with the camera still. While a hand is in view the phone's turn
+// moves it instead (Gyro), and it never holds: in t33 it held under
+// the reaching hand while the phone turned a quarter of the frame,
+// and the hand was led to the wall beside the Masaad. JavaScript
+// sends the outline as SAM cut it from a still, with the still's
+// number; the still's sensor time finds the camera's motion since, in
+// a ring of recent frames, so an outline that arrives seconds late
+// still lands on the product. The ring holds about 70 s at 30 frames a
+// second: a still is often 11 to 16 s old by the time its outline is
+// read (t18), and one older than the ring would be drawn where the
+// product was. The same ring tells JavaScript where the camera pointed
+// for a still, so a move since is known even for a still taken as the
+// camera opened (t32).
 private const val GREY_W = 160
 
 private const val RING = 2048
@@ -151,7 +153,9 @@ object OutlineTrack {
     synchronized(lock) {
       avoid = handBox?.takeIf { SystemClock.uptimeMillis() - handAt < HAND_FRESH_MS }
     }
-    val global = flow.update(grey, fw, fh, avoid)
+    val seen = flow.update(grey, fw, fh, avoid)
+    val turn = Gyro.step(image.timestamp)
+    val global = Gyro.choose(seen, turn, avoid != null)
     val drawn: OutlineTarget?
     synchronized(lock) {
       if (global != null) {
@@ -172,20 +176,12 @@ object OutlineTrack {
       }
       val t = target
       if (t != null && global != null) {
-        val box = floatArrayOf(
-          (t.box[0] + t.dx) / t.frameW,
-          (t.box[1] + t.dy) / t.frameH,
-          (t.box[2] + t.dx) / t.frameW,
-          (t.box[3] + t.dy) / t.frameH,
-        )
-        if (avoid == null || !flow.overlaps(box, avoid, 0.02f)) {
-          t.dx += global[0] * t.frameW
-          t.dy += global[1] * t.frameH
-        }
+        t.dx += global[0] * t.frameW
+        t.dy += global[1] * t.frameH
       }
       logCount += 1
       if (logCount % LOG_EVERY == 0) {
-        Log.i("IttroOutline", "pan ${"%.3f".format(panX)},${"%.3f".format(panY)} step ${global?.let { "%.4f,%.4f".format(it[0], it[1]) } ?: "none"} votes ${flow.votesX}/${flow.votesY} hand ${avoid != null} key ${target?.key ?: "-"} dx ${target?.dx?.toInt()} dy ${target?.dy?.toInt()}")
+        Log.i("IttroOutline", "pan ${"%.3f".format(panX)},${"%.3f".format(panY)} step ${steps(global)} flow ${steps(seen)} turn ${steps(turn)} agree ${Gyro.agreement()} votes ${flow.votesX}/${flow.votesY} hand ${avoid != null} key ${target?.key ?: "-"} dx ${target?.dx?.toInt()} dy ${target?.dy?.toInt()}")
       }
       drawn = target?.copy()
     }
@@ -212,6 +208,8 @@ object OutlineTrack {
     Log.i("IttroOutline", "placed ${t.key} shot gap ${gap / 1_000_000}ms dx ${t.dx.toInt()} dy ${t.dy.toInt()}")
     return t
   }
+
+  private fun steps(step: FloatArray?): String = step?.let { "%.4f,%.4f".format(it[0], it[1]) } ?: "none"
 
   private fun nearest(shotNs: Long): Pair<Int, Long> {
     var best = -1

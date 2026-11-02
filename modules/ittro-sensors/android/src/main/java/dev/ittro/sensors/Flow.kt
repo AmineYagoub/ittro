@@ -136,7 +136,7 @@ class Flow {
     return step
   }
 
-  fun overlaps(a: FloatArray, b: FloatArray, grow: Float): Boolean =
+  private fun overlaps(a: FloatArray, b: FloatArray, grow: Float): Boolean =
     a[0] < b[2] + grow && a[2] > b[0] - grow && a[1] < b[3] + grow && a[3] > b[1] - grow
 
   private fun rekey(mean: Float) {
