@@ -1,29 +1,29 @@
-// Cutting the guided outline again once the phone rests after a move.
-// The outline is SAM's cut of a still, carried to the live camera by
-// the measured pan, and in t31 the carry slid half a bottle off the
-// Guedila: the shelf drifted while the find's still was 7 s old, and
-// parallax under-read a pan (the bottles, nearer than the wall, moved
-// further). Once the camera has moved more than 3% of the frame since
-// the outline's still and held still for 0.4 s, with no hand in view,
-// the next pass cuts a still taken after the move, and the guide
-// adopts the cut where the product really is. A still from before the
-// camera last opened is cut again too, as no motion since it is known
-// (t32 reopened the camera when the search went on after a no). The
-// last signature is forgotten, so the cut reaches the guide even when
-// it rounds to the old one; the next re-cut waits for another move.
+// Cutting the guided outline again as the phone moves. The outline is
+// SAM's cut of a still, carried to the live camera by the measured
+// pan, one shift for the whole picture: it follows the phone turning,
+// but not the phone sliding or nearing, as the bottles, nearer than
+// the wall, move further (t31: half a bottle off the Guedila). Once
+// the camera has moved more than 3% of the frame since the last cut's
+// still, and that cut landed half a second ago, the next pass cuts a
+// still taken since, moving or not: with SAM's own time, a cut about
+// every 2 s while the phone moves (founder, 2 Nov: the outline left
+// the product while the camera moved, held while it was fixed). A
+// still from before the camera last opened is cut again too, as no
+// motion since it is known (t32 reopened the camera when the search
+// went on after a no). The last signature is forgotten, so the cut
+// reaches the guide even when it rounds to the old one.
 // When nothing in the cut lies where the outline is drawn, the pass
 // reads it, and the yes nearest the drawn outline takes the target: in
 // t33 the outline had slid a bottle off onto the wall during a turn,
 // the re-cut read the Masaad yes, and the old rule kept the wall as the
-// target because the yes was elsewhere. Pans older than 1.5 s say
-// nothing about resting now. While guiding, labels waiting for a read
+// target because the yes was elsewhere. While guiding, labels waiting for a read
 // call a pass only when it will read them, as the pass reads then only
 // to confirm the target: a re-cut that saw bottles the find never read
 // would otherwise start SAM back to back, every read paused (t29 ran
 // one such pass at 10:47:11). While guiding, a pass cuts only a still
-// from the last 2.5 s with no hand in view: t34 cut the hand in with
-// the Guedila as one wide outline, and re-cut an 18 s old still of
-// where the camera no longer pointed.
+// from the last 2.5 s with no hand near the product (handClear.ts):
+// t34 cut the hand in with the Guedila as one wide outline, and re-cut
+// an 18 s old still of where the camera no longer pointed.
 import { TARGET_CONFIRM_IOU } from '../conversation/searchTarget';
 import type { ShelfOutline } from '../relay';
 import { targetJumped } from './loopReads';
@@ -31,19 +31,13 @@ import type { ReadsContext } from './loopReads';
 import type { CameraPan, LoopPhoto, LoopState } from './loopTypes';
 import { boxOverlap } from './outlines';
 import { placer } from './place';
+import { handBlocks, handNearTarget } from './handClear';
 
 /** How far the camera must have moved since the outline's still, as a share of the frame. */
 export const RECUT_MOVE = 0.03;
 
-/** How little the camera may move between two samples RECUT_STEADY_MS apart to be at rest. */
-export const RECUT_STEADY = 0.005;
-
-export const RECUT_STEADY_MS = 400;
-
-/** The least time from the last outline to a re-cut. */
-export const RECUT_GAP_MS = 2500;
-
-const SAMPLE_KEEP_MS = 1500;
+/** The least time from the last cut landing to the next re-cut. */
+export const RECUT_GAP_MS = 500;
 
 const GUIDE_STILL_MS = 2500;
 
@@ -51,37 +45,13 @@ function sameOpening(a: CameraPan, b: CameraPan): boolean {
   return (a.session ?? 0) === (b.session ?? 0);
 }
 
-function resting(state: LoopState, pan: CameraPan, now: number): boolean {
-  const recent = state.panSamples.filter((sample) => now - sample.at <= SAMPLE_KEEP_MS);
-  const before = recent.filter((sample) => now - sample.at >= RECUT_STEADY_MS).pop() ?? null;
-  state.panSamples = [...recent, { at: now, pan }];
-  return (
-    before !== null &&
-    sameOpening(before.pan, pan) &&
-    Math.abs(pan.x - before.pan.x) < RECUT_STEADY &&
-    Math.abs(pan.y - before.pan.y) < RECUT_STEADY
-  );
-}
-
-/** Notes where the camera points while no pass may run, so a phone that rested under a hand is known to rest once the hand leaves. */
-export function notePan(ctx: ReadsContext): void {
-  const pan = ctx.deps.pan?.() ?? null;
-  if (pan) {
-    resting(ctx.state, pan, ctx.deps.now());
-  }
-}
-
-/** True when the guided outline should be cut again from a fresh still; each call notes where the camera points. */
+/** True when the guided outline should be cut again from a fresh still: the camera moved since the last cut's still, or opened again. */
 export function recutDue(ctx: ReadsContext): boolean {
   const { deps, state } = ctx;
   const pan = deps.pan?.() ?? null;
-  if (!pan) {
-    return false;
-  }
-  const now = deps.now();
-  const rested = resting(state, pan, now);
   const from = state.outlinedPan;
-  if (!rested || !from || state.outlinedAt === null || now - state.outlinedAt < RECUT_GAP_MS) {
+  const now = deps.now();
+  if (!pan || !from || state.outlinedAt === null || now - state.outlinedAt < RECUT_GAP_MS) {
     return false;
   }
   const reopened = !sameOpening(from, pan);
@@ -90,7 +60,7 @@ export function recutDue(ctx: ReadsContext): boolean {
   if (!reopened && Math.abs(dx) <= RECUT_MOVE && Math.abs(dy) <= RECUT_MOVE) {
     return false;
   }
-  if (state.cloudBusy || state.tracks.length === 0 || !deps.readContext().guiding || deps.handInView?.()) {
+  if (state.cloudBusy || state.tracks.length === 0 || !deps.readContext().guiding || handBlocks(deps)) {
     return false;
   }
   if (state.recutAt === null || state.recutAt <= state.outlinedAt) {
@@ -120,13 +90,15 @@ export function readsDue(ctx: ReadsContext, waiting: boolean): boolean {
   return !context.handCovering && Boolean(context.guideLost || context.guideRecheck || targetJumped(ctx.state, placer(ctx.deps)));
 }
 
-/** While guiding, the stills a pass may cut: taken in the last 2.5 s, with no hand in view. */
+/** While guiding, the stills a pass may cut: taken in the last 2.5 s, with no hand near the product. */
 export function guideStills(ctx: ReadsContext, photos: LoopPhoto[]): LoopPhoto[] {
-  if (!ctx.deps.readContext().guiding) {
+  const context = ctx.deps.readContext();
+  if (!context.guiding) {
     return photos;
   }
   const now = ctx.deps.now();
-  return photos.filter((photo) => !photo.hand && now - (photo.at ?? now) <= GUIDE_STILL_MS);
+  const near = (photo: LoopPhoto): boolean => Boolean(photo.hand) && handNearTarget(photo.handBox ?? null, context.guideBox ?? null);
+  return photos.filter((photo) => !near(photo) && now - (photo.at ?? now) <= GUIDE_STILL_MS);
 }
 
 /** The stills a pass may cut once a re-cut was asked: those taken since, never one from before the move. */

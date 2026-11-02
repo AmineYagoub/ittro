@@ -1,16 +1,19 @@
 // t34 on the shelf loop: a re-cut of a still taken before the phone
 // turned on is placed where the camera has it now, lands on the drawn
 // outline and reads nothing, and the guide gets each cut's place.
-// While guiding no pass runs with a hand in view, and a pass cuts only
-// a still from the last 2.5 s with no hand: SAM had cut the hand in
-// with the Guedila, and re-cut an 18 s old still of where the camera
-// no longer pointed.
+// While guiding no pass runs with a hand near the product or of
+// unknown place, and a pass cuts only a still from the last 2.5 s with
+// no hand near it: SAM had cut the hand in with the Guedila, and
+// re-cut an 18 s old still of where the camera no longer pointed. A
+// hand clear of the product leaves the cuts going, and the outline it
+// touches is dropped (t38).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShelfLoop } from '../src/shelf/loop';
 import type { CameraPan, LoopDeps, LoopPhoto, ShelfLoop } from '../src/shelf/loopTypes';
 import type { FoundShelf, ShelfBox, ShelfOutline } from '../src/relay';
 import type { ConversationEvent } from '../src/conversation/types';
+import type { HandBox } from '../src/guide/types';
 
 const W = 960;
 
@@ -32,7 +35,7 @@ interface Rig {
   cut: string[];
   reads: () => number;
   view: { now: number; pan: CameraPan; guiding: boolean; hand: boolean; box: ShelfBox | null };
-  still: (image: string, at: number, where: CameraPan, shot: number, hand?: boolean) => LoopPhoto;
+  still: (image: string, at: number, where: CameraPan, shot: number, hand?: boolean, handBox?: HandBox | null) => LoopPhoto;
 }
 
 function rig(): Rig {
@@ -80,10 +83,10 @@ function rig(): Rig {
   };
   const loop = createShelfLoop(deps);
   loop.setTarget('قديلة', 1);
-  const still = (image: string, at: number, where: CameraPan, shot: number, hand = false): LoopPhoto => {
+  const still = (image: string, at: number, where: CameraPan, shot: number, hand = false, handBox: HandBox | null = null): LoopPhoto => {
     shots.set(shot, where);
     stills.set(image, where);
-    return { image, mime: 'image/jpeg', w: W, h: 1280, grey: { data: new Uint8Array(0), w: 0, h: 0 }, at, pan: where, shot, hand };
+    return { image, mime: 'image/jpeg', w: W, h: 1280, grey: { data: new Uint8Array(0), w: 0, h: 0 }, at, pan: where, shot, hand, handBox };
   };
   return { loop, sent, logs, cut, reads: () => reads, view, still };
 }
@@ -136,4 +139,16 @@ test('t34: while guiding a pass cuts only a still from the last 2.5 s with no ha
   assert.ok(r.logs.includes('shelf pass waits for a fresh still without a hand'));
   await r.loop.cloudPass([r.still('old', 2000, START, 5), r.still('reach', 19500, START, 6, true), r.still('clear', 19800, START, 7)]);
   assert.deepEqual(r.cut, ['clear']);
+});
+
+test('t38: with the hand clear of the product a pass cuts, and the outline the hand touches is dropped', async () => {
+  const { r, target } = await guided();
+  r.view.now = 20000;
+  r.view.box = target.box;
+  const touching = target.box.x1 < 300 ? { x1: 480, y1: 500, x2: 600, y2: 700 } : { x1: 60, y1: 500, x2: 200, y2: 700 };
+  await r.loop.cloudPass([r.still('reach', 19800, START, 6, true, touching)]);
+  assert.deepEqual(r.cut, ['reach']);
+  assert.ok(r.logs.includes('shelf cut dropped 1 of 2 outlines under the hand'));
+  const cut = r.sent.filter((event) => event.type === 'SHELF_OUTLINED').at(-1) as { outlines: ShelfOutline[] } | undefined;
+  assert.equal(cut?.outlines.length, 1);
 });

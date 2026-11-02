@@ -11,6 +11,7 @@ import type { Tracked } from './shelfTracks';
 import type { ConversationEvent } from '../conversation/types';
 import type { ViewReply } from '../conversation/askTypes';
 import type { SweepState } from './sweep';
+import type { HandBox } from '../guide/types';
 
 export interface LoopPhoto {
   image: string;
@@ -23,8 +24,10 @@ export interface LoopPhoto {
   at?: number;
   /** Where the camera pointed as the still was taken, so a move since is known. */
   pan?: CameraPan;
-  /** A hand was in view as the still was taken: SAM cuts it in with the product. */
+  /** A hand was in view as the still was taken: near the product, SAM cuts it in with it. */
   hand?: boolean;
+  /** Where that hand was, photo pixels: outlines it touches are dropped from the cut. */
+  handBox?: HandBox | null;
 }
 
 export interface LoopContext {
@@ -59,8 +62,10 @@ export interface LoopDeps {
   readContext: () => LoopContext;
   /** Where the camera points now, for the inventory, the sweep and the re-cut; absent in tests. */
   pan?: () => CameraPan | null;
-  /** A hand is in view now: SAM would cut it in with the product, so no pass runs while guiding; absent in tests. */
+  /** A hand is in view now: near the product, SAM would cut it in with it; absent in tests. */
   handInView?: () => boolean;
+  /** Where the hand in view is, photo pixels, when the tracker gives its box. */
+  handBox?: () => HandBox | null;
   /** Where the camera pointed as still `shot` was taken, in pan()'s terms; absent in tests. */
   stillPan?: (shot: number) => CameraPan | null;
   /** The not-here summary at the end of a sweep (relay /ask-view). */
@@ -89,8 +94,6 @@ export interface LoopState {
   outlinedAt: number | null;
   /** Where the camera pointed for the still the outlines were last cut from. */
   outlinedPan: CameraPan | null;
-  /** The camera's pans of the last moments, to tell a phone at rest. */
-  panSamples: Array<{ at: number; pan: CameraPan }>;
   /** When a re-cut was last asked: only stills taken since are cut. */
   recutAt: number | null;
   /** A re-cut was asked and no pass has cut since: that pass may read to place the target again. */

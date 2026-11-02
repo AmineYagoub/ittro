@@ -15,7 +15,6 @@ export function freshState(): LoopState {
     cloudBusy: false,
     outlinedAt: null,
     outlinedPan: null,
-    panSamples: [],
     recutAt: null,
     recutPending: false,
     readAt: null,

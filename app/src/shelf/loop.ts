@@ -8,8 +8,9 @@
 // in 40 s on the phone, each 2.3 to 4.7 s, against the budget and the
 // confirm), and once the phone rests after a move the outline is cut
 // again from a still taken since (recut.ts: t31's slid half a bottle).
-// While guiding with a hand in view no pass runs: SAM would cut the
-// hand in (t34). Another search starts a fresh shelf inventory.
+// While guiding with a hand near the product no pass runs, and
+// outlines a hand touches are dropped: SAM would cut the hand in
+// (t34). Another search starts a fresh shelf inventory.
 import type { ShelfCrop, ShelfRead } from '../relay';
 import { linkKindFor } from '../metaCall';
 import { pickSharpest, sharpness } from './tracker';
@@ -24,7 +25,8 @@ import { findPass } from './loopFind';
 import { afterSweepRead, stopPhotos, tickSweep } from './loopSweep';
 import { sweepDue } from './sweep';
 import { seenFor } from './inventory';
-import { guideStills, notePan, reanchorDue, readsDue, recutDue, recutPhotos } from './recut';
+import { guideStills, reanchorDue, readsDue, recutDue, recutPhotos } from './recut';
+import { handBlocks, handFreeCut } from './handClear';
 import { placer, shiftTracks } from './place';
 
 const REFRESH_MS = 15000;
@@ -88,8 +90,7 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
       if (state.cloudBusy || state.request === '') {
         return false;
       }
-      if (deps.readContext().guiding && deps.handInView?.()) {
-        notePan(ctx);
+      if (deps.readContext().guiding && handBlocks(deps)) {
         return false;
       }
       const swept = state.foundTrack === null ? sweepDue(state.sweep, deps.now()) : null;
@@ -188,6 +189,12 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
           }
         }
         outlined = { ...outlined, outlines: anchorOutlines(outlined.outlines, sharpest.shot) };
+        const clear = handFreeCut(deps, outlined.outlines, sharpest.handBox);
+        if (!clear) {
+          state.outlinedAt = deps.now();
+          return;
+        }
+        outlined = { ...outlined, outlines: clear };
         const masked = outlined.outlines.filter((outline) => outline.mask).length;
         deps.log(
           `shelf sam ${outlined.samMs}ms masks ${outlined.maskMs}ms outlines ${outlined.outlines.length} masked ${masked} sharpness ${Math.round(picked)}`,

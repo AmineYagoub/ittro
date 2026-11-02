@@ -19,9 +19,11 @@
 // the still was taken (from the frames around it: in t32 the camera
 // opened with the search, and the shot began before its first frame),
 // and the loop hears whether a hand is in view, so the guided outline
-// is cut again once the phone rests after a move (t31). A photo also
-// notes a hand seen as it was taken: while guiding, SAM cut the hand
-// in with the product (t34), so those stills are not cut.
+// is cut again as the phone moves (t31, t38). A photo also notes a
+// hand seen as it was taken, and where: while guiding, SAM cut the
+// hand in with the product it touched (t34), so a still with a hand
+// near the product is not cut, and outlines a hand touches are
+// dropped.
 import { useEffect, useMemo, useRef } from 'react';
 import { cameraPan, prepareShelfPhoto, shotPan, thermalStatus, validTrackPan } from 'ittro-sensors';
 import type { TrackPan } from 'ittro-sensors';
@@ -120,7 +122,11 @@ export function useShelfSearch(
     }
     const wanted: string = request;
     let stopped = false;
-    const loop = createShelfLoop({ ...searchDeps(actor, () => stopped), handInView: () => panFrozenByHand(lastHandFix(), Date.now()) });
+    const loop = createShelfLoop({
+      ...searchDeps(actor, () => stopped),
+      handInView: () => panFrozenByHand(lastHandFix(), Date.now()),
+      handBox: () => lastHandFix()?.box ?? null,
+    });
     const carried = held.current.carry;
     held.current = { loop, carry: null, ring: [], wanted, photoW: 0, stats: freshStats() };
     let shooting = false;
@@ -203,6 +209,8 @@ export function useShelfSearch(
         }
         const shot = Number(/ittro-shot-(\d+)\.jpg$/.exec(uri)?.[1] ?? Number.NaN);
         const stillPan = (Number.isFinite(shot) ? shotPan(shot) : null) ?? startPan;
+        const handFix = lastHandFix();
+        const handSeen = handFix !== null && handFix.atMs >= shotStart - HAND_PAN_FREEZE_MS;
         const photo = {
           image: prepared.photo,
           mime: 'image/jpeg',
@@ -210,7 +218,8 @@ export function useShelfSearch(
           h: prepared.h,
           grey,
           at: shotStart,
-          hand: (lastHandFix()?.atMs ?? Number.NEGATIVE_INFINITY) >= shotStart - HAND_PAN_FREEZE_MS,
+          hand: handSeen,
+          handBox: handSeen ? (handFix.box ?? null) : null,
           ...(stillPan ? { pan: stillPan } : {}),
           ...(Number.isFinite(shot) ? { shot } : {}),
         };

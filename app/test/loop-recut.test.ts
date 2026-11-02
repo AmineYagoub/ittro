@@ -1,10 +1,12 @@
-// Once the phone rests after a move, the guided outline is cut again
-// from a still taken since. t31: the Guedila outline was placed from a
-// 7 s-old still while the shelf drifted, and parallax under-read the
-// pan that followed, so it ended half a bottle off. Not moved enough,
-// still moving, a hand in view, too soon after the last cut or no
-// guide: no re-cut. A still from before the camera reopened is cut
-// again once the phone rests, moved or not (t32). SAM here cuts the
+// Once the phone has moved, the guided outline is cut again from a
+// still taken since, at rest or still moving (t38: a cut each time the
+// last one landed half a second ago). t31: the Guedila outline was
+// placed from a 7 s-old still while the shelf drifted, and parallax
+// under-read the pan that followed, so it ended half a bottle off. Not
+// moved enough, a hand near the product, too soon after the last cut
+// or no guide: no re-cut; a hand clear of the product leaves it. A
+// still from before the camera reopened is cut again, moved or not
+// (t32). SAM here cuts the
 // same boxes as the find, the worst case: the cut still reaches the
 // guide though it rounds to the old one, and the native outline gets
 // the new still's key. A re-cut that sees a bottle the find never read
@@ -17,6 +19,7 @@ import assert from 'node:assert/strict';
 import { createShelfLoop } from '../src/shelf/loop';
 import type { CameraPan, LoopDeps, LoopPhoto, ShelfLoop } from '../src/shelf/loopTypes';
 import type { FoundShelf, ShelfBox, ShelfOutline } from '../src/relay';
+import type { HandBox } from '../src/guide/types';
 import type { ConversationEvent } from '../src/conversation/types';
 import { decideTarget } from '../src/conversation/searchTarget';
 import { cameraOutline } from '../src/shelf/outlines';
@@ -44,7 +47,7 @@ interface Rig {
   logs: string[];
   cut: string[];
   reads: () => number;
-  view: { now: number; pan: CameraPan; guiding: boolean; hand: boolean; third: boolean; lost: boolean; box: ShelfBox | null };
+  view: { now: number; pan: CameraPan; guiding: boolean; hand: boolean; handBox: HandBox | null; third: boolean; lost: boolean; box: ShelfBox | null };
 }
 
 function rig(): Rig {
@@ -52,7 +55,7 @@ function rig(): Rig {
   const logs: string[] = [];
   const cut: string[] = [];
   let reads = 0;
-  const view: Rig['view'] = { now: 0, pan: START, guiding: false, hand: false, third: false, lost: false, box: null };
+  const view: Rig['view'] = { now: 0, pan: START, guiding: false, hand: false, handBox: null, third: false, lost: false, box: null };
   const found: FoundShelf = {
     outlines: [
       { id: 1, frame: 0, box: GUEDILA, label: 'GUEDILA' },
@@ -66,6 +69,7 @@ function rig(): Rig {
     now: () => view.now,
     pan: () => view.pan,
     handInView: () => view.hand,
+    handBox: () => view.handBox,
     find: async () => found,
     fetchPhrase: async () => 'bottle',
     outline: async (image) => {
@@ -110,14 +114,13 @@ function outlined(sent: ConversationEvent[]): ShelfOutline[][] {
   return sent.filter((event) => event.type === 'SHELF_OUTLINED').map((event) => (event as { outlines: ShelfOutline[] }).outlines);
 }
 
-test('t31: moved and at rest, the outline is cut again from a still taken after the move', async () => {
+test('t31: moved, the outline is cut again from a still taken after the move', async () => {
   const r = await foundAndGuided();
-  assert.equal(dueAt(r, 3000, pan(0.075)), false);
-  assert.equal(dueAt(r, 3500, pan(0.075)), true);
+  assert.equal(dueAt(r, 3000, pan(0.075)), true);
   assert.ok(r.logs.includes("shelf recut, camera moved 0.116,0.000 since the outline's photo"));
-  r.view.now = 3600;
-  await r.loop.cloudPass([photo('find', 0, START, 4), photo('rested', 3500, pan(0.075), 5)]);
-  assert.deepEqual(r.cut, ['rested']);
+  r.view.now = 3100;
+  await r.loop.cloudPass([photo('find', 0, START, 4), photo('moved', 3000, pan(0.075), 5)]);
+  assert.deepEqual(r.cut, ['moved']);
   assert.equal(r.reads(), 0);
   assert.ok(r.logs.includes('shelf reads paused while guiding'));
   const cuts = outlined(r.sent);
@@ -141,42 +144,44 @@ test('the cut reaches the guide, and the native outline gets the new still', asy
   assert.ok(after.startsWith('5:'));
 });
 
-test('after a re-cut lands, the next one waits for another move', async () => {
+test('after a re-cut lands, the next one waits half a second and another move', async () => {
   const r = await foundAndGuided();
-  dueAt(r, 3000, pan(0.075));
-  assert.equal(dueAt(r, 3500, pan(0.075)), true);
-  r.view.now = 3600;
-  await r.loop.cloudPass([photo('rested', 3500, pan(0.075), 5)]);
-  assert.equal(dueAt(r, 6500, pan(0.075)), false);
-  assert.equal(dueAt(r, 7000, pan(0.075)), false);
-  assert.equal(dueAt(r, 7500, pan(0.115)), false);
-  assert.equal(dueAt(r, 8000, pan(0.115)), true);
+  assert.equal(dueAt(r, 3000, pan(0.075)), true);
+  r.view.now = 3100;
+  await r.loop.cloudPass([photo('moved', 3000, pan(0.075), 5)]);
+  assert.equal(dueAt(r, 3500, pan(0.115)), false);
+  assert.equal(dueAt(r, 4000, pan(0.075)), false);
+  assert.equal(dueAt(r, 4500, pan(0.115)), true);
   assert.ok(r.logs.includes("shelf recut, camera moved 0.040,0.000 since the outline's photo"));
   assert.equal(r.logs.filter((line) => line.startsWith('shelf recut')).length, 2);
 });
 
-test('not moved enough or still moving: no re-cut until the phone rests', async () => {
+test('t38: not moved enough, no re-cut; still moving, a cut each time the last one landed', async () => {
   const small = await foundAndGuided();
-  dueAt(small, 3000, pan(-0.015, -0.005));
-  assert.equal(dueAt(small, 3500, pan(-0.015, -0.005)), false);
+  assert.equal(dueAt(small, 3000, pan(-0.015, -0.005)), false);
   const moving = await foundAndGuided();
-  dueAt(moving, 3000, pan(0.04));
-  assert.equal(dueAt(moving, 3500, pan(0.06)), false);
-  assert.equal(dueAt(moving, 4000, pan(0.075)), false);
-  assert.equal(dueAt(moving, 4500, pan(0.077)), true);
+  assert.equal(dueAt(moving, 3000, pan(0.04)), true);
+  moving.view.now = 3100;
+  await moving.loop.cloudPass([photo('first', 3000, pan(0.04), 5)]);
+  assert.equal(dueAt(moving, 3400, pan(0.08)), false);
+  assert.equal(dueAt(moving, 3700, pan(0.1)), true);
+  moving.view.now = 3800;
+  await moving.loop.cloudPass([photo('second', 3700, pan(0.1), 6)]);
+  assert.deepEqual(moving.cut, ['first', 'second']);
 });
 
-test('a hand in view, too soon after the cut or no guide: no re-cut', async () => {
+test('t38: a hand near the product, too soon after the cut or no guide: no re-cut; a hand clear of it leaves it', async () => {
   const hand = await foundAndGuided();
   hand.view.hand = true;
-  dueAt(hand, 3000, pan(0.075));
+  assert.equal(dueAt(hand, 3000, pan(0.075)), false);
+  hand.view.box = box(274, 446);
+  hand.view.handBox = { x1: 330, y1: 600, x2: 560, y2: 800 };
   assert.equal(dueAt(hand, 3500, pan(0.075)), false);
-  hand.view.hand = false;
+  hand.view.handBox = { x1: 750, y1: 900, x2: 950, y2: 1100 };
   assert.equal(dueAt(hand, 4000, pan(0.075)), true);
   const soon = await foundAndGuided();
-  dueAt(soon, 1500, pan(0.075));
-  assert.equal(dueAt(soon, 2000, pan(0.075)), false);
-  assert.equal(dueAt(soon, 2500, pan(0.075)), true);
+  assert.equal(dueAt(soon, 300, pan(0.075)), false);
+  assert.equal(dueAt(soon, 600, pan(0.075)), true);
   const unguided = rig();
   await unguided.loop.cloudPass([photo('find', 0, START, 4)]);
   dueAt(unguided, 3000, pan(0.075));
