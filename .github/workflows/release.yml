@@ -1,9 +1,9 @@
 # Releases (docs/contributing/releases.md). On every push to main, release-please keeps one pull
-# request open with the next app and relay versions and their changelogs. Merging it tags
-# app-vX.Y.Z and relay-vX.Y.Z and publishes their GitHub releases. A new app release is then built
-# from its tag as CI builds it, with the relay's access code, checked against the live relay first,
-# signed with the release key, and attached to its release with its checksum. A new relay release
-# is deployed to Cloudflare and checked. Both jobs run in the "release" environment, which holds
+# request open with the next version and its changelog. The app and the relay share the version.
+# Merging it tags vX.Y.Z and publishes the GitHub release. The APK is then built from the tag as CI
+# builds it, with the relay's access code, checked against the live relay first, signed with the
+# release key, and attached to the release with its checksum. The relay is deployed from the same
+# tag to Cloudflare and checked. Both jobs run in the "release" environment, which holds
 # the secrets and waits for a maintainer's approval; nothing that runs on a pull request reaches it.
 # A tag made with GITHUB_TOKEN starts no workflows, so the jobs live here, not "on: release".
 name: Release
@@ -35,11 +35,9 @@ jobs:
       issues: write
       pull-requests: write
     outputs:
-      app: ${{ steps.release.outputs.release_created }}
-      app-tag: ${{ steps.release.outputs.tag_name }}
-      app-version: ${{ steps.release.outputs.version }}
-      relay: ${{ steps.release.outputs['relay--release_created'] }}
-      relay-tag: ${{ steps.release.outputs['relay--tag_name'] }}
+      created: ${{ steps.release.outputs.release_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
     steps:
       - id: release
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
@@ -50,20 +48,20 @@ jobs:
   apk:
     name: Android release
     needs: release-please
-    if: needs.release-please.outputs.app == 'true'
+    if: needs.release-please.outputs.created == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     environment: release
     permissions:
       contents: write
     env:
-      TAG: ${{ needs.release-please.outputs.app-tag }}
-      APK: ittro-${{ needs.release-please.outputs.app-version }}.apk
+      TAG: ${{ needs.release-please.outputs.tag }}
+      APK: ittro-${{ needs.release-please.outputs.version }}.apk
     steps:
       - name: Check out the tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.release-please.outputs.app-tag }}
+          ref: ${{ needs.release-please.outputs.tag }}
           persist-credentials: false
 
       - name: Check that the live relay takes the access code
@@ -91,17 +89,18 @@ jobs:
         env:
           KEYSTORE: ${{ secrets.RELEASE_KEYSTORE }}
           KSPASS: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           BUILT: ${{ steps.build.outputs.apk }}
         run: |
-          if [[ -z "$KEYSTORE" || -z "$KSPASS" ]]; then
-            echo "::error title=Signing::The release environment has no RELEASE_KEYSTORE or RELEASE_KEYSTORE_PASSWORD"
+          if [[ -z "$KEYSTORE" || -z "$KSPASS" || -z "$ALIAS" ]]; then
+            echo "::error title=Signing::The release environment needs RELEASE_KEYSTORE, RELEASE_KEYSTORE_PASSWORD and RELEASE_KEY_ALIAS"
             exit 1
           fi
           umask 077
           keystore="$RUNNER_TEMP/release.jks"
           trap 'rm -f "$keystore"' EXIT
           base64 --decode <<< "$KEYSTORE" > "$keystore"
-          "$ANDROID_HOME/build-tools/37.0.0/apksigner" sign --ks "$keystore" --ks-key-alias ittro \
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" sign --ks "$keystore" --ks-key-alias "$ALIAS" \
             --ks-pass env:KSPASS --key-pass env:KSPASS --alignment-preserved \
             --v1-signing-enabled false --v4-signing-enabled false --out "$APK" "$BUILT"
           "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --print-certs "$APK" |
@@ -116,7 +115,7 @@ jobs:
   relay:
     name: Relay deploy
     needs: release-please
-    if: needs.release-please.outputs.relay == 'true'
+    if: needs.release-please.outputs.created == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: release
@@ -126,7 +125,7 @@ jobs:
       - name: Check out the tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.release-please.outputs.relay-tag }}
+          ref: ${{ needs.release-please.outputs.tag }}
           persist-credentials: false
 
       - name: Set up Node.js

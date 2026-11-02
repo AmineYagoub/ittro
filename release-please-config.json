@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/v17.6.0/schemas/config.json",
   "bump-minor-pre-major": true,
-  "include-component-in-tag": true,
+  "include-component-in-tag": false,
   "initial-version": "0.1.0",
   "changelog-sections": [
     { "type": "feat", "section": "New" },
@@ -12,14 +12,8 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "component": "app",
       "changelog-path": "CHANGELOG.md",
-      "extra-files": ["app/app.config.ts"],
-      "exclude-paths": ["relay"]
-    },
-    "relay": {
-      "release-type": "node",
-      "component": "relay"
+      "extra-files": ["app/app.config.ts", { "type": "json", "path": "relay/package.json", "jsonpath": "$.version" }]
     }
   }
 }
