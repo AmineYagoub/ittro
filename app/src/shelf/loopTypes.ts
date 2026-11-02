@@ -1,6 +1,8 @@
 // The shelf loop's shapes: the injected clock, frames and cloud it
 // runs on, the photos it keeps, and the statistics it reports. The
-// loop itself lives in loop.ts; the cloud half in loopReads.ts.
+// loop itself lives in loop.ts; the cloud half in loopReads.ts. Each
+// photo keeps where the camera pointed, so the guided outline is cut
+// again once the phone rests after a move (recut.ts, t31).
 import type { Language } from '../theme';
 import type { FoundShelf, SceneView, ShelfBox, ShelfCrop, ShelfOutline, ShelfRead } from '../relay';
 import type { GreyFrame } from './tracker';
@@ -18,6 +20,8 @@ export interface LoopPhoto {
   shot?: number;
   /** When the still was taken, so a sweep stop reads only stills from after the camera settled. */
   at?: number;
+  /** Where the camera pointed as the still was taken, so a move since is known. */
+  pan?: CameraPan;
 }
 
 export interface LoopContext {
@@ -50,8 +54,10 @@ export interface LoopDeps {
   classify: (request: string, image: string, mime: string, language: Language) => Promise<SceneView>;
   cutCrops: (image: string, tracks: LoopCut[]) => Promise<ShelfCrop[]>;
   readContext: () => LoopContext;
-  /** Where the camera points now, for the inventory and the sweep; absent in tests. */
+  /** Where the camera points now, for the inventory, the sweep and the re-cut; absent in tests. */
   pan?: () => CameraPan | null;
+  /** A hand is in view now: it drags the pan and SAM would cut under it, so no re-cut; absent in tests. */
+  handInView?: () => boolean;
   /** The not-here summary at the end of a sweep (relay /ask-view). */
   notHere?: (wanted: string, image: string, mime: string, seen: string[]) => Promise<ViewReply>;
   send: (event: ConversationEvent) => void;
@@ -76,6 +82,12 @@ export interface LoopState {
   phraseWait: Promise<string> | null;
   cloudBusy: boolean;
   outlinedAt: number | null;
+  /** Where the camera pointed for the still the outlines were last cut from. */
+  outlinedPan: CameraPan | null;
+  /** The camera's pans of the last moments, to tell a phone at rest. */
+  panSamples: Array<{ at: number; pan: CameraPan }>;
+  /** When a re-cut was last asked: only stills taken since are cut. */
+  recutAt: number | null;
   readAt: number | null;
   sceneChanged: boolean;
   lastSignature: string;

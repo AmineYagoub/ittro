@@ -7,7 +7,9 @@
 // card shows the target's label, the biggest yes, and the found line
 // goes before the outlines, so they land on a known target and "I see
 // two products, reading their labels" is not said for a label already
-// read.
+// read. The outlines keep the still's camera pan: the still is about
+// 7 s old when they land (t31), and a move since is cut again
+// (recut.ts).
 import type { ShelfRead } from '../relay';
 import { anchorOutlines } from './outlines';
 import { biggestFirst, reconcileTracks } from './shelfTracks';
@@ -39,6 +41,7 @@ export async function findPass(ctx: ReadsContext, request: string, epoch: number
     photo.shot,
   );
   state.outlinedAt = deps.now();
+  state.outlinedPan = photo.pan ?? null;
   state.readAt = deps.now();
   state.sceneChanged = false;
   state.emptyOutlines = 0;

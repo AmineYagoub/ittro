@@ -6,7 +6,9 @@
 // While the hand is guided to the found product the outlines still
 // refresh, but settled labels are not read again every pass (13 reads
 // in 40 s on the phone, each 2.3 to 4.7 s, against the budget and the
-// confirm). Another search starts a fresh shelf inventory.
+// confirm), and once the phone rests after a move the outline is cut
+// again from a still taken since (recut.ts: t31's slid half a bottle).
+// Another search starts a fresh shelf inventory.
 import type { ShelfCrop, ShelfOutline, ShelfRead } from '../relay';
 import { linkKindFor } from '../metaCall';
 import { pickSharpest, sharpness } from './tracker';
@@ -21,6 +23,7 @@ import { findPass } from './loopFind';
 import { afterSweepRead, stopPhotos, tickSweep } from './loopSweep';
 import { sweepDue } from './sweep';
 import { seenFor } from './inventory';
+import { readsDue, recutDue, recutPhotos } from './recut';
 
 const REFRESH_MS = 15000;
 // An unsure label is read again from the next sharp frame soon after (t9:
@@ -91,7 +94,7 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
         return true;
       }
       return (
-        needsRead(state.tracks).length > 0 && (state.readAt === null || deps.now() - state.readAt >= REREAD_MS)
+        recutDue(ctx) || readsDue(ctx, needsRead(state.tracks).length > 0 && (state.readAt === null || deps.now() - state.readAt >= REREAD_MS))
       );
     },
 
@@ -137,7 +140,7 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
       }
 
       async function pass(): Promise<void> {
-        const usable = stopPhotos(state, photos);
+        const usable = recutPhotos(state, stopPhotos(state, photos));
         if (usable.length === 0) {
           deps.log('shelf stop waits for a still taken once the camera settled');
           return;
@@ -199,6 +202,7 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
           `shelf sam ${outlined.samMs}ms masks ${outlined.maskMs}ms outlines ${outlined.outlines.length} masked ${masked} sharpness ${Math.round(picked)}`,
         );
         state.outlinedAt = deps.now();
+        state.outlinedPan = sharpest.pan ?? null;
         state.sceneChanged = false;
         if (outlined.outlines.length === 0) {
           state.emptyOutlines += 1;

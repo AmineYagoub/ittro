@@ -15,7 +15,9 @@
 // whole frame, and a hand near the lens is most of it: its motion read
 // as the shelf moving and dragged every outline after the hand, so
 // while a hand is in view the outlines hold until the next SAM pass
-// re-anchors them.
+// re-anchors them. Each photo also keeps the camera's pan as its shot
+// began, and the loop hears whether a hand is in view, so the guided
+// outline is cut again once the phone rests after a move (t31).
 import { useEffect, useMemo, useRef } from 'react';
 import { cameraPan, prepareShelfPhoto, thermalStatus, validTrackPan } from 'ittro-sensors';
 import type { TrackPan } from 'ittro-sensors';
@@ -114,7 +116,7 @@ export function useShelfSearch(
     }
     const wanted: string = request;
     let stopped = false;
-    const loop = createShelfLoop(searchDeps(actor, () => stopped));
+    const loop = createShelfLoop({ ...searchDeps(actor, () => stopped), handInView: () => panFrozenByHand(lastHandFix(), Date.now()) });
     const carried = held.current.carry;
     held.current = { loop, carry: null, ring: [], wanted, photoW: 0, stats: freshStats() };
     let shooting = false;
@@ -171,6 +173,7 @@ export function useShelfSearch(
       try {
         syncTarget();
         const shotStart = Date.now();
+        const shotPan = cameraPan();
         let uri: string | null = null;
         try {
           uri = await eye.takeShot();
@@ -195,7 +198,16 @@ export function useShelfSearch(
           grey = { data: new Uint8Array(0), w: 0, h: 0 };
         }
         const shot = Number(/ittro-shot-(\d+)\.jpg$/.exec(uri)?.[1] ?? Number.NaN);
-        const photo = { image: prepared.photo, mime: 'image/jpeg', w: prepared.w, h: prepared.h, grey, at: shotStart, ...(Number.isFinite(shot) ? { shot } : {}) };
+        const photo = {
+          image: prepared.photo,
+          mime: 'image/jpeg',
+          w: prepared.w,
+          h: prepared.h,
+          grey,
+          at: shotStart,
+          ...(shotPan ? { pan: shotPan } : {}),
+          ...(Number.isFinite(shot) ? { shot } : {}),
+        };
         keepStill({ image: prepared.photo, mime: 'image/jpeg', w: prepared.w, h: prepared.h, at: Date.now() });
         const ring = [...held.current.ring, photo].slice(-3);
         held.current.ring = ring;

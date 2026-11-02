@@ -1,5 +1,6 @@
 // The shelf loop's state: fresh at start, and reset for each new
-// request or epoch.
+// request or epoch. The camera's recent pans outlive a request, as the
+// camera does.
 import type { LoopState } from './loopTypes';
 import { idleSweep } from './sweep';
 
@@ -13,6 +14,9 @@ export function freshState(): LoopState {
     phraseWait: null,
     cloudBusy: false,
     outlinedAt: null,
+    outlinedPan: null,
+    panSamples: [],
+    recutAt: null,
     readAt: null,
     sceneChanged: false,
     lastSignature: '',
@@ -39,6 +43,8 @@ export function freshState(): LoopState {
 export function searchReset(state: LoopState): void {
   state.tracks = [];
   state.outlinedAt = null;
+  state.outlinedPan = null;
+  state.recutAt = null;
   state.readAt = null;
   state.sceneChanged = false;
   state.lastSignature = '';
