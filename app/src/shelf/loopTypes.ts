@@ -88,6 +88,8 @@ export interface LoopState {
   panSamples: Array<{ at: number; pan: CameraPan }>;
   /** When a re-cut was last asked: only stills taken since are cut. */
   recutAt: number | null;
+  /** A re-cut was asked and no pass has cut since: that pass may read to place the target again. */
+  recutPending: boolean;
   readAt: number | null;
   sceneChanged: boolean;
   lastSignature: string;

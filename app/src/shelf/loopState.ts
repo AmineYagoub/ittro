@@ -17,6 +17,7 @@ export function freshState(): LoopState {
     outlinedPan: null,
     panSamples: [],
     recutAt: null,
+    recutPending: false,
     readAt: null,
     sceneChanged: false,
     lastSignature: '',
@@ -45,6 +46,7 @@ export function searchReset(state: LoopState): void {
   state.outlinedAt = null;
   state.outlinedPan = null;
   state.recutAt = null;
+  state.recutPending = false;
   state.readAt = null;
   state.sceneChanged = false;
   state.lastSignature = '';

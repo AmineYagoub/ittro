@@ -9,7 +9,9 @@
 // guide though it rounds to the old one, and the native outline gets
 // the new still's key. A re-cut that sees a bottle the find never read
 // starts no further pass while guiding, unless the target needs
-// confirming.
+// confirming. A re-cut with nothing where the outline is drawn reads,
+// and the nearest yes takes the target (t33: the outline had slid onto
+// the wall); one that lands on the drawn outline reads nothing.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShelfLoop } from '../src/shelf/loop';
@@ -42,7 +44,7 @@ interface Rig {
   logs: string[];
   cut: string[];
   reads: () => number;
-  view: { now: number; pan: CameraPan; guiding: boolean; hand: boolean; third: boolean; lost: boolean };
+  view: { now: number; pan: CameraPan; guiding: boolean; hand: boolean; third: boolean; lost: boolean; box: ShelfBox | null };
 }
 
 function rig(): Rig {
@@ -50,7 +52,7 @@ function rig(): Rig {
   const logs: string[] = [];
   const cut: string[] = [];
   let reads = 0;
-  const view = { now: 0, pan: START, guiding: false, hand: false, third: false, lost: false };
+  const view: Rig['view'] = { now: 0, pan: START, guiding: false, hand: false, third: false, lost: false, box: null };
   const found: FoundShelf = {
     outlines: [
       { id: 1, frame: 0, box: GUEDILA, label: 'GUEDILA' },
@@ -77,7 +79,7 @@ function rig(): Rig {
     },
     classify: async () => ({ scene: 'shelf', kinds: ['bottles'], aisle_hint: null }),
     cutCrops: async (_image, tracks) => tracks.map((entry) => ({ id: `shelf-${entry.track}`, image: 'crop', mime: 'image/jpeg' })),
-    readContext: () => ({ lang: 'ar', alternative: null, checkedCount: 2, guiding: view.guiding, guideLost: view.lost }),
+    readContext: () => ({ lang: 'ar', alternative: null, checkedCount: 2, guiding: view.guiding, guideLost: view.lost, guideBox: view.box }),
     send: (event) => {
       sent.push(event);
     },
@@ -206,4 +208,30 @@ test('t32: a still from before the camera reopened is cut again once the phone r
   assert.deepEqual(r.cut, ['reopened']);
   assert.equal(dueAt(r, 6500, pan(START.x, START.y, 2)), false);
   assert.equal(dueAt(r, 7000, pan(START.x, START.y, 2)), false);
+});
+
+test('t33: a re-cut with nothing where the outline is drawn reads, and the nearest yes takes the target', async () => {
+  const r = await foundAndGuided();
+  r.view.box = box(700, 860);
+  dueAt(r, 3000, pan(0.075));
+  assert.equal(dueAt(r, 3500, pan(0.075)), true);
+  r.view.now = 3600;
+  await r.loop.cloudPass([photo('rested', 3500, pan(0.075), 5)]);
+  assert.ok(r.reads() > 0);
+  assert.ok(r.logs.includes('shelf re-cut found nothing where the outline was, the yes at 345-520 takes it'));
+  const found = r.sent.filter((event) => event.type === 'SHELF_FOUND') as Array<{ outline: ShelfOutline }>;
+  assert.equal(found.length, 2);
+  assert.equal(found[1]?.outline.box.x1, NEIGHBOUR.x1);
+  assert.equal(found[1]?.outline.box.x2, NEIGHBOUR.x2);
+});
+
+test('a re-cut that lands on the drawn outline reads nothing', async () => {
+  const r = await foundAndGuided();
+  r.view.box = GUEDILA;
+  dueAt(r, 3000, pan(0.075));
+  assert.equal(dueAt(r, 3500, pan(0.075)), true);
+  r.view.now = 3600;
+  await r.loop.cloudPass([photo('rested', 3500, pan(0.075), 5)]);
+  assert.equal(r.reads(), 0);
+  assert.ok(!r.logs.some((line) => line.startsWith('shelf re-cut found nothing')));
 });

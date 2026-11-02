@@ -169,10 +169,11 @@ function closestYes(state: LoopState, reads: ShelfRead[], held: ShelfBox): Track
 }
 
 // The yes overlapping the guided box, or, when the guided spot was
-// read no or the product is out of view, the yes nearest the guided
-// spot: with two matching bottles the hand keeps its one (t19 jumped
-// between two Guedila bottles on each recheck).
-function refindTarget(ctx: ReadsContext, reads: ShelfRead[]): Tracked | null {
+// read no, the product is out of view, or a re-cut found nothing there
+// (the outline had drifted, t33), the yes nearest the guided spot:
+// with two matching bottles the hand keeps its one (t19 jumped between
+// two Guedila bottles on each recheck).
+function refindTarget(ctx: ReadsContext, reads: ShelfRead[], reanchor: boolean): Tracked | null {
   const { deps, state } = ctx;
   const best = nearestOutline(state, reads);
   const context = deps.readContext();
@@ -194,13 +195,18 @@ function refindTarget(ctx: ReadsContext, reads: ShelfRead[]): Tracked | null {
   if (here.some((entry) => verdict(entry) === 'no')) {
     return closestYes(state, reads, held) ?? best;
   }
+  const nearest = reanchor && here.length === 0 ? closestYes(state, reads, held) : null;
+  if (nearest) {
+    deps.log(`shelf re-cut found nothing where the outline was, the yes at ${Math.round(nearest.outline.box.x1)}-${Math.round(nearest.outline.box.x2)} takes it`);
+    return nearest;
+  }
   deps.log(`shelf recheck kept the target, a yes at ${Math.round(best.outline.box.x1)}-${Math.round(best.outline.box.x2)} is elsewhere`);
   return null;
 }
 
-export function reportRefind(ctx: ReadsContext, request: string, reads: ShelfRead[], epoch: number): void {
+export function reportRefind(ctx: ReadsContext, request: string, reads: ShelfRead[], epoch: number, reanchor = false): void {
   const { state } = ctx;
-  const target = refindTarget(ctx, reads);
+  const target = refindTarget(ctx, reads, reanchor);
   if (target) {
     state.fruitlessPasses = 0;
     sendFound(ctx, request, reads, epoch, target);

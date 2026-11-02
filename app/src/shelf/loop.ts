@@ -23,7 +23,7 @@ import { findPass } from './loopFind';
 import { afterSweepRead, stopPhotos, tickSweep } from './loopSweep';
 import { sweepDue } from './sweep';
 import { seenFor } from './inventory';
-import { readsDue, recutDue, recutPhotos } from './recut';
+import { reanchorDue, readsDue, recutDue, recutPhotos } from './recut';
 
 const REFRESH_MS = 15000;
 // An unsure label is read again from the next sharp frame soon after (t9:
@@ -203,6 +203,7 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
         );
         state.outlinedAt = deps.now();
         state.outlinedPan = sharpest.pan ?? null;
+        const reanchor = reanchorDue(ctx, outlined.outlines);
         state.sceneChanged = false;
         if (outlined.outlines.length === 0) {
           state.emptyOutlines += 1;
@@ -233,7 +234,7 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
           deps.log(`shelf hand read ${answer.readMs}ms verdict ${verdict}`);
         }
         const verifying =
-          context.guiding && !context.handCovering && (context.guideLost || context.guideRecheck || targetJumped(state));
+          context.guiding && !context.handCovering && (reanchor || context.guideLost || context.guideRecheck || targetJumped(state));
         if (context.guiding && !verifying) {
           deps.log(context.handCovering ? 'shelf target held under hand' : 'shelf reads paused while guiding');
           deps.send({ type: 'LINK_OK' });
@@ -251,7 +252,7 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
             return;
           }
           if (verifying) {
-            reportRefind(ctx, request, passReads, epoch);
+            reportRefind(ctx, request, passReads, epoch, reanchor);
           } else {
             reportVerdicts(ctx, request, passReads, epoch);
           }
@@ -263,7 +264,7 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
             return;
           }
           if (verifying) {
-            reportRefind(ctx, request, passReads, epoch);
+            reportRefind(ctx, request, passReads, epoch, reanchor);
           } else {
             reportVerdicts(ctx, request, passReads, epoch);
           }

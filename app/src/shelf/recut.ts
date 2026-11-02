@@ -11,14 +11,22 @@
 // (t32 reopened the camera when the search went on after a no). The
 // last signature is forgotten, so the cut reaches the guide even when
 // it rounds to the old one; the next re-cut waits for another move.
-// Pans older than 1.5 s say nothing about resting now. While guiding,
-// labels waiting for a read call a pass only when it will read them,
-// as the pass reads then only to confirm the target: a re-cut that saw
-// bottles the find never read would otherwise start SAM back to back,
-// every read paused (t29 ran one such pass at 10:47:11).
+// When nothing in the cut lies where the outline is drawn, the pass
+// reads it, and the yes nearest the drawn outline takes the target: in
+// t33 the outline had slid a bottle off onto the wall during a turn,
+// the re-cut read the Masaad yes, and the old rule kept the wall as the
+// target because the yes was elsewhere. Pans older than 1.5 s say
+// nothing about resting now. While guiding, labels waiting for a read
+// call a pass only when it will read them, as the pass reads then only
+// to confirm the target: a re-cut that saw bottles the find never read
+// would otherwise start SAM back to back, every read paused (t29 ran
+// one such pass at 10:47:11).
+import { TARGET_CONFIRM_IOU } from '../conversation/searchTarget';
+import type { ShelfOutline } from '../relay';
 import { targetJumped } from './loopReads';
 import type { ReadsContext } from './loopReads';
 import type { CameraPan, LoopPhoto, LoopState } from './loopTypes';
+import { boxOverlap } from './outlines';
 
 /** How far the camera must have moved since the outline's still, as a share of the frame. */
 export const RECUT_MOVE = 0.03;
@@ -75,8 +83,17 @@ export function recutDue(ctx: ReadsContext): boolean {
     deps.log(reopened ? "shelf recut, the camera reopened since the outline's photo" : `shelf recut, camera moved ${dx.toFixed(3)},${dy.toFixed(3)} since the outline's photo`);
   }
   state.recutAt = now;
+  state.recutPending = true;
   state.lastSignature = '';
   return true;
+}
+
+/** Whether a pass must read its cut to place the target again: a re-cut was asked and nothing cut overlaps the drawn outline as the guide would snap to. Each pass that cuts answers once. */
+export function reanchorDue(ctx: ReadsContext, outlines: ShelfOutline[]): boolean {
+  const asked = ctx.state.recutPending;
+  ctx.state.recutPending = false;
+  const held = ctx.deps.readContext().guideBox ?? null;
+  return asked && held !== null && !outlines.some((outline) => boxOverlap(outline.box, held) >= TARGET_CONFIRM_IOU);
 }
 
 /** Labels waiting to be read call a pass, but while guiding only one that will read them: to confirm a lost, doubtful or moved target, never under the hand. */
