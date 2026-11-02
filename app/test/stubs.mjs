@@ -94,6 +94,10 @@ export function cameraPan() {
   return null;
 }
 
+export function shotPan() {
+  return null;
+}
+
 export async function takeCameraShot() {
   return null;
 }

@@ -2,12 +2,14 @@
 // from a still taken since. t31: the Guedila outline was placed from a
 // 7 s-old still while the shelf drifted, and parallax under-read the
 // pan that followed, so it ended half a bottle off. Not moved enough,
-// still moving, a hand in view, too soon after the last cut, another
-// camera opening or no guide: no re-cut. SAM here cuts the same boxes
-// as the find, the worst case: the cut still reaches the guide though
-// it rounds to the old one, and the native outline gets the new
-// still's key. A re-cut that sees a bottle the find never read starts
-// no further pass while guiding, unless the target needs confirming.
+// still moving, a hand in view, too soon after the last cut or no
+// guide: no re-cut. A still from before the camera reopened is cut
+// again once the phone rests, moved or not (t32). SAM here cuts the
+// same boxes as the find, the worst case: the cut still reaches the
+// guide though it rounds to the old one, and the native outline gets
+// the new still's key. A re-cut that sees a bottle the find never read
+// starts no further pass while guiding, unless the target needs
+// confirming.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShelfLoop } from '../src/shelf/loop';
@@ -162,7 +164,7 @@ test('not moved enough or still moving: no re-cut until the phone rests', async 
   assert.equal(dueAt(moving, 4500, pan(0.077)), true);
 });
 
-test('a hand in view, too soon after the cut, another camera opening or no guide: no re-cut', async () => {
+test('a hand in view, too soon after the cut or no guide: no re-cut', async () => {
   const hand = await foundAndGuided();
   hand.view.hand = true;
   dueAt(hand, 3000, pan(0.075));
@@ -173,9 +175,6 @@ test('a hand in view, too soon after the cut, another camera opening or no guide
   dueAt(soon, 1500, pan(0.075));
   assert.equal(dueAt(soon, 2000, pan(0.075)), false);
   assert.equal(dueAt(soon, 2500, pan(0.075)), true);
-  const reopened = await foundAndGuided();
-  dueAt(reopened, 3000, pan(0.075, START.y, 2));
-  assert.equal(dueAt(reopened, 3500, pan(0.075, START.y, 2)), false);
   const unguided = rig();
   await unguided.loop.cloudPass([photo('find', 0, START, 4)]);
   dueAt(unguided, 3000, pan(0.075));
@@ -195,4 +194,16 @@ test('while guiding, a bottle the find never read starts no pass until the targe
   assert.equal(dueAt(r, 5500, pan(0.075)), false);
   r.view.lost = true;
   assert.equal(dueAt(r, 6000, pan(0.075)), true);
+});
+
+test('t32: a still from before the camera reopened is cut again once the phone rests, moved or not', async () => {
+  const r = await foundAndGuided();
+  dueAt(r, 3000, pan(START.x, START.y, 2));
+  assert.equal(dueAt(r, 3500, pan(START.x, START.y, 2)), true);
+  assert.ok(r.logs.includes("shelf recut, the camera reopened since the outline's photo"));
+  r.view.now = 3600;
+  await r.loop.cloudPass([photo('reopened', 3500, pan(START.x, START.y, 2), 1)]);
+  assert.deepEqual(r.cut, ['reopened']);
+  assert.equal(dueAt(r, 6500, pan(START.x, START.y, 2)), false);
+  assert.equal(dueAt(r, 7000, pan(START.x, START.y, 2)), false);
 });

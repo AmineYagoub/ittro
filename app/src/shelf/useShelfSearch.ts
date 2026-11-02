@@ -15,11 +15,13 @@
 // whole frame, and a hand near the lens is most of it: its motion read
 // as the shelf moving and dragged every outline after the hand, so
 // while a hand is in view the outlines hold until the next SAM pass
-// re-anchors them. Each photo also keeps the camera's pan as its shot
-// began, and the loop hears whether a hand is in view, so the guided
-// outline is cut again once the phone rests after a move (t31).
+// re-anchors them. Each photo also keeps where the camera pointed as
+// the still was taken (from the frames around it: in t32 the camera
+// opened with the search, and the shot began before its first frame),
+// and the loop hears whether a hand is in view, so the guided outline
+// is cut again once the phone rests after a move (t31).
 import { useEffect, useMemo, useRef } from 'react';
-import { cameraPan, prepareShelfPhoto, thermalStatus, validTrackPan } from 'ittro-sensors';
+import { cameraPan, prepareShelfPhoto, shotPan, thermalStatus, validTrackPan } from 'ittro-sensors';
 import type { TrackPan } from 'ittro-sensors';
 import { speech } from '../theme';
 import { playSound } from '../speech';
@@ -173,7 +175,7 @@ export function useShelfSearch(
       try {
         syncTarget();
         const shotStart = Date.now();
-        const shotPan = cameraPan();
+        const startPan = cameraPan();
         let uri: string | null = null;
         try {
           uri = await eye.takeShot();
@@ -198,6 +200,7 @@ export function useShelfSearch(
           grey = { data: new Uint8Array(0), w: 0, h: 0 };
         }
         const shot = Number(/ittro-shot-(\d+)\.jpg$/.exec(uri)?.[1] ?? Number.NaN);
+        const stillPan = (Number.isFinite(shot) ? shotPan(shot) : null) ?? startPan;
         const photo = {
           image: prepared.photo,
           mime: 'image/jpeg',
@@ -205,7 +208,7 @@ export function useShelfSearch(
           h: prepared.h,
           grey,
           at: shotStart,
-          ...(shotPan ? { pan: shotPan } : {}),
+          ...(stillPan ? { pan: stillPan } : {}),
           ...(Number.isFinite(shot) ? { shot } : {}),
         };
         keepStill({ image: prepared.photo, mime: 'image/jpeg', w: prepared.w, h: prepared.h, at: Date.now() });

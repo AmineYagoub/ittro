@@ -6,14 +6,16 @@
 // further). Once the camera has moved more than 3% of the frame since
 // the outline's still and held still for 0.4 s, with no hand in view,
 // the next pass cuts a still taken after the move, and the guide
-// adopts the cut where the product really is. The last signature is
-// forgotten, so the cut reaches the guide even when it rounds to the
-// old one; the next re-cut waits for another move. Pans older than
-// 1.5 s say nothing about resting now. While guiding, labels waiting
-// for a read call a pass only when it will read them, as the pass
-// reads then only to confirm the target: a re-cut that saw bottles the
-// find never read would otherwise start SAM back to back, every read
-// paused (t29 ran one such pass at 10:47:11).
+// adopts the cut where the product really is. A still from before the
+// camera last opened is cut again too, as no motion since it is known
+// (t32 reopened the camera when the search went on after a no). The
+// last signature is forgotten, so the cut reaches the guide even when
+// it rounds to the old one; the next re-cut waits for another move.
+// Pans older than 1.5 s say nothing about resting now. While guiding,
+// labels waiting for a read call a pass only when it will read them,
+// as the pass reads then only to confirm the target: a re-cut that saw
+// bottles the find never read would otherwise start SAM back to back,
+// every read paused (t29 ran one such pass at 10:47:11).
 import { targetJumped } from './loopReads';
 import type { ReadsContext } from './loopReads';
 import type { CameraPan, LoopPhoto, LoopState } from './loopTypes';
@@ -57,19 +59,20 @@ export function recutDue(ctx: ReadsContext): boolean {
   const now = deps.now();
   const rested = resting(state, pan, now);
   const from = state.outlinedPan;
-  if (!rested || !from || !sameOpening(from, pan) || state.outlinedAt === null || now - state.outlinedAt < RECUT_GAP_MS) {
+  if (!rested || !from || state.outlinedAt === null || now - state.outlinedAt < RECUT_GAP_MS) {
     return false;
   }
+  const reopened = !sameOpening(from, pan);
   const dx = pan.x - from.x;
   const dy = pan.y - from.y;
-  if (Math.abs(dx) <= RECUT_MOVE && Math.abs(dy) <= RECUT_MOVE) {
+  if (!reopened && Math.abs(dx) <= RECUT_MOVE && Math.abs(dy) <= RECUT_MOVE) {
     return false;
   }
   if (state.cloudBusy || state.tracks.length === 0 || !deps.readContext().guiding || deps.handInView?.()) {
     return false;
   }
   if (state.recutAt === null || state.recutAt <= state.outlinedAt) {
-    deps.log(`shelf recut, camera moved ${dx.toFixed(3)},${dy.toFixed(3)} since the outline's photo`);
+    deps.log(reopened ? "shelf recut, the camera reopened since the outline's photo" : `shelf recut, camera moved ${dx.toFixed(3)},${dy.toFixed(3)} since the outline's photo`);
   }
   state.recutAt = now;
   state.lastSignature = '';
