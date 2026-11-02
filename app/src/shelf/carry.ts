@@ -4,6 +4,9 @@
 // natively on every frame). t13 found the Guedila 8.3 s after the
 // request, 3.6 s of it a new photo and SAM for a shelf outlined
 // seconds before. The next regular pass checks the carried outlines.
+// The last product's own outlines are left behind, since the new
+// request names another: t30 re-read its one Guedila outline for 2.9 s
+// before the Masaad search began.
 import { biggestFirst } from './shelfTracks';
 import { moveOutlines } from './outlines';
 import { packageKind } from './match';
@@ -50,9 +53,14 @@ export function seedCarry(ctx: ReadsContext, carry: ShelfCarry, pan: CameraPan |
     deps.log(`shelf carry dropped, camera moved ${dx.toFixed(3)},${dy.toFixed(3)}`);
     return false;
   }
+  const others = carry.tracks.filter((entry) => entry.read?.verdict !== 'yes');
+  if (others.length === 0) {
+    deps.log(`shelf carry skipped, its ${carry.tracks.length} outlines were the last product`);
+    return false;
+  }
   // Moved by the camera's motion since; the old still no longer places
   // them, so they go without its anchor until the next SAM cut.
-  state.tracks = carry.tracks.map((entry) => {
+  state.tracks = others.map((entry) => {
     const outline: ShelfOutline = { ...entry.outline };
     delete outline.anchor;
     const [moved] = moveOutlines([outline], { dx: dx * outline.box.w, dy: dy * outline.box.h, scale: 1 });

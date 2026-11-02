@@ -1,8 +1,26 @@
-// Small geometry behind the guide loop, and the one log line that
-// says where a cue came from: tip, box and hand width in photo
-// pixels, so a wrong cue on the phone can be checked by hand.
+// Small geometry behind the guide loop, and the log lines that say
+// where a cue came from (tip, box and hand width in photo pixels) and
+// where the box was when it left the view, so a wrong cue or a wrong
+// "out of view" on the phone can be checked by hand.
 import type { ShelfBox } from '../relay';
 import type { TipPoint, HandBox } from './types';
+
+/** How much of a placed box must be inside the frame for the product to be in view. */
+export const IN_FRAME_SHARE = 0.4;
+
+export function shareInFrame(box: ShelfBox): number {
+  const across = Math.max(0, Math.min(box.x2, box.w) - Math.max(box.x1, 0));
+  const down = Math.max(0, Math.min(box.y2, box.h) - Math.max(box.y1, 0));
+  const area = Math.max(1, (box.x2 - box.x1) * (box.y2 - box.y1));
+  return (across * down) / area;
+}
+
+/** The out-of-view log line: the box, and how much of it was in the frame (placed) or overlapped an outline. */
+export function describeLost(box: ShelfBox, placed: boolean, overlap: number): string {
+  const r = Math.round;
+  const measure = placed ? `in frame ${shareInFrame(box).toFixed(2)}` : `overlap ${overlap.toFixed(2)}`;
+  return `guide target out of view, box ${r(box.x1)},${r(box.y1)},${r(box.x2)},${r(box.y2)} ${measure}`;
+}
 
 export function inside(tip: TipPoint, box: ShelfBox): boolean {
   return tip.x >= box.x1 && tip.x <= box.x2 && tip.y >= box.y1 && tip.y <= box.y2;

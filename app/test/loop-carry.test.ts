@@ -1,7 +1,8 @@
 // The next request reads the last request's crops at once when the
 // camera has barely moved: t13's Guedila request waited 3.6 s for a
 // new photo and SAM on a shelf outlined seconds before. A camera that
-// moved, an old carry, or the same request start from a photo.
+// moved, an old carry, the same request, or a carry of only the last
+// product (t30) start from a photo.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShelfLoop } from '../src/shelf/loop';
@@ -120,6 +121,21 @@ test('a camera that moved, an old carry or the same request start from a photo',
   const reopened = rig(clock);
   reopened.loop.setTarget('Guedila water', 2);
   assert.equal(reopened.loop.seed(carry, { x: 0.1, y: 0.2, session: 2 }), false);
+});
+
+test('t30: a carry of only the last product starts from a photo, and a mixed one leaves it behind', async () => {
+  const clock = { now: 0 };
+  const carry = await masaadCarry(clock);
+  const lastOnly: ShelfCarry = { ...carry, tracks: carry.tracks.filter((entry) => entry.read?.verdict === 'yes') };
+  const next = rig(clock);
+  next.loop.setTarget('Guedila water', 2);
+  assert.equal(next.loop.seed(lastOnly, { x: 0.1, y: 0.2 }), false);
+  assert.equal(await next.loop.carriedPass(), false);
+  assert.ok(next.logs.includes('shelf carry skipped, its 1 outlines were the last product'));
+  const mixed = rig(clock);
+  mixed.loop.setTarget('Guedila water', 2);
+  assert.equal(mixed.loop.seed(carry, { x: 0.1, y: 0.2 }), true);
+  assert.ok(mixed.logs.includes('shelf carried 1 outlines from the last request, camera moved 0.000,0.000'));
 });
 
 test('no camera motion known, no carry', async () => {

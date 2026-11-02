@@ -8,15 +8,17 @@
 // the green rectangle never steer toward two different boxes; the
 // loop only tells in view from out of view. Out of view, lost and
 // no hand repeat every two seconds, so a dropped event never leaves
-// the shopper without the next one. The clock, the photo and the
-// cloud read are injected, so tests walk it with scripted frames and
-// the phone drives it with live stills.
+// the shopper without the next one. Out of view mutes lost and no
+// hand: t30 bounced between them and the out-of-view line every two
+// seconds, where the line alone repeats every six. The clock, the
+// photo and the cloud read are injected, so tests walk it with
+// scripted frames and the phone drives it with live stills.
 import type { ShelfBox, ShelfOutline } from '../relay';
 import { boxOverlap } from '../shelf/outlines';
 import { centerOf, cueIdFor, proximityFor, steerFor } from './steer';
 import type { HandFix, TipPoint, HandBox } from './types';
 import { handCoversTarget } from '../conversation/searchTarget';
-import { cosine, describeCue, sameBox } from './loopMath';
+import { IN_FRAME_SHARE, cosine, describeCue, describeLost, sameBox, shareInFrame } from './loopMath';
 import { restRead } from './loopRest';
 import { freshGuideState } from './loopTypes';
 import type { GuideLoop, GuideLoopDeps, GuideLoopPhoto } from './loopTypes';
@@ -33,14 +35,6 @@ const CONTACT_POINTS = 4;
 const CONTACT_SHIFT_PX = 6;
 const CONTACT_ALIGN = 0.7;
 const MIN_CONFIDENCE = 0.3;
-const IN_FRAME_SHARE = 0.4;
-
-function shareInFrame(box: ShelfBox): number {
-  const across = Math.max(0, Math.min(box.x2, box.w) - Math.max(box.x1, 0));
-  const down = Math.max(0, Math.min(box.y2, box.h) - Math.max(box.y1, 0));
-  const area = Math.max(1, (box.x2 - box.x1) * (box.y2 - box.y1));
-  return (across * down) / area;
-}
 
 // The fingertip and, when the tracker sent it, the whole hand's box.
 function handOf(tip: TipPoint, fix: HandFix): { x: number; y: number; box?: HandBox } {
@@ -117,7 +111,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
       return;
     }
     if (!state.sentTargetLost) {
-      deps.log('guide target out of view');
+      deps.log(describeLost(target, placed, bestIoU));
     }
     state.sentTargetLost = true;
     state.sentTargetLostAt = deps.now();
@@ -216,6 +210,10 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
       trackTarget(outlines, photoW, handCoversTarget(seen, target), placed);
       const tracked = state.target as ShelfBox;
       if (!fix || fix.confidence < MIN_CONFIDENCE) {
+        if (state.sentTargetLost) {
+          clearApproach();
+          return;
+        }
         miss();
         return;
       }

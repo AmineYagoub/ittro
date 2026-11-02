@@ -47,20 +47,23 @@ test('t15: a new cut of the neighbour on the old box does not take the target', 
 
 function guideHarness() {
   const sent: ConversationEvent[] = [];
+  const logs: string[] = [];
   let now = 10000;
   const deps: GuideLoopDeps = {
     now: () => now,
     send: (event) => {
       sent.push(event);
     },
-    log: () => undefined,
+    log: (line) => {
+      logs.push(line);
+    },
     cutCrop: async () => ({ id: 'hand-1', image: 'crop', mime: 'image/jpeg' }),
     read: async () => ({ reads: [], readMs: 5 }),
   };
   const loop = createGuideLoop(deps);
   loop.setTarget(BASMATI);
   loop.setPhoto({ image: 'photo', mime: 'image/jpeg' });
-  return { sent, loop, tick: (ms: number) => (now += ms), at: () => now };
+  return { sent, logs, loop, tick: (ms: number) => (now += ms), at: () => now };
 }
 
 function lost(sent: ConversationEvent[]): number {
@@ -85,4 +88,5 @@ test('placed out of the frame, the product is out of view', async () => {
     env.tick(150);
   }
   assert.ok(lost(env.sent) >= 1);
+  assert.ok(env.logs.includes('guide target out of view, box -300,399,-134,781 in frame 0.00'));
 });
