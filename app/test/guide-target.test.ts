@@ -2,8 +2,8 @@
 // between shelf reads, holds its last box when the track is gone,
 // and the name pill shows the short product name. A pan move follows
 // the target's own cut and a fresh cut is matched where the camera
-// has it now (t34), and the outline shows again once the target is
-// back in the picture.
+// has it now (t34). Back in the picture the overlay shows again, and a
+// target flickering at the edge is said out of view once (t35).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { answer, startListening } from './driver';
@@ -191,16 +191,20 @@ test('t34: a fresh cut is matched where the camera has it now', async () => {
   }
 });
 
-test('t34: the outline shows again once the target is back in the picture', async () => {
+test('t35: back in the picture shows the overlay, and a target flickering at the edge is said out of view once', async () => {
   const driver = await guiding();
   try {
     driver.send({ type: 'GUIDE_TARGET_LOST', cue: 'phone_right_small' });
     await driver.flush();
     assert.equal(driver.context().guideOutOfView, true);
+    const said = driver.parts.length;
     driver.send({ type: 'GUIDE_TARGET_BACK' });
     await driver.flush();
     assert.equal(driver.context().guideOutOfView, false);
-    assert.equal(driver.guide(), 'aiming');
+    driver.send({ type: 'GUIDE_TARGET_LOST', cue: 'phone_right_small' });
+    await driver.flush();
+    assert.equal(driver.guide(), 'targetLost');
+    assert.equal(driver.parts.length, said);
   } finally {
     driver.stop();
   }

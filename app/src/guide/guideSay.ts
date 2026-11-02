@@ -224,7 +224,7 @@ export const sayRestart = assign({
   lastChips: ({ context }: ContextArgs) => context.lastChips,
 });
 
-/** The target is back in the picture: its outline shows again (t34 hid it 9 s after it was back). */
+/** The target is back in the picture: the arrow and meter show again. */
 export const showTarget = assign({ guideOutOfView: false });
 
 export const sayTargetLost = assign({

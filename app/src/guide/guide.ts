@@ -3,7 +3,8 @@
 // for the first hand frame, directing repeats its cue every 6 s,
 // almost speaks once, reaching listens for contact, and the hand
 // states stop directing until the hand is back. A target back in the
-// picture shows its outline again and is aimed at afresh.
+// picture shows the arrow and meter again, and out of view is not said
+// again while it flickers at the edge (t35 said it every half second).
 import type { ContextArgs } from '../conversation/actions';
 import { noteVoice } from '../conversation/echo';
 import { logIttro } from '../log';
@@ -215,7 +216,6 @@ export const guideRegion = {
         GUIDE_COVERING: { actions: [sayReach], target: 'reaching' },
         GUIDE_NOHAND: { actions: [sayNoHand], target: 'noHand' },
         GUIDE_LOST: { actions: [sayLost], target: 'handLost' },
-        GUIDE_TARGET_BACK: { actions: [showTarget], target: 'aiming' },
         SHELF_FOUND: { guard: foundTarget, actions: [adoptGuideTarget, logAdopted], target: 'aiming' },
       },
     },
