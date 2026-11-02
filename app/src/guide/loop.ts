@@ -10,7 +10,8 @@
 // no hand repeat every two seconds, so a dropped event never leaves
 // the shopper without the next one. Out of view mutes lost and no
 // hand: t30 bounced between them and the out-of-view line every two
-// seconds, where the line alone repeats every six. The clock, the
+// seconds, where the line alone repeats every six. The phone cue
+// says higher or lower for a product above or below (t37). The clock, the
 // photo and the cloud read are injected, so tests walk it with
 // scripted frames and the phone drives it with live stills.
 import type { ShelfBox, ShelfOutline } from '../relay';
@@ -18,7 +19,7 @@ import { boxOverlap } from '../shelf/outlines';
 import { centerOf, cueIdFor, proximityFor, steerFor } from './steer';
 import type { HandFix, TipPoint, HandBox } from './types';
 import { handCoversTarget } from '../conversation/searchTarget';
-import { IN_FRAME_SHARE, cosine, describeCue, describeLost, sameBox, shareInFrame } from './loopMath';
+import { IN_FRAME_SHARE, cosine, describeCue, describeLost, lostCue, sameBox, shareInFrame } from './loopMath';
 import { restRead } from './loopRest';
 import { freshGuideState } from './loopTypes';
 import type { GuideLoop, GuideLoopDeps, GuideLoopPhoto } from './loopTypes';
@@ -62,7 +63,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
   // hold lasts a patience, then a truly gone product still reports.
   // With the camera's own placement the box is where the product is,
   // so it is in view while most of it is inside the frame.
-  function trackTarget(outlines: ShelfOutline[], photoW: number, covered: boolean, placed: boolean): void {
+  function trackTarget(outlines: ShelfOutline[], covered: boolean, placed: boolean): void {
     const target = state.target;
     if (!target) {
       return;
@@ -116,9 +117,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
     }
     state.sentTargetLost = true;
     state.sentTargetLostAt = deps.now();
-    const center = centerOf(target);
-    const side = photoW > 0 && center.x < photoW / 2 ? 'left' : 'right';
-    deps.send({ type: 'GUIDE_TARGET_LOST', cue: `phone_${side}_small` });
+    deps.send({ type: 'GUIDE_TARGET_LOST', cue: lostCue(target) });
   }
 
   function clearApproach(): void {
@@ -208,7 +207,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
         return;
       }
       const seen = fix && fix.confidence >= MIN_CONFIDENCE ? { x: fix.x, y: fix.y, ...(fix.box ? { box: fix.box } : {}) } : null;
-      trackTarget(outlines, photoW, handCoversTarget(seen, target), placed);
+      trackTarget(outlines, handCoversTarget(seen, target), placed);
       const tracked = state.target as ShelfBox;
       if (!fix || fix.confidence < MIN_CONFIDENCE) {
         if (state.sentTargetLost) {

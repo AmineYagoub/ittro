@@ -240,6 +240,23 @@ export const sayTargetLost = assign({
   lastChips: [],
 });
 
+/** Out of view again while out of view: the turn line follows the product, for the next repeat. */
+export const noteTurn = assign({
+  guideOutOfView: true,
+  guideParts: ({ context, event }: EventArgs) => (event.type === 'GUIDE_TARGET_LOST' ? [{ clip: event.cue }] : context.guideParts),
+  lastLine: ({ context, event }: EventArgs) =>
+    event.type === 'GUIDE_TARGET_LOST'
+      ? shown([{ text: outOfViewLine(context.guideLabel, context.lang) }, { clip: event.cue }], context)
+      : context.lastLine,
+});
+
+/** The out-of-view repeat: the turn line only, as the product was named once (t37 repeated both every 6 s). */
+export const repeatTurn = assign({
+  guideParts: ({ context }: ContextArgs) => context.guideParts.filter((part) => 'clip' in part),
+});
+
+export const stillOutOfView = ({ context }: ContextArgs): boolean => context.guideOutOfView;
+
 function withoutContinue(cue: string): string {
   return cue.replace(/_continue$/, '');
 }

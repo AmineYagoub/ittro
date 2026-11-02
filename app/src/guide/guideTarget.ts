@@ -1,7 +1,10 @@
 // The guide target in the statechart: adopting the found product,
 // re-adopting it silently after a label recheck, and the guards
 // that arm the approach. A recheck never announces: the hand keeps
-// moving to the same product under a corrected box.
+// moving to the same product under a corrected box. A product re-found
+// while out of the picture stays out of view until the camera sees it:
+// t37 re-found it in a still from before the turn, went back to
+// aiming, and said it was out of view three times in 7 s.
 import { assignConversation as assign } from '../conversation/actors';
 import type { ContextArgs, EventArgs } from '../conversation/actions';
 import { logIttro } from '../log';
@@ -29,13 +32,17 @@ export const storeGuideTarget = assign({
   guideOutOfView: false,
 });
 
-export const adoptGuideTarget = assign({
+const refound = {
   guideTarget: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.outline : null),
   shelfTarget: ({ event }: EventArgs) => (event.type === 'SHELF_FOUND' ? event.outline : null),
   shelfCrop: ({ context, event }: EventArgs) => (event.type === 'SHELF_FOUND' ? (event.crop ?? context.shelfCrop) : context.shelfCrop),
   guideRecheck: false,
-  guideOutOfView: false,
-});
+};
+
+export const adoptGuideTarget = assign({ ...refound, guideOutOfView: false });
+
+/** The product re-found while out of the picture: adopted, still out of view until the camera sees it. */
+export const adoptLostTarget = assign(refound);
 
 export function logAdopted({ event }: EventArgs): void {
   if (event.type === 'SHELF_FOUND' && event.outline) {

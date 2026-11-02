@@ -4,7 +4,8 @@
 // hand cues stop, the no-hand and lost cues too (t30), and the phone
 // cue repeats; every first cue logs where it came from, and a lost
 // target where its box was; a target back in view tells the
-// conversation, so its outline shows again (t34).
+// conversation, so its outline shows again (t34); a product above the
+// picture asks for the phone higher (t37).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGuideLoop } from '../src/guide/loop';
@@ -159,6 +160,16 @@ test('a target leaving the view reports the way to turn the phone', async () => 
   const lost = env.sent.filter((event) => event.type === 'GUIDE_TARGET_LOST');
   assert.equal(lost.length, 1);
   assert.deepEqual(lost[0], { type: 'GUIDE_TARGET_LOST', cue: 'phone_left_small' });
+});
+
+test('t37: a product placed above the picture asks for the phone higher', async () => {
+  const env = harness();
+  env.loop.syncTarget({ ...TARGET.box, y1: -905, y2: -279 });
+  await env.loop.handFrame(fix(300, 520, env.at()), [TARGET], 1280, 960, true);
+  env.tick(250);
+  await env.loop.handFrame(fix(300, 520, env.at()), [TARGET], 1280, 960, true);
+  const lost = env.sent.filter((event) => event.type === 'GUIDE_TARGET_LOST');
+  assert.deepEqual(lost.at(-1), { type: 'GUIDE_TARGET_LOST', cue: 'phone_up_small' });
 });
 
 test('a covered product still reports when it stays gone past the patience', async () => {

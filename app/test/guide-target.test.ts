@@ -130,22 +130,6 @@ test('a re-found outline while directing adopts silently', async () => {
   }
 });
 
-test('a re-found outline when lost goes back to aiming', async () => {
-  const driver = await guiding();
-  try {
-    driver.send({ type: 'GUIDE_TARGET_LOST', cue: 'phone_right_small' });
-    await driver.flush();
-    assert.equal(driver.guide(), 'targetLost');
-    driver.send({ type: 'SHELF_FOUND', product: 'Masaad water', outline: outline(4, 640, 420, 800, 660), matches: 1, kind: 'bottles', position: 'middle' });
-    await driver.flush();
-    assert.equal(driver.guide(), 'aiming');
-    assert.equal(driver.context().guideTarget?.box.x1, 640);
-    assert.equal(driver.context().guideOutOfView, false);
-  } finally {
-    driver.stop();
-  }
-});
-
 test('the overlay hides while the target is out of view', async () => {
   const driver = await guiding();
   try {
