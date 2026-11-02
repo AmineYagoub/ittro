@@ -31,8 +31,11 @@ import kotlin.math.abs
 // t41 the phone held still while the hand reached, the turn read about
 // 1% of the frame a second right and down, and the outline slid a
 // third of a bottle off the Guedila in 4 s. On hand-free frames where
-// the phone barely turns, what the turn reads beyond the flow is that
-// creep; it is learned there and taken off every turn.
+// the phone holds still, neither turning, shifting nor stepping, what
+// the turn reads beyond the flow is that creep; it is learned there
+// and taken off every turn. In t42 it was also learned while the phone
+// stepped closer, which moves the picture without a turn, and the
+// creep read upward fell from 0.7% of the frame a second to -0.1%.
 private const val RING = 512
 
 private const val SAMPLE_US = 10_000
@@ -47,9 +50,9 @@ private const val SCALE_MIN = 0.6
 
 private const val SCALE_MAX = 1.6
 
-private const val CREEP_LEARN = 1.0 / 150
+private const val CREEP_LEARN = 1.0 / 450
 
-private const val CREEP_MAX = 0.003
+private const val STILL = 0.001f
 
 object Gyro : SensorEventListener {
   private val lock = Any()
@@ -142,14 +145,17 @@ object Gyro : SensorEventListener {
     }
   }
 
-  /** The frame's motion: the flow's, but the turn's less its creep on each axis it has agreed on while a hand is in view, the phone turns fast or the flow is lost. Slower hand-free frames teach the agreement as the phone turns and the creep as it barely does. */
+  /** The frame's motion: the flow's, but the turn's less its creep on each axis it has agreed on while a hand is in view, the phone turns fast or the flow is lost. Slower hand-free frames teach the agreement as the phone turns and the creep as it holds still. */
   fun choose(flow: FloatArray?, turn: FloatArray?, hand: Boolean): FloatArray? {
     turn ?: return flow
     synchronized(lock) {
       val fast = abs(turn[0]) >= FAST_TURN || abs(turn[1]) >= FAST_TURN
       if (flow != null && !hand && !fast) {
+        val still = (0..1).all { abs(turn[it]) < STILL && abs(flow[it]) < STILL } && (flow.size < 3 || abs(flow[2] - 1f) < STILL / 2)
         for (axis in 0..1) {
-          learnCreep(axis, turn[axis], flow[axis])
+          if (still) {
+            learnCreep(axis, turn[axis], flow[axis])
+          }
           val own = turn[axis] - creep[axis] * frameSec
           if (abs(own) >= MOVING) {
             flowTimesTurn[axis] += flow[axis] * own
@@ -185,12 +191,11 @@ object Gyro : SensorEventListener {
 
   private fun learnCreep(axis: Int, turn: Float, flow: Float) {
     val k = scale(axis) ?: return
-    if (frameSec <= 0.0 || abs(turn) >= MOVING) {
+    if (frameSec <= 0.0) {
       return
     }
     crept[axis] += 1
-    val beyond = (turn - flow / k).coerceIn(-CREEP_MAX, CREEP_MAX) / frameSec
-    creep[axis] += (beyond - creep[axis]) * maxOf(1.0 / crept[axis], CREEP_LEARN)
+    creep[axis] += ((turn - flow / k) / frameSec - creep[axis]) * maxOf(1.0 / crept[axis], CREEP_LEARN)
   }
 
   // Under the lock: the turn's scale on an axis, once enough hand-free frames compared it with the flow and it fell in range.
