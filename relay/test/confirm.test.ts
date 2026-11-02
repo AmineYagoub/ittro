@@ -219,6 +219,19 @@ test('the confirm instructions name the held product by brand and kind in the na
   assert.match(system, /plainly is/);
 });
 
+test('another spelling of the asked name is the asked name, never a contradiction (t27)', async () => {
+  let system = '';
+  const record: typeof fetch = (async (_url: unknown, init: unknown) => {
+    const body = JSON.parse(String((init as { body: string }).body)) as { input: { content: string }[] };
+    system = body.input[0]?.content ?? '';
+    return { ok: true, json: async () => completed({ verdict: 'unsure', picture_problem: null, asked: ASKED, read: { brand: 'El Taaounia', product: null, variant: null, size: null }, label_name: 'El Taaounia', unreadable: ['product', 'variant', 'size'] }) };
+  }) as unknown as typeof fetch;
+  await confirmInHand(record, 'https://example.invalid', 'key', PHOTO);
+  assert.match(system, /another script or spelling that plainly sounds the same is the asked name/);
+  assert.match(system, /a Latin a, ä or aa can stand for ع/);
+  assert.match(system, /a different name, never another spelling of the asked one/);
+});
+
 test('a minimal check asks Meta with minimal effort', async () => {
   let effort = '';
   const record: typeof fetch = (async (_url: unknown, init: unknown) => {
