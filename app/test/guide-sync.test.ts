@@ -3,7 +3,8 @@
 // the approach or leaves the loop on a stale box; out of view, the
 // hand cues stop, the no-hand and lost cues too (t30), and the phone
 // cue repeats; every first cue logs where it came from, and a lost
-// target where its box was.
+// target where its box was; a target back in view tells the
+// conversation, so its outline shows again (t34).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGuideLoop } from '../src/guide/loop';
@@ -171,7 +172,7 @@ test('a covered product still reports when it stays gone past the patience', asy
   assert.equal(env.sent.filter((event) => event.type === 'GUIDE_TARGET_LOST').length, 1);
 });
 
-test('a target leaving and returning logs both moments, with where the box was (t30)', async () => {
+test('a target leaving and returning logs both moments, with where the box was (t30), and says it is back (t34)', async () => {
   const env = harness();
   await env.loop.handFrame(fix(300, 520, env.at()), [TARGET], 1280, 960);
   env.tick(250);
@@ -182,6 +183,7 @@ test('a target leaving and returning logs both moments, with where the box was (
   env.tick(250);
   await env.loop.handFrame(fix(300, 520, env.at()), [TARGET], 1280, 960);
   assert.ok(env.logs.includes('guide target back in view'));
+  assert.ok(env.sent.some((event) => event.type === 'GUIDE_TARGET_BACK'));
 });
 
 test('out of view mutes the no-hand and lost cues, which come back with the target (t30)', async () => {

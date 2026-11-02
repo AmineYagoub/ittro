@@ -2,7 +2,8 @@
 // runs on, the photos it keeps, and the statistics it reports. The
 // loop itself lives in loop.ts; the cloud half in loopReads.ts. Each
 // photo keeps where the camera pointed, so the guided outline is cut
-// again once the phone rests after a move (recut.ts, t31).
+// again once the phone rests after a move (recut.ts, t31), and whether
+// a hand was in view.
 import type { Language } from '../theme';
 import type { FoundShelf, SceneView, ShelfBox, ShelfCrop, ShelfOutline, ShelfRead } from '../relay';
 import type { GreyFrame } from './tracker';
@@ -22,6 +23,8 @@ export interface LoopPhoto {
   at?: number;
   /** Where the camera pointed as the still was taken, so a move since is known. */
   pan?: CameraPan;
+  /** A hand was in view as the still was taken: SAM cuts it in with the product. */
+  hand?: boolean;
 }
 
 export interface LoopContext {
@@ -56,8 +59,10 @@ export interface LoopDeps {
   readContext: () => LoopContext;
   /** Where the camera points now, for the inventory, the sweep and the re-cut; absent in tests. */
   pan?: () => CameraPan | null;
-  /** A hand is in view now: it drags the pan and SAM would cut under it, so no re-cut; absent in tests. */
+  /** A hand is in view now: SAM would cut it in with the product, so no pass runs while guiding; absent in tests. */
   handInView?: () => boolean;
+  /** Where the camera pointed as still `shot` was taken, in pan()'s terms; absent in tests. */
+  stillPan?: (shot: number) => CameraPan | null;
   /** The not-here summary at the end of a sweep (relay /ask-view). */
   notHere?: (wanted: string, image: string, mime: string, seen: string[]) => Promise<ViewReply>;
   send: (event: ConversationEvent) => void;

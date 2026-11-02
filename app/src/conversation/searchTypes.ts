@@ -2,7 +2,7 @@
 // and the events the shelf loop sends. The conversation's context and
 // event union take them in from here.
 import type { LinkKind } from '../metaCall';
-import type { ShelfOutline } from '../relay';
+import type { ShelfBox, ShelfOutline } from '../relay';
 import type { GuidePosition, SpokenLine } from './types';
 import type { SweepCue } from '../shelf/sweep';
 
@@ -26,7 +26,7 @@ export interface SearchContext {
 export type SearchEvent =
   | { type: 'SEARCH_BEGIN' }
   | { type: 'SEARCH_END' }
-  | { type: 'SHELF_OUTLINED'; outlines: ShelfOutline[]; kind: string }
+  | { type: 'SHELF_OUTLINED'; outlines: ShelfOutline[]; now?: ShelfBox[]; kind: string }
   | { type: 'SHELF_SWEPT'; checked: number }
   | { type: 'WRONG_SHELF'; shelf: string | null; product: string }
   | { type: 'HAND_HOLD' }

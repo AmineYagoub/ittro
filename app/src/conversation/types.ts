@@ -222,6 +222,7 @@ export type ConversationEvent =
   | { type: 'GUIDE_CONTACT' }
   | { type: 'GUIDE_WRONG'; label: string; cue: string }
   | { type: 'GUIDE_TARGET_LOST'; cue: string }
+  | { type: 'GUIDE_TARGET_BACK' }
   | { type: 'GUIDE_RESTART' }
   | { type: 'GUIDE_END' }
   | { type: 'CONFIRM_BEGIN' }

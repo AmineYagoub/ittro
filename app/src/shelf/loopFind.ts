@@ -16,6 +16,7 @@ import { biggestFirst, reconcileTracks } from './shelfTracks';
 import { outlineSignature, packageKind } from './match';
 import { reportVerdicts } from './loopReads';
 import { noteSeen } from './inventory';
+import { placer } from './place';
 import type { ReadsContext } from './loopReads';
 import type { LoopPhoto } from './loopTypes';
 
@@ -45,7 +46,7 @@ export async function findPass(ctx: ReadsContext, request: string, epoch: number
   state.readAt = deps.now();
   state.sceneChanged = false;
   state.emptyOutlines = 0;
-  state.tracks = reconcileTracks(state.tracks, outlines, nextId);
+  state.tracks = reconcileTracks(state.tracks, outlines, nextId, placer(deps));
   const pan = deps.pan?.() ?? null;
   const reads: ShelfRead[] = state.tracks.map((entry) => {
     const label = found.outlines[outlines.indexOf(entry.outline)]?.label || request;
@@ -67,7 +68,7 @@ export async function findPass(ctx: ReadsContext, request: string, epoch: number
   const signature = outlineSignature(outlines);
   if (signature !== state.lastSignature) {
     state.lastSignature = signature;
-    deps.send({ type: 'SHELF_OUTLINED', outlines, kind: packageKind(state.phrases.get(request) ?? request, deps.readContext().lang) });
+    deps.send({ type: 'SHELF_OUTLINED', outlines, now: outlines.map(placer(deps)), kind: packageKind(state.phrases.get(request) ?? request, deps.readContext().lang) });
   }
   return true;
 }

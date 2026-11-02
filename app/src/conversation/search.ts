@@ -19,7 +19,7 @@ import {
   wrongShelfLine,
 } from '../shelf/searchLines';
 import type { ConversationContext, GuidePosition, SearchAnnouncement } from './types';
-import { decideTarget } from './searchTarget';
+import { decideTarget, followMoved } from './searchTarget';
 import { placedTarget } from '../guide/placedBox';
 
 export const raiseSearchBegin = raise({ type: 'SEARCH_BEGIN' });
@@ -80,11 +80,11 @@ export const storeOutlined = assign({
   outlines: ({ event }: EventArgs) => (event.type === 'SHELF_OUTLINED' ? event.outlines : []),
   guideTarget: ({ context, event }: EventArgs) =>
     event.type === 'SHELF_OUTLINED'
-      ? decideTarget(placedTarget(context.guideTarget, Date.now()), event.outlines, context.guideHand).outline
+      ? decideTarget(placedTarget(context.guideTarget, Date.now()), event.outlines, context.guideHand, event.now).outline
       : context.guideTarget,
   guideRecheck: ({ context, event }: EventArgs) =>
     event.type === 'SHELF_OUTLINED'
-      ? decideTarget(placedTarget(context.guideTarget, Date.now()), event.outlines, context.guideHand).recheck
+      ? decideTarget(placedTarget(context.guideTarget, Date.now()), event.outlines, context.guideHand, event.now).recheck
       : context.guideRecheck,
   checkedCount: ({ context, event }: EventArgs) =>
     event.type === 'SHELF_OUTLINED' ? context.checkedCount + event.outlines.length : context.checkedCount,
@@ -156,11 +156,11 @@ export const storeMoved = assign({
   outlines: ({ event }: EventArgs) => (event.type === 'OUTLINES_MOVED' ? event.outlines : []),
   guideTarget: ({ context, event }: EventArgs) =>
     event.type === 'OUTLINES_MOVED'
-      ? decideTarget(placedTarget(context.guideTarget, Date.now()), event.outlines, context.guideHand).outline
+      ? followMoved(placedTarget(context.guideTarget, Date.now()), event.outlines, context.guideHand, context.guideRecheck).outline
       : context.guideTarget,
   guideRecheck: ({ context, event }: EventArgs) =>
     event.type === 'OUTLINES_MOVED'
-      ? decideTarget(placedTarget(context.guideTarget, Date.now()), event.outlines, context.guideHand).recheck
+      ? followMoved(placedTarget(context.guideTarget, Date.now()), event.outlines, context.guideHand, context.guideRecheck).recheck
       : context.guideRecheck,
 });
 

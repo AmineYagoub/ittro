@@ -20,13 +20,17 @@
 // call a pass only when it will read them, as the pass reads then only
 // to confirm the target: a re-cut that saw bottles the find never read
 // would otherwise start SAM back to back, every read paused (t29 ran
-// one such pass at 10:47:11).
+// one such pass at 10:47:11). While guiding, a pass cuts only a still
+// from the last 2.5 s with no hand in view: t34 cut the hand in with
+// the Guedila as one wide outline, and re-cut an 18 s old still of
+// where the camera no longer pointed.
 import { TARGET_CONFIRM_IOU } from '../conversation/searchTarget';
 import type { ShelfOutline } from '../relay';
 import { targetJumped } from './loopReads';
 import type { ReadsContext } from './loopReads';
 import type { CameraPan, LoopPhoto, LoopState } from './loopTypes';
 import { boxOverlap } from './outlines';
+import { placer } from './place';
 
 /** How far the camera must have moved since the outline's still, as a share of the frame. */
 export const RECUT_MOVE = 0.03;
@@ -40,6 +44,8 @@ export const RECUT_STEADY_MS = 400;
 export const RECUT_GAP_MS = 2500;
 
 const SAMPLE_KEEP_MS = 1500;
+
+const GUIDE_STILL_MS = 2500;
 
 function sameOpening(a: CameraPan, b: CameraPan): boolean {
   return (a.session ?? 0) === (b.session ?? 0);
@@ -55,6 +61,14 @@ function resting(state: LoopState, pan: CameraPan, now: number): boolean {
     Math.abs(pan.x - before.pan.x) < RECUT_STEADY &&
     Math.abs(pan.y - before.pan.y) < RECUT_STEADY
   );
+}
+
+/** Notes where the camera points while no pass may run, so a phone that rested under a hand is known to rest once the hand leaves. */
+export function notePan(ctx: ReadsContext): void {
+  const pan = ctx.deps.pan?.() ?? null;
+  if (pan) {
+    resting(ctx.state, pan, ctx.deps.now());
+  }
 }
 
 /** True when the guided outline should be cut again from a fresh still; each call notes where the camera points. */
@@ -93,7 +107,8 @@ export function reanchorDue(ctx: ReadsContext, outlines: ShelfOutline[]): boolea
   const asked = ctx.state.recutPending;
   ctx.state.recutPending = false;
   const held = ctx.deps.readContext().guideBox ?? null;
-  return asked && held !== null && !outlines.some((outline) => boxOverlap(outline.box, held) >= TARGET_CONFIRM_IOU);
+  const place = placer(ctx.deps);
+  return asked && held !== null && !outlines.some((outline) => boxOverlap(place(outline), held) >= TARGET_CONFIRM_IOU);
 }
 
 /** Labels waiting to be read call a pass, but while guiding only one that will read them: to confirm a lost, doubtful or moved target, never under the hand. */
@@ -102,7 +117,16 @@ export function readsDue(ctx: ReadsContext, waiting: boolean): boolean {
   if (!waiting || !context.guiding) {
     return waiting;
   }
-  return !context.handCovering && Boolean(context.guideLost || context.guideRecheck || targetJumped(ctx.state));
+  return !context.handCovering && Boolean(context.guideLost || context.guideRecheck || targetJumped(ctx.state, placer(ctx.deps)));
+}
+
+/** While guiding, the stills a pass may cut: taken in the last 2.5 s, with no hand in view. */
+export function guideStills(ctx: ReadsContext, photos: LoopPhoto[]): LoopPhoto[] {
+  if (!ctx.deps.readContext().guiding) {
+    return photos;
+  }
+  const now = ctx.deps.now();
+  return photos.filter((photo) => !photo.hand && now - (photo.at ?? now) <= GUIDE_STILL_MS);
 }
 
 /** The stills a pass may cut once a re-cut was asked: those taken since, never one from before the move. */

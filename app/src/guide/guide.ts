@@ -2,7 +2,8 @@
 // the hand to the product is a state with its timings. Aiming waits
 // for the first hand frame, directing repeats its cue every 6 s,
 // almost speaks once, reaching listens for contact, and the hand
-// states stop directing until the hand is back.
+// states stop directing until the hand is back. A target back in the
+// picture shows its outline again and is aimed at afresh.
 import type { ContextArgs } from '../conversation/actions';
 import { noteVoice } from '../conversation/echo';
 import { logIttro } from '../log';
@@ -26,6 +27,7 @@ import {
   sayRestart,
   sayTargetLost,
   sayWrong,
+  showTarget,
   trackCue,
 } from './guideSay';
 import { adoptGuideTarget, armFree, foundTarget, hasTarget, logAdopted, readyQuiet, readyToArm, storeGuideTarget } from './guideTarget';
@@ -52,6 +54,7 @@ export const guideRegion = {
   on: {
     GUIDE_END: { actions: [endGuide], target: '#guide.idle' },
     GUIDE_RESTART: { guard: hasTarget, actions: [sayRestart], target: '#guide.directing' },
+    GUIDE_TARGET_BACK: { actions: [showTarget] },
   },
   states: {
     idle: {
@@ -212,6 +215,7 @@ export const guideRegion = {
         GUIDE_COVERING: { actions: [sayReach], target: 'reaching' },
         GUIDE_NOHAND: { actions: [sayNoHand], target: 'noHand' },
         GUIDE_LOST: { actions: [sayLost], target: 'handLost' },
+        GUIDE_TARGET_BACK: { actions: [showTarget], target: 'aiming' },
         SHELF_FOUND: { guard: foundTarget, actions: [adoptGuideTarget, logAdopted], target: 'aiming' },
       },
     },

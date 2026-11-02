@@ -100,6 +100,7 @@ export function createGuideLoop(deps: GuideLoopDeps): GuideLoop {
     if (bestIoU >= TARGET_MATCH_IOU) {
       if (state.sentTargetLost) {
         deps.log('guide target back in view');
+        deps.send({ type: 'GUIDE_TARGET_BACK' });
         state.loggedCue = null;
       }
       state.targetGone = 0;

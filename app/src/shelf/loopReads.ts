@@ -5,7 +5,7 @@
 // guide and then send the shopper elsewhere.
 import { packageKind } from './match';
 import { createReadQueue, dropEpoch, enqueueRead, nextRead } from './queue';
-import type { ShelfBox, ShelfCrop, ShelfRead } from '../relay';
+import type { ShelfBox, ShelfCrop, ShelfOutline, ShelfRead } from '../relay';
 import type { LoopDeps, LoopState } from './loopTypes';
 import type { Tracked } from './shelfTracks';
 import { boxOverlap } from './outlines';
@@ -13,6 +13,7 @@ import { positionFor } from '../guide/steer';
 import { noteSeen, readName } from './inventory';
 import { beginSweep, sayNotHere } from './loopSweep';
 import { sweeping } from './sweep';
+import { placer } from './place';
 
 export const QUIET_MS = 8000;
 
@@ -161,10 +162,12 @@ export function reportVerdicts(ctx: ReadsContext, request: string, reads: ShelfR
   }
 }
 
-function closestYes(state: LoopState, reads: ShelfRead[], held: ShelfBox): Tracked | null {
+function closestYes(state: LoopState, reads: ShelfRead[], held: ShelfBox, place: (outline: ShelfOutline) => ShelfBox): Tracked | null {
   const yes = new Set(reads.filter((read) => read.verdict === 'yes').map((read) => read.id.replace(/^shelf-/, '')));
-  const gap = (entry: Tracked): number =>
-    Math.abs(entry.outline.box.x1 + entry.outline.box.x2 - held.x1 - held.x2) + Math.abs(entry.outline.box.y1 + entry.outline.box.y2 - held.y1 - held.y2);
+  const gap = (entry: Tracked): number => {
+    const box = place(entry.outline);
+    return Math.abs(box.x1 + box.x2 - held.x1 - held.x2) + Math.abs(box.y1 + box.y2 - held.y1 - held.y2);
+  };
   return [...state.tracks.filter((entry) => yes.has(entry.track))].sort((a, b) => gap(a) - gap(b))[0] ?? null;
 }
 
@@ -172,7 +175,8 @@ function closestYes(state: LoopState, reads: ShelfRead[], held: ShelfBox): Track
 // read no, the product is out of view, or a re-cut found nothing there
 // (the outline had drifted, t33), the yes nearest the guided spot:
 // with two matching bottles the hand keeps its one (t19 jumped between
-// two Guedila bottles on each recheck).
+// two Guedila bottles on each recheck). Each bottle is matched where
+// the camera has it now, as the drawn outline is (t34).
 function refindTarget(ctx: ReadsContext, reads: ShelfRead[], reanchor: boolean): Tracked | null {
   const { deps, state } = ctx;
   const best = nearestOutline(state, reads);
@@ -181,21 +185,22 @@ function refindTarget(ctx: ReadsContext, reads: ShelfRead[], reanchor: boolean):
   if (!best || !held) {
     return best;
   }
+  const place = placer(deps);
   if (context.guideLost) {
-    return closestYes(state, reads, held) ?? best;
+    return closestYes(state, reads, held, place) ?? best;
   }
   const verdict = (entry: Tracked): string | undefined => reads.find((read) => read.id === `shelf-${entry.track}`)?.verdict;
   const here = state.tracks
-    .filter((entry) => boxOverlap(entry.outline.box, held) >= REFIND_IOU)
-    .sort((a, b) => boxOverlap(b.outline.box, held) - boxOverlap(a.outline.box, held));
+    .filter((entry) => boxOverlap(place(entry.outline), held) >= REFIND_IOU)
+    .sort((a, b) => boxOverlap(place(b.outline), held) - boxOverlap(place(a.outline), held));
   const same = here.find((entry) => verdict(entry) === 'yes');
   if (same) {
     return same;
   }
   if (here.some((entry) => verdict(entry) === 'no')) {
-    return closestYes(state, reads, held) ?? best;
+    return closestYes(state, reads, held, place) ?? best;
   }
-  const nearest = reanchor && here.length === 0 ? closestYes(state, reads, held) : null;
+  const nearest = reanchor && here.length === 0 ? closestYes(state, reads, held, place) : null;
   if (nearest) {
     deps.log(`shelf re-cut found nothing where the outline was, the yes at ${Math.round(nearest.outline.box.x1)}-${Math.round(nearest.outline.box.x2)} takes it`);
     return nearest;
@@ -213,7 +218,7 @@ export function reportRefind(ctx: ReadsContext, request: string, reads: ShelfRea
   }
 }
 
-export function targetJumped(state: LoopState): boolean {
+export function targetJumped(state: LoopState, place: (outline: ShelfOutline) => ShelfBox = (outline) => outline.box): boolean {
   if (!state.foundTrack || !state.foundOutline) {
     return false;
   }
@@ -221,7 +226,7 @@ export function targetJumped(state: LoopState): boolean {
   if (!entry) {
     return true;
   }
-  return boxOverlap(entry.outline.box, state.foundOutline.box) < TARGET_STEADY_IOU;
+  return boxOverlap(place(entry.outline), place(state.foundOutline)) < TARGET_STEADY_IOU;
 }
 
 export async function maybeSwept(ctx: ReadsContext, request: string, reads: ShelfRead[], epoch: number): Promise<void> {

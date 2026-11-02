@@ -1,7 +1,7 @@
 // The shelf loop's ties to the phone: the relay calls it makes, the
 // label crops cut on the phone, and what it reads from the
 // conversation. useShelfSearch makes one set per search.
-import { cameraPan, cropShelfPhoto } from 'ittro-sensors';
+import { cameraPan, cropShelfPhoto, shotPan } from 'ittro-sensors';
 import { askAboutView, classifySceneView, findShelf, outlineShelf, fetchPackagePhrase, readShelfCrops } from '../relay';
 import type { ShelfCrop } from '../relay';
 import type { Language } from '../theme';
@@ -18,6 +18,7 @@ export function searchDeps(actor: { current: SearchActor | null }, stopped: () =
   return {
     now: () => Date.now(),
     pan: cameraPan,
+    stillPan: shotPan,
     notHere: async (wanted, image, mime, seen) => {
       const language = actor.current?.getSnapshot().context.lang ?? 'en';
       const answer = await askAboutView({ question: null, wanted, language, image, mime, history: [], inventory: seen, upset: false, brief: false });

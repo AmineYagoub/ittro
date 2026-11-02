@@ -19,7 +19,9 @@
 // the still was taken (from the frames around it: in t32 the camera
 // opened with the search, and the shot began before its first frame),
 // and the loop hears whether a hand is in view, so the guided outline
-// is cut again once the phone rests after a move (t31).
+// is cut again once the phone rests after a move (t31). A photo also
+// notes a hand seen as it was taken: while guiding, SAM cut the hand
+// in with the product (t34), so those stills are not cut.
 import { useEffect, useMemo, useRef } from 'react';
 import { cameraPan, prepareShelfPhoto, shotPan, thermalStatus, validTrackPan } from 'ittro-sensors';
 import type { TrackPan } from 'ittro-sensors';
@@ -208,6 +210,7 @@ export function useShelfSearch(
           h: prepared.h,
           grey,
           at: shotStart,
+          hand: (lastHandFix()?.atMs ?? Number.NEGATIVE_INFINITY) >= shotStart - HAND_PAN_FREEZE_MS,
           ...(stillPan ? { pan: stillPan } : {}),
           ...(Number.isFinite(shot) ? { shot } : {}),
         };
