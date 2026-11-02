@@ -7,7 +7,7 @@
 import { assignConversation as assign } from './actors';
 import { partsText } from '../guide/lines';
 import type { ConversationContext, ExpressionEvent, VoiceEcho } from './types';
-import { voiceQuietMs } from '../voiceGate';
+import { voiceGateClosed, voiceQuietMs } from '../voiceGate';
 
 const COVERAGE = 0.5;
 
@@ -265,12 +265,12 @@ function shortAnswerOpen(context: ConversationContext, text: string): boolean {
   );
 }
 
-// The mic is gated while Ittro speaks, so an offered choice heard
-// while Ittro is quiet, or anything heard once the gate has been open
-// 2.5 s, is the shopper (t12, t16 dropped "ابحث عن غيره" 12 s after).
+// The mic is gated while Ittro's voice plays, so an offered choice heard
+// with the gate open, or anything once it has been open 2.5 s, is the
+// shopper (t12, t16; t21 dropped "ابحث عن غيره" while understanding).
 function shopperForSure(context: ConversationContext, text: string): boolean {
   const said = normalize(text);
-  return !context.talkBusy && (voiceQuietMs() >= 2500 || (said.length > 0 && context.lastChips.some((chip) => normalize(chip) === said)));
+  return !voiceGateClosed() && (voiceQuietMs() >= 2500 || (said.length > 0 && context.lastChips.some((chip) => normalize(chip) === said)));
 }
 
 export const echoFull = ({ context, event }: EchoArgs): boolean => {

@@ -207,6 +207,7 @@ export type ConversationEvent =
   | { type: 'QUESTION_ASKED' }
   | { type: 'TALK_IDLE' }
   | { type: 'HEARD' }
+  | { type: 'SPEC_STALE' }
   | { type: 'LINK_DOWN' }
   | { type: 'LINK_LIMITED' }
   | { type: 'LINK_BROKEN' }

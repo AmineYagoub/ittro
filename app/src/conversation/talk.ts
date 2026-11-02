@@ -56,7 +56,7 @@ import { buttonsLines } from './answers';
 import { UNDERSTAND_TIMEOUT_MS, hasLinkLine, raiseLinkDown, raiseLinkForError, raiseLinkOk, sayLinkLine, understandTimedOut } from './link';
 import { sayTo } from './sayTo';
 import { applyTranslated, skipKeep, skipSay, translateKeep } from './translation';
-import { notePartial, noteSpecAsked, partialWorthy, speculatingState } from './speculating';
+import { notePartial, partialWorthy, speculatingState } from './speculating';
 import { chainActions, routingTransitions } from './routing';
 import { earbudTalkOn, guideTalkOn, logButton, noteButton, stopSpokenVoice } from './buttons';
 import {
@@ -195,7 +195,7 @@ export const talkState = {
         onError: [{ guard: translateKeep, target: 'routing' }, { target: 'saying' }],
       },
     },
-    speculating: { ...speculatingState, entry: [markTalkBusy, noteSpecAsked], exit: [markTalkQuiet] },
+    speculating: speculatingState,
     understanding: {
       entry: [markTalkBusy, ackHeard],
       exit: [markTalkQuiet],

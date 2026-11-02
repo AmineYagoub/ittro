@@ -2,15 +2,15 @@
 // words never reach understanding, a just-played clip stays echo
 // after the line moves on, and a bare yes is the shopper's only
 // while its question is open; a choice Ittro offered is the
-// shopper's once Ittro is quiet, and so is anything heard after
-// 2.5 s of quiet.
+// shopper's whenever Ittro's voice is not playing, even while it
+// thinks, and so is anything heard after 2.5 s of quiet.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { answer, startListening } from './driver';
 import { echoFull } from '../src/conversation/echo';
 import { cueText } from '../src/voiceClips';
 import { resetSpeech, speechStops } from './stubs.mjs';
-import { noteAudioEnd } from '../src/voiceGate';
+import { noteAudioEnd, openVoice } from '../src/voiceGate';
 
 test('the first words of the playing line never reach understanding', async () => {
   resetSpeech();
@@ -153,8 +153,14 @@ test('an offered choice said back while Ittro is quiet is the shopper (t12)', as
       lastLine: 'نعم. هذا مسعد ماء. قل ابحث عن غيره، أو انتهيت.',
       lastChips: ['ابحث عن غيره', 'انتهيت'],
     };
-    assert.equal(echoFull({ context: { ...offered, talkBusy: false }, event: heard }), false);
-    assert.equal(echoFull({ context: { ...offered, talkBusy: true }, event: heard }), true);
+    assert.equal(echoFull({ context: offered, event: heard }), false);
+    assert.equal(echoFull({ context: { ...offered, talkBusy: true }, event: heard }), false, 'thinking is not speaking (t21)');
+    const release = openVoice();
+    try {
+      assert.equal(echoFull({ context: offered, event: heard }), true);
+    } finally {
+      release();
+    }
   } finally {
     driver.stop();
   }
@@ -176,7 +182,13 @@ test('words of the last line said 12 s after it ended are the shopper (t16)', as
     assert.equal(echoFull({ context: quiet, event: heard }), true);
     Date.now = () => realNow() + 12000;
     assert.equal(echoFull({ context: { ...quiet, voiceAt: realNow(), voiceLog: [] }, event: heard }), false);
-    assert.equal(echoFull({ context: { ...quiet, talkBusy: true }, event: heard }), true);
+    const release = openVoice();
+    try {
+      assert.equal(echoFull({ context: quiet, event: heard }), true);
+    } finally {
+      Date.now = realNow;
+      release();
+    }
   } finally {
     Date.now = realNow;
     driver.stop();
