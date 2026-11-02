@@ -6,10 +6,12 @@
   "scripts": {
     "dev": "wrangler dev",
     "test": "node --test test/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json && tsc -p test/tsconfig.json",
     "check:understand": "node scripts/check-understand.mjs",
     "lint": "eslint src test scripts"
   },
   "devDependencies": {
+    "@types/node": "^22.20.5",
     "eslint": "^9.39.5",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.72.1"

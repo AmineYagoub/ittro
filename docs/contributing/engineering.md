@@ -49,6 +49,7 @@ When shopper data or a secret reaches a public space:
 - **Every change in behaviour comes with tests.** A bug fix starts with a test that fails without the fix.
 - **The relay's schema gate** is checked against completed, refused, broken and off-schema answers.
 - **No test needs the network** or Meta's servers. The relay tests stand in for Meta.
+- **The relay is type-checked too,** with `npm run typecheck`. Wrangler bundles it without checking types, so a missing import reached the deployed Worker and failed only when that line ran (`addSpendUsd`, 31 October). The Worker code is checked without Node's types, since it runs on Workers; the tests are checked with them.
 - **Phone behaviour is tested on the real phone,** over wireless adb, never on an emulator.
 
 ## The app

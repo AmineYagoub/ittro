@@ -78,7 +78,7 @@ test('pairs by code, asks, and deletes the photo on answer', async () => {
     assert.equal(joined.token, token);
     const { id } = await askHelper([token]);
     const before = (await (
-      await helperRoutes(new Request(`https://relay.invalid/helper-next?token=${token}`), env)
+      (await helperRoutes(new Request(`https://relay.invalid/helper-next?token=${token}`), env)) as Response
     ).json()) as { question: { image: string } | null };
     assert.ok(before.question?.image);
     assert.equal((await answerAs(token, id, 'yes', "it's the big one")).status, 200);
@@ -91,7 +91,7 @@ test('pairs by code, asks, and deletes the photo on answer', async () => {
     assert.equal(status.answer.note, "it's the big one");
     assert.equal(status.answer.helper, 'Sara');
     const after = (await (
-      await helperRoutes(new Request(`https://relay.invalid/helper-next?token=${token}`), env)
+      (await helperRoutes(new Request(`https://relay.invalid/helper-next?token=${token}`), env)) as Response
     ).json()) as { question: unknown };
     assert.equal(after.question, null);
   } finally {
@@ -110,7 +110,7 @@ test('cancel deletes the photo and ends the wait', async () => {
     const status = (await (await app(`/helper-status?id=${id}`)).json()) as { status: string };
     assert.equal(status.status, 'cancelled');
     const next = (await (
-      await helperRoutes(new Request(`https://relay.invalid/helper-next?token=${token}`), env)
+      (await helperRoutes(new Request(`https://relay.invalid/helper-next?token=${token}`), env)) as Response
     ).json()) as { question: unknown };
     assert.equal(next.question, null);
   } finally {

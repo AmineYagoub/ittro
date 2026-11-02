@@ -16,7 +16,9 @@ Folders: `app/` (Expo + React Native), `relay/` (Cloudflare Worker calling Meta)
 cd app && npm install        # install the app dependencies
 cd app && npx tsc --noEmit   # typecheck the app
 cd app && npm run lint       # lint the app (TypeScript and JavaScript)
+cd relay && npm install      # install the relay dependencies
 cd relay && npm test         # run the relay tests (node --test)
+cd relay && npm run typecheck  # typecheck the relay and its tests
 cd relay && npm run lint     # lint the relay
 cd modules/ittro-sensors && npm run lint  # lint the sensor shim
 cd app/android && ./gradlew assembleDebug -x lint  # build the debug APK

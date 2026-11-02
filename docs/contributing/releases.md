@@ -52,7 +52,7 @@ The app and the relay version independently with [Semantic Versioning 2.0.0](htt
 3. Dependencies: every licence is on the allowed list ([engineering.md](engineering.md#dependencies)), and no known vulnerability is left unexplained.
 4. Secret scanning is clean.
 5. The build is reproducible from the tag.
-6. The tests pass: the relay gate tests, the app type check and lint.
+6. The tests pass: the relay gate tests and type check, the app type check and lint.
 7. Changed screens are checked right to left, with text at 200% and with the screen reader. The speed targets hold on a budget phone.
 
 **Beta**

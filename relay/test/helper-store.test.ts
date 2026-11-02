@@ -92,18 +92,18 @@ test('a pairing survives across isolates with KV expiries', async () => {
     const { token } = await joinOn(second, code);
     assert.ok(token);
     const joined = (await (
-      await helperRoutes(new Request(`https://relay.invalid/helper-pair?code=${code}`, { headers: { authorization: 'Bearer test-code' } }), first)
+      (await helperRoutes(new Request(`https://relay.invalid/helper-pair?code=${code}`, { headers: { authorization: 'Bearer test-code' } }), first)) as Response
     ).json()) as { state: string; token: string };
     assert.equal(joined.state, 'joined');
     assert.equal(joined.token, token);
     const listed = (await (
-      await helperRoutes(new Request('https://relay.invalid/helpers', { headers: { authorization: 'Bearer test-code' } }), second)
+      (await helperRoutes(new Request('https://relay.invalid/helpers', { headers: { authorization: 'Bearer test-code' } }), second)) as Response
     ).json()) as { helpers: Array<{ name: string }> };
     assert.deepEqual(listed.helpers.map((helper) => helper.name), ['Sara']);
     const { id } = await askOn(first, token);
     assert.equal(kv.ttls.get(`question:${id}`), PHOTO_TTL_MS / 1000);
     const next = (await (
-      await helperRoutes(new Request(`https://relay.invalid/helper-next?token=${token}`), second)
+      (await helperRoutes(new Request(`https://relay.invalid/helper-next?token=${token}`), second)) as Response
     ).json()) as { question: { image: string } | null };
     assert.equal(next.question?.image, IMAGE);
   } finally {
