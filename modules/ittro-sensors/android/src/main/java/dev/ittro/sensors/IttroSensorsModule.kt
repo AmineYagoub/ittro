@@ -203,6 +203,10 @@ class IttroSensorsModule : Module() {
       OutlineTrack.pan()
     }
 
+    Function("getShotPan") { number: Int ->
+      OutlineTrack.shotPan(number)
+    }
+
     Function("setHandDelegate") { delegate: String ->
       IttroCamera.setHandDelegate(delegate)
     }

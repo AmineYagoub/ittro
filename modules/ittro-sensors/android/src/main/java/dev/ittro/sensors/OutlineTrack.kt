@@ -21,7 +21,9 @@ import kotlin.math.abs
 // an outline that arrives seconds late still lands on the product. The
 // ring holds about 70 s at 30 frames a second: a still is often 11 to
 // 16 s old by the time its outline is read (t18), and one older than
-// the ring would be drawn where the product was.
+// the ring would be drawn where the product was. The same ring tells
+// JavaScript where the camera pointed for a still, so a move since is
+// known even for a still taken as the camera opened (t32).
 private const val GREY_W = 160
 
 private const val RING = 2048
@@ -113,6 +115,18 @@ object OutlineTrack {
     }
   }
 
+  /** Where the camera pointed as still `number` was taken, in pan()'s terms; null when no frame of this opening was near it. */
+  fun shotPan(number: Int): Map<String, Double>? {
+    synchronized(lock) {
+      val shotNs = shots[number] ?: return null
+      val (best, gap) = nearest(shotNs)
+      if (best < 0 || gap > SHOT_MATCH_NS) {
+        return null
+      }
+      return mapOf("x" to ringX[best].toDouble(), "y" to ringY[best].toDouble(), "session" to session.toDouble())
+    }
+  }
+
   /** Where the drawn outline is now: its key and how far it moved from where JavaScript placed it, in photo pixels. */
   fun placement(): Map<String, Any>? {
     synchronized(lock) {
@@ -190,6 +204,16 @@ object OutlineTrack {
     val points = (m["points"] as? List<Any?>)?.mapNotNull { (it as? Number)?.toFloat() }?.toFloatArray()?.takeIf { it.size >= 6 }
     val t = OutlineTarget(m["key"] as String, m["name"] as? String ?: "", floatArrayOf(f("x1"), f("y1"), f("x2"), f("y2")), points, frameW, frameH)
     val shotNs = (m["shot"] as? Number)?.toInt()?.let { shots[it] } ?: return t.also { Log.i("IttroOutline", "placed ${t.key} no shot time") }
+    val (best, gap) = nearest(shotNs)
+    if (best >= 0 && gap <= SHOT_MATCH_NS) {
+      t.dx = (panX - ringX[best]) * frameW
+      t.dy = (panY - ringY[best]) * frameH
+    }
+    Log.i("IttroOutline", "placed ${t.key} shot gap ${gap / 1_000_000}ms dx ${t.dx.toInt()} dy ${t.dy.toInt()}")
+    return t
+  }
+
+  private fun nearest(shotNs: Long): Pair<Int, Long> {
     var best = -1
     var gap = Long.MAX_VALUE
     for (i in 0 until RING) {
@@ -200,12 +224,7 @@ object OutlineTrack {
         best = i
       }
     }
-    if (best >= 0 && gap <= SHOT_MATCH_NS) {
-      t.dx = (panX - ringX[best]) * frameW
-      t.dy = (panY - ringY[best]) * frameH
-    }
-    Log.i("IttroOutline", "placed ${t.key} shot gap ${gap / 1_000_000}ms dx ${t.dx.toInt()} dy ${t.dy.toInt()}")
-    return t
+    return best to gap
   }
 
   // The Y plane, upright, averaged down to 160 px wide; returns its size.

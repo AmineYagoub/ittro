@@ -20,8 +20,13 @@ import kotlin.math.roundToInt
 // px and the pan after it as 28.5 of 31, where the old flow read 0
 // and 5.5. A patch votes only on an axis its match is sharp along, at
 // least a quarter as sharp as across it: a cable says nothing about
-// motion along it. Flat patches (a wall, a clear bottle) give no
-// answer rather than a wrong one.
+// motion along it. While the exposure moves (the picture's mean more
+// than 3 levels from the key's), the newest frame is matched to the
+// one before and becomes the key: a camera opened for t32's search
+// brightened for a second, the key frame read that as a tenth of the
+// frame of motion, and the found outline was drawn a bottle off.
+// Replayed, that second reads as the old flow does. Flat patches (a
+// wall, a clear bottle) give no answer rather than a wrong one.
 private const val FLAT = 3
 
 private const val COARSE_REACH = 5
@@ -32,12 +37,17 @@ private const val REKEY_FRAMES = 30
 
 private const val SHARP_ACROSS = 0.25f
 
+private const val EXPOSURE_STEP = 3f
+
 class Flow {
   private var key = IntArray(0)
   private var cur = IntArray(0)
+  private var prev = IntArray(0)
   private var keyHalf: IntArray? = null
   private var curHalf: IntArray? = null
+  private var prevHalf: IntArray? = null
   private var keyed = false
+  private var keyMean = 0f
   private var age = 0
   private var lastX = 0f
   private var lastY = 0f
@@ -64,16 +74,29 @@ class Flow {
       w = width
       h = height
       cur = IntArray(width * height)
+      prev = IntArray(width * height)
       key = IntArray(width * height)
       keyed = false
     }
+    val older = prev
+    prev = cur
+    cur = older
+    prevHalf = curHalf
     System.arraycopy(grey, 0, cur, 0, width * height)
     curHalf = halve(cur, width, height)
+    val mean = cur.sum().toFloat() / cur.size
     votesX = 0
     votesY = 0
     if (!keyed) {
-      rekey()
+      rekey(mean)
       return null
+    }
+    val exposed = abs(mean - keyMean) > EXPOSURE_STEP
+    val ref = if (exposed) prev else key
+    val refHalf = (if (exposed) prevHalf else keyHalf) ?: return null
+    if (exposed) {
+      lastX = 0f
+      lastY = 0f
     }
     val px = lastX.roundToInt()
     val py = lastY.roundToInt()
@@ -85,7 +108,7 @@ class Flow {
         if (avoid != null && overlaps(box, avoid, 0.05f)) {
           continue
         }
-        val m = shift(box, px, py) ?: continue
+        val m = shift(ref, refHalf, box, px, py) ?: continue
         if (!m[0].isNaN()) {
           xs.add(m[0])
         }
@@ -98,7 +121,7 @@ class Flow {
     votesY = ys.size
     // fewer than three can't outvote one bad patch
     if (xs.size < 3 && ys.size < 3) {
-      rekey()
+      rekey(mean)
       return null
     }
     val x = if (xs.size >= 3) median(xs) else lastX
@@ -107,8 +130,8 @@ class Flow {
     lastX = x
     lastY = y
     age += 1
-    if (age >= REKEY_FRAMES || abs(x) > REKEY_PX || abs(y) > REKEY_PX) {
-      rekey()
+    if (exposed || age >= REKEY_FRAMES || abs(x) > REKEY_PX || abs(y) > REKEY_PX) {
+      rekey(mean)
     }
     return step
   }
@@ -116,36 +139,36 @@ class Flow {
   fun overlaps(a: FloatArray, b: FloatArray, grow: Float): Boolean =
     a[0] < b[2] + grow && a[2] > b[0] - grow && a[1] < b[3] + grow && a[3] > b[1] - grow
 
-  private fun rekey() {
+  private fun rekey(mean: Float) {
     System.arraycopy(cur, 0, key, 0, cur.size)
     keyHalf = curHalf
+    keyMean = mean
     keyed = true
     age = 0
     lastX = 0f
     lastY = 0f
   }
 
-  private fun shift(box: FloatArray, px: Int, py: Int): FloatArray? {
-    val kh = keyHalf ?: return null
+  private fun shift(ref: IntArray, refHalf: IntArray, box: FloatArray, px: Int, py: Int): FloatArray? {
     val ch = curHalf ?: return null
     val half = floor(max(4f, min(12f, min((box[2] - box[0]) * w / 4, (box[3] - box[1]) * h / 4)))).toInt()
     val cx = Math.round((box[0] + box[2]) / 2 * w)
     val cy = Math.round((box[1] + box[3]) / 2 * h)
-    if (flat(key, cx, cy, half)) {
+    if (flat(ref, cx, cy, half)) {
       return null
     }
-    val coarse = search(kh, ch, w / 2, h / 2, cx / 2, cy / 2, max(3, half / 2), COARSE_REACH, px / 2, py / 2) ?: return null
-    val fine = search(key, cur, w, h, cx, cy, half, 1, coarse[0] * 2, coarse[1] * 2) ?: return null
+    val coarse = search(refHalf, ch, w / 2, h / 2, cx / 2, cy / 2, max(3, half / 2), COARSE_REACH, px / 2, py / 2) ?: return null
+    val fine = search(ref, cur, w, h, cx, cy, half, 1, coarse[0] * 2, coarse[1] * 2) ?: return null
     val bx = fine[0]
     val by = fine[1]
     if (!inside(w, h, cx, cy, half + 1 + max(abs(bx), abs(by)))) {
       return null
     }
-    val s0 = sad(key, cur, w, cx, cy, half, bx, by).toFloat()
-    val xm = sad(key, cur, w, cx, cy, half, bx - 1, by).toFloat()
-    val xp = sad(key, cur, w, cx, cy, half, bx + 1, by).toFloat()
-    val ym = sad(key, cur, w, cx, cy, half, bx, by - 1).toFloat()
-    val yp = sad(key, cur, w, cx, cy, half, bx, by + 1).toFloat()
+    val s0 = sad(ref, cur, w, cx, cy, half, bx, by).toFloat()
+    val xm = sad(ref, cur, w, cx, cy, half, bx - 1, by).toFloat()
+    val xp = sad(ref, cur, w, cx, cy, half, bx + 1, by).toFloat()
+    val ym = sad(ref, cur, w, cx, cy, half, bx, by - 1).toFloat()
+    val yp = sad(ref, cur, w, cx, cy, half, bx, by + 1).toFloat()
     return floatArrayOf(fit(s0, xm, xp, min(ym, yp) - s0, bx), fit(s0, ym, yp, min(xm, xp) - s0, by))
   }
 

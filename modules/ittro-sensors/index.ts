@@ -34,6 +34,7 @@ interface SensorsNative {
   cropShelfPhoto: (photo: string, x1: number, y1: number, x2: number, y2: number) => Promise<ShelfCrop | null>;
   setHandDelegate: (delegate: string) => boolean;
   getCameraPan: () => { x: number; y: number; session: number } | null;
+  getShotPan: (number: number) => { x: number; y: number; session: number } | null;
   takeCameraShot: () => Promise<string | null>;
 }
 
@@ -209,6 +210,20 @@ export function cameraPan(): { x: number; y: number; session: number } | null {
   }
   try {
     return native.getCameraPan() ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Where the camera pointed as still `shot` was taken, in cameraPan's
+// terms, read from the frames around the still's sensor time; null
+// when no frame of this camera opening was near it.
+export function shotPan(shot: number): { x: number; y: number; session: number } | null {
+  if (!native) {
+    return null;
+  }
+  try {
+    return native.getShotPan(shot) ?? null;
   } catch {
     return null;
   }
