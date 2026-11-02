@@ -2,6 +2,10 @@
 
 A dated log of what was built each day, for the hackathon submission. New work only: everything here dates from 26 October 2026 onward.
 
+## 2 November 2026
+
+- The relay and its tests are now type-checked with `npm run typecheck`. Wrangler bundles the relay without checking types, which is how the `addSpendUsd` call without an import reached the deployed Worker. The check fails on the relay as it was before 74c233a, and the bundle Wrangler builds is unchanged. Node's types (`@types/node` 22) were added for the tests only, and ten type errors in four test files, never checked before, are fixed (50646a3).
+
 ## 1 November 2026, evening
 
 - Phone run t20 (`/find` on the phone), each finding fixed by cause:
