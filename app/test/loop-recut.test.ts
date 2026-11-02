@@ -6,7 +6,8 @@
 // moved enough, a hand near the product, too soon after the last cut
 // or no guide: no re-cut; a hand clear of the product leaves it. A
 // still from before the camera reopened is cut again, moved or not
-// (t32). SAM here cuts the
+// (t32), and one whose picture grew or shrank by 6% since, the phone
+// stepping closer or back (t39). SAM here cuts the
 // same boxes as the find, the worst case: the cut still reaches the
 // guide though it rounds to the old one, and the native outline gets
 // the new still's key. A re-cut that sees a bottle the find never read
@@ -168,6 +169,15 @@ test('t38: not moved enough, no re-cut; still moving, a cut each time the last o
   moving.view.now = 3800;
   await moving.loop.cloudPass([photo('second', 3700, pan(0.1), 6)]);
   assert.deepEqual(moving.cut, ['first', 'second']);
+});
+
+test('t39: a picture grown or shrunk by stepping closer or back is cut again, a little growth is not', async () => {
+  const near = await foundAndGuided();
+  assert.equal(dueAt(near, 3000, { ...START, s: 1.04 }), false);
+  assert.equal(dueAt(near, 3500, { ...START, s: 1.08 }), true);
+  assert.ok(near.logs.includes("shelf recut, camera moved 0.003,0.002 and grew 1.08 times since the outline's photo"));
+  const back = await foundAndGuided();
+  assert.equal(dueAt(back, 3000, { ...START, s: 0.92 }), true);
 });
 
 test('t38: a hand near the product, too soon after the cut or no guide: no re-cut; a hand clear of it leaves it', async () => {

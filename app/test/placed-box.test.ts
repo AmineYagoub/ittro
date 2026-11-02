@@ -3,9 +3,10 @@
 // outline followed the Basmati, but the JavaScript box stood still,
 // the cues said "right" towards where it had been, and a new SAM cut
 // of the neighbouring bag now sat on the old box. The camera gets
-// where it pointed for a cut's still, and an outline with no still
-// moves its shape with its box (t39: a carried Masaad's shape stayed
-// drawn where the bottle had been).
+// where it pointed for a cut's still, the drawn outline grows the box
+// as the phone nears, and an outline with no still moves its shape
+// with its box (t39: a carried Masaad's shape stayed drawn where the
+// bottle had been).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { forgetPlacedBox, lastPlacedBox, placedBox, placedTarget } from '../src/guide/placedBox';
@@ -49,11 +50,19 @@ test('t15: a new cut of the neighbour on the old box does not take the target', 
 });
 
 test('t39: the camera gets where it pointed for the still, so it places the outline however old the still', () => {
-  const [cut] = anchorOutlines([{ id: 3, frame: 0, box: box(645, 389, 811, 771) }], 41, { x: 0.2, y: -0.1, session: 3 }) as [ShelfOutline];
+  const [cut] = anchorOutlines([{ id: 3, frame: 0, box: box(645, 389, 811, 771) }], 41, { x: 0.2, y: -0.1, s: 1.1, session: 3 }) as [ShelfOutline];
   const drawn = cameraOutline(cut, 'مسعد');
-  assert.deepEqual([drawn?.shot, drawn?.panX, drawn?.panY, drawn?.panSession], [41, 0.2, -0.1, 3]);
+  assert.deepEqual([drawn?.shot, drawn?.panX, drawn?.panY, drawn?.panS, drawn?.panSession], [41, 0.2, -0.1, 1.1, 3]);
   const unknown = cameraOutline(BASMATI, 'بسمتي');
-  assert.deepEqual([unknown?.shot, unknown?.panX, unknown?.panY, unknown?.panSession], [41, null, null, null]);
+  assert.deepEqual([unknown?.shot, unknown?.panX, unknown?.panY, unknown?.panS, unknown?.panSession], [41, null, null, null, null]);
+});
+
+test('t39: the drawn outline grown by stepping closer grows the guided box about the frame\'s middle', () => {
+  forgetPlacedBox();
+  const key = cameraOutline(BASMATI, 'بسمتي')?.key;
+  const placed = placedBox(BASMATI, 'بسمتي', { outlineKey: key, outlineDx: 10, outlineDy: 0, outlineScale: 2 }, 1000);
+  assert.deepEqual(placed && [placed.x1, placed.y1, placed.x2, placed.y2], [820, 138, 1152, 902]);
+  forgetPlacedBox();
 });
 
 test('t39: an outline with no still moves its shape with its placed box', () => {

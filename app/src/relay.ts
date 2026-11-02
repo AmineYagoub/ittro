@@ -69,7 +69,7 @@ export interface OutlineAnchor {
   shot: number;
   box: ShelfBox;
   points: number[] | null;
-  pan?: { x: number; y: number; session?: number };
+  pan?: { x: number; y: number; s?: number; session?: number };
 }
 
 export interface ShelfOutline {

@@ -26,7 +26,18 @@ import kotlin.math.roundToInt
 // brightened for a second, the key frame read that as a tenth of the
 // frame of motion, and the found outline was drawn a bottle off.
 // Replayed, that second reads as the old flow does. Flat patches (a
-// wall, a clear bottle) give no answer rather than a wrong one.
+// wall, a clear bottle) give no answer rather than a wrong one. The
+// picture growing is read from the same patches: stepping closer moves
+// those left of the middle left and those right of it right, so the
+// median over each row's mirrored pairs of how far apart they moved
+// for how far apart they sit is the growth since the key, and the
+// motion is what is left without it. A turn moves both edges a little
+// more than the middle, which a mirrored pair cancels: replaying t40's
+// swing to a wall and back, all pairs read 15% of growth that was not
+// there, mirrored ones 6%; t39's step back, where the outline kept its
+// size 1.7 times too tall, read 0.80 of the bottles' 0.735. Growth
+// under 0.6% since the key is none, so a still phone does not breathe;
+// a key is renewed after 7%, before the edge patches leave their search.
 private const val FLAT = 3
 
 private const val COARSE_REACH = 5
@@ -38,6 +49,18 @@ private const val REKEY_FRAMES = 30
 private const val SHARP_ACROSS = 0.25f
 
 private const val EXPOSURE_STEP = 3f
+
+private const val ZOOM_FLOOR = 0.006f
+
+private const val ZOOM_REKEY = 0.07f
+
+private const val ZOOM_MAX = 0.12f
+
+private const val ZOOM_PAIRS = 3
+
+private val COLS = floatArrayOf(0.15f, 0.38f, 0.62f, 0.85f)
+
+private val ROWS = floatArrayOf(0.2f, 0.4f, 0.6f, 0.8f)
 
 class Flow {
   private var key = IntArray(0)
@@ -51,6 +74,7 @@ class Flow {
   private var age = 0
   private var lastX = 0f
   private var lastY = 0f
+  private var lastZ = 0f
   var w = 0
     private set
   var h = 0
@@ -68,7 +92,7 @@ class Flow {
     keyed = false
   }
 
-  /** `grey` is w x h, upright; `avoid` is the hand's box, 0 to 1, or null. How far the picture moved since the last frame, 0 to 1. */
+  /** `grey` is w x h, upright; `avoid` is the hand's box, 0 to 1, or null. How far the picture moved since the last frame, 0 to 1 at its middle, and how much it grew about the middle, as x, y and a ratio. */
   fun update(grey: IntArray, width: Int, height: Int, avoid: FloatArray?): FloatArray? {
     if (width != w || height != h || cur.size != width * height) {
       w = width
@@ -97,23 +121,30 @@ class Flow {
     if (exposed) {
       lastX = 0f
       lastY = 0f
+      lastZ = 0f
     }
-    val px = lastX.roundToInt()
-    val py = lastY.roundToInt()
     val xs = ArrayList<Float>()
+    val xAt = ArrayList<Float>()
     val ys = ArrayList<Float>()
-    for (fy in floatArrayOf(0.2f, 0.4f, 0.6f, 0.8f)) {
-      for (fx in floatArrayOf(0.15f, 0.38f, 0.62f, 0.85f)) {
-        val box = floatArrayOf(fx - 0.09f, fy - 0.09f, fx + 0.09f, fy + 0.09f)
+    val yAt = ArrayList<Float>()
+    val across = FloatArray(16) { Float.NaN }
+    for (row in 0..3) {
+      for (col in 0..3) {
+        val box = floatArrayOf(COLS[col] - 0.09f, ROWS[row] - 0.09f, COLS[col] + 0.09f, ROWS[row] + 0.09f)
         if (avoid != null && overlaps(box, avoid, 0.05f)) {
           continue
         }
-        val m = shift(ref, refHalf, box, px, py) ?: continue
+        val ax = (COLS[col] - 0.5f) * w
+        val ay = (ROWS[row] - 0.5f) * h
+        val m = shift(ref, refHalf, box, (lastX + lastZ * ax).roundToInt(), (lastY + lastZ * ay).roundToInt()) ?: continue
         if (!m[0].isNaN()) {
           xs.add(m[0])
+          xAt.add(ax)
+          across[row * 4 + col] = m[0]
         }
         if (!m[1].isNaN()) {
           ys.add(m[1])
+          yAt.add(ay)
         }
       }
     }
@@ -124,16 +155,30 @@ class Flow {
       rekey(mean)
       return null
     }
-    val x = if (xs.size >= 3) median(xs) else lastX
-    val y = if (ys.size >= 3) median(ys) else lastY
-    val step = floatArrayOf((x - lastX) / w, (y - lastY) / h)
+    val z = zoom(across)
+    val x = if (xs.size >= 3) median(xs.indices.map { xs[it] - z * xAt[it] }) else lastX
+    val y = if (ys.size >= 3) median(ys.indices.map { ys[it] - z * yAt[it] }) else lastY
+    val grew = (1 + z) / (1 + lastZ)
+    val step = floatArrayOf((x - grew * lastX) / w, (y - grew * lastY) / h, grew)
     lastX = x
     lastY = y
+    lastZ = z
     age += 1
-    if (exposed || age >= REKEY_FRAMES || abs(x) > REKEY_PX || abs(y) > REKEY_PX) {
+    if (exposed || age >= REKEY_FRAMES || abs(x) > REKEY_PX || abs(y) > REKEY_PX || abs(z) > ZOOM_REKEY) {
       rekey(mean)
     }
     return step
+  }
+
+  private fun zoom(across: FloatArray): Float {
+    val slopes = ArrayList<Float>()
+    for (row in 0..3) for (pair in 0..1) {
+      val left = across[row * 4 + pair]
+      val right = across[row * 4 + 3 - pair]
+      if (!left.isNaN() && !right.isNaN()) slopes.add((right - left) / ((COLS[3 - pair] - COLS[pair]) * w))
+    }
+    val z = if (slopes.size < ZOOM_PAIRS) return lastZ else median(slopes)
+    return if (abs(z) > ZOOM_MAX) lastZ else if (abs(z) < ZOOM_FLOOR) 0f else z
   }
 
   private fun overlaps(a: FloatArray, b: FloatArray, grow: Float): Boolean =
@@ -147,6 +192,7 @@ class Flow {
     age = 0
     lastX = 0f
     lastY = 0f
+    lastZ = 0f
   }
 
   private fun shift(ref: IntArray, refHalf: IntArray, box: FloatArray, px: Int, py: Int): FloatArray? {

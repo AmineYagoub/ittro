@@ -15,7 +15,8 @@ import kotlin.math.min
 // camera's frame rate, as ~/ittro/native drew it (26 Oct: drawn from
 // JavaScript the outlines moved a few times a second, behind the
 // picture). SAM's mask when there is one, else its box, with the name
-// pill over the top. Hidden from TalkBack; the voice carries it.
+// pill over the top, moved by the camera and grown about the frame's
+// middle as the picture grew. Hidden from TalkBack; the voice carries it.
 class OutlineTarget(
   val key: String,
   val name: String,
@@ -26,10 +27,12 @@ class OutlineTarget(
 ) {
   var dx = 0f
   var dy = 0f
+  var scale = 1f
 
   fun copy(): OutlineTarget = OutlineTarget(key, name, box, points, frameW, frameH).also {
     it.dx = dx
     it.dy = dy
+    it.scale = scale
   }
 }
 
@@ -71,8 +74,9 @@ class Outlines(context: Context) : View(context) {
     val t = target ?: return
     // object-fit: cover, as the preview
     val k = max(width / t.frameW, height / t.frameH)
-    val ox = (width - t.frameW * k) / 2 + t.dx * k
-    val oy = (height - t.frameH * k) / 2 + t.dy * k
+    val ox = (width - t.frameW * k) / 2 + (t.dx + t.frameW / 2 * (1 - t.scale)) * k
+    val oy = (height - t.frameH * k) / 2 + (t.dy + t.frameH / 2 * (1 - t.scale)) * k
+    val ks = k * t.scale
     path.reset()
     var topX = (t.box[0] + t.box[2]) / 2
     var topY = t.box[1]
@@ -91,21 +95,21 @@ class Outlines(context: Context) : View(context) {
           left = min(left, x)
           right = max(right, x)
         }
-        if (i == 0) path.moveTo(ox + x * k, oy + y * k) else path.lineTo(ox + x * k, oy + y * k)
+        if (i == 0) path.moveTo(ox + x * ks, oy + y * ks) else path.lineTo(ox + x * ks, oy + y * ks)
       }
       path.close()
       topX = (left + right) / 2
     } else {
-      path.addRect(ox + t.box[0] * k, oy + t.box[1] * k, ox + t.box[2] * k, oy + t.box[3] * k, Path.Direction.CW)
+      path.addRect(ox + t.box[0] * ks, oy + t.box[1] * ks, ox + t.box[2] * ks, oy + t.box[3] * ks, Path.Direction.CW)
     }
     canvas.drawPath(path, fill)
     canvas.drawPath(path, shadow)
     canvas.drawPath(path, line)
     if (t.name.isNotEmpty()) {
       val w = text.measureText(t.name) + 24 * d
-      val cx = ox + topX * k
+      val cx = ox + topX * ks
       val left = min(max(8 * d, cx - w / 2), max(8 * d, width - w - 8 * d))
-      val top = max(8 * d, oy + topY * k - 40 * d)
+      val top = max(8 * d, oy + topY * ks - 40 * d)
       canvas.drawRoundRect(RectF(left, top, left + w, top + 30 * d), 15 * d, 15 * d, pill)
       canvas.drawText(t.name, left + 12 * d, top + 21 * d, text)
     }

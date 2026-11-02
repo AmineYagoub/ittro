@@ -10,7 +10,10 @@ import kotlin.math.abs
 
 // The guided outline follows the shelf on every camera frame. Each
 // frame's Y plane is sampled to a 160 px grey copy and the flow says
-// how the picture moved; the outline moves with the whole picture.
+// how the picture moved and grew; the outline moves with the whole
+// picture and grows about its middle, and the ring below keeps both,
+// so a cut of a still taken further back is drawn at the size the
+// product is now (t39: 1.7 times too tall after a step back).
 // It no longer follows the patch under it: a clear bottle gives that
 // patch little to match, and in t31 it crept the outline 24 px of 960
 // left with the camera still. While a hand is in view the phone's turn
@@ -42,12 +45,14 @@ object OutlineTrack {
   private val lock = Any()
   private val main = Handler(Looper.getMainLooper())
   private val flow = Flow()
-  private var grey = IntArray(0)
+  private val frame = GreyFrame(GREY_W)
   private var panX = 0f
   private var panY = 0f
+  private var panS = 1f
   private val ringTs = LongArray(RING)
   private val ringX = FloatArray(RING)
   private val ringY = FloatArray(RING)
+  private val ringS = FloatArray(RING)
   private var ringAt = 0
   private val shots = LinkedHashMap<Int, Long>()
   private var incoming: Map<String, Any?>? = null
@@ -71,6 +76,7 @@ object OutlineTrack {
       flow.reset()
       panX = 0f
       panY = 0f
+      panS = 1f
       ringTs.fill(0L)
       ringAt = 0
       shots.clear()
@@ -109,13 +115,13 @@ object OutlineTrack {
     }
   }
 
-  /** The camera's motion since it opened, 0 to 1 of the frame, and which opening; null before the first frame. */
+  /** The camera's motion since it opened: where its first middle is now, 0 to 1 of the frame, how much the picture grew, and which opening; null before the first frame. */
   fun pan(): Map<String, Double>? {
     synchronized(lock) {
       if (ringTs[ringAt] == 0L) {
         return null
       }
-      return mapOf("x" to panX.toDouble(), "y" to panY.toDouble(), "session" to session.toDouble())
+      return mapOf("x" to panX.toDouble(), "y" to panY.toDouble(), "s" to panS.toDouble(), "session" to session.toDouble())
     }
   }
 
@@ -127,15 +133,15 @@ object OutlineTrack {
       if (best < 0 || gap > SHOT_MATCH_NS) {
         return null
       }
-      return mapOf("x" to ringX[best].toDouble(), "y" to ringY[best].toDouble(), "session" to session.toDouble())
+      return mapOf("x" to ringX[best].toDouble(), "y" to ringY[best].toDouble(), "s" to ringS[best].toDouble(), "session" to session.toDouble())
     }
   }
 
-  /** Where the drawn outline is now: its key and how far it moved from where JavaScript placed it, in photo pixels. */
+  /** Where the drawn outline is now: its key, how far it moved from where JavaScript placed it, in photo pixels, and how much it grew about the middle. */
   fun placement(): Map<String, Any>? {
     synchronized(lock) {
       val t = target ?: return null
-      return mapOf("outlineKey" to t.key, "outlineDx" to t.dx.toDouble(), "outlineDy" to t.dy.toDouble())
+      return mapOf("outlineKey" to t.key, "outlineDx" to t.dx.toDouble(), "outlineDy" to t.dy.toDouble(), "outlineScale" to t.scale.toDouble())
     }
   }
 
@@ -148,26 +154,29 @@ object OutlineTrack {
 
   /** On the frame thread, every camera frame. */
   fun onImage(image: Image, rotationDeg: Int) {
-    val size = sample(image, rotationDeg) ?: return
+    val size = frame.sample(image, rotationDeg) ?: return
     val fw = size[0]
     val fh = size[1]
     val avoid: FloatArray?
     synchronized(lock) {
       avoid = handBox?.takeIf { SystemClock.uptimeMillis() - handAt < HAND_FRESH_MS }
     }
-    val seen = flow.update(grey, fw, fh, avoid)
+    val seen = flow.update(frame.grey, fw, fh, avoid)
     val turn = Gyro.step(image.timestamp)
     val global = Gyro.choose(seen, turn, avoid != null)
+    val grew = if (global != null && global.size > 2) global[2] else 1f
     val drawn: OutlineTarget?
     synchronized(lock) {
       if (global != null) {
-        panX += global[0]
-        panY += global[1]
+        panX = grew * panX + global[0]
+        panY = grew * panY + global[1]
+        panS *= grew
       }
       ringAt = (ringAt + 1) % RING
       ringTs[ringAt] = image.timestamp
       ringX[ringAt] = panX
       ringY[ringAt] = panY
+      ringS[ringAt] = panS
       if (clearing) {
         clearing = false
         target = null
@@ -178,12 +187,13 @@ object OutlineTrack {
       }
       val t = target
       if (t != null && global != null) {
-        t.dx += global[0] * t.frameW
-        t.dy += global[1] * t.frameH
+        t.dx = grew * t.dx + global[0] * t.frameW
+        t.dy = grew * t.dy + global[1] * t.frameH
+        t.scale *= grew
       }
       logCount += 1
       if (logCount % LOG_EVERY == 0) {
-        Log.i("IttroOutline", "pan ${"%.3f".format(panX)},${"%.3f".format(panY)} step ${steps(global)} flow ${steps(seen)} turn ${steps(turn)} agree ${Gyro.agreement()} votes ${flow.votesX}/${flow.votesY} hand ${avoid != null} key ${target?.key ?: "-"} dx ${target?.dx?.toInt()} dy ${target?.dy?.toInt()}")
+        Log.i("IttroOutline", "pan ${"%.3f".format(panX)},${"%.3f".format(panY)} grew ${"%.3f".format(panS)} step ${steps(global)} flow ${steps(seen)} turn ${steps(turn)} agree ${Gyro.agreement()} votes ${flow.votesX}/${flow.votesY} hand ${avoid != null} key ${target?.key ?: "-"} dx ${target?.dx?.toInt()} dy ${target?.dy?.toInt()} scale ${target?.scale?.let { "%.3f".format(it) }}")
       }
       drawn = target?.copy()
     }
@@ -204,16 +214,18 @@ object OutlineTrack {
     val atX = (m["panX"] as? Number)?.toFloat()
     val atY = (m["panY"] as? Number)?.toFloat()
     if (atX != null && atY != null && (m["panSession"] as? Number)?.toInt() == session) {
-      t.dx = (panX - atX) * frameW
-      t.dy = (panY - atY) * frameH
-      Log.i("IttroOutline", "placed ${t.key} from its pan dx ${t.dx.toInt()} dy ${t.dy.toInt()}")
+      t.scale = panS / ((m["panS"] as? Number)?.toFloat() ?: 1f)
+      t.dx = (panX - t.scale * atX) * frameW
+      t.dy = (panY - t.scale * atY) * frameH
+      Log.i("IttroOutline", "placed ${t.key} from its pan dx ${t.dx.toInt()} dy ${t.dy.toInt()} scale ${"%.3f".format(t.scale)}")
       return t
     }
     val shotNs = (m["shot"] as? Number)?.toInt()?.let { shots[it] } ?: return t.also { Log.i("IttroOutline", "placed ${t.key} no shot time") }
     val (best, gap) = nearest(shotNs)
     if (best >= 0 && gap <= SHOT_MATCH_NS) {
-      t.dx = (panX - ringX[best]) * frameW
-      t.dy = (panY - ringY[best]) * frameH
+      t.scale = panS / ringS[best]
+      t.dx = (panX - t.scale * ringX[best]) * frameW
+      t.dy = (panY - t.scale * ringY[best]) * frameH
     }
     Log.i("IttroOutline", "placed ${t.key} shot gap ${gap / 1_000_000}ms dx ${t.dx.toInt()} dy ${t.dy.toInt()}")
     return t
@@ -233,63 +245,5 @@ object OutlineTrack {
       }
     }
     return best to gap
-  }
-
-  // The Y plane, upright, averaged down to 160 px wide; returns its size.
-  private fun sample(image: Image, rotationDeg: Int): IntArray? {
-    if (image.planes.isEmpty()) {
-      return null
-    }
-    val srcW = image.width
-    val srcH = image.height
-    val turns = (((rotationDeg % 360) + 360) % 360) / 90
-    val swap = turns % 2 == 1
-    val longW = if (swap) srcH else srcW
-    val longH = if (swap) srcW else srcH
-    val gw = GREY_W
-    val gh = maxOf(1, (longH * GREY_W) / longW)
-    if (grey.size != gw * gh) {
-      grey = IntArray(gw * gh)
-    }
-    val plane = image.planes[0]
-    val buffer = plane.buffer
-    val row = plane.rowStride
-    val step = maxOf(1, longW / gw / 2)
-    for (oy in 0 until gh) {
-      val uy = (oy * longH) / gh
-      for (ox in 0 until gw) {
-        val ux = (ox * longW) / gw
-        var sum = 0
-        for (j in 0..1) {
-          for (i in 0..1) {
-            val px = minOf(longW - 1, ux + i * step)
-            val py = minOf(longH - 1, uy + j * step)
-            val sx: Int
-            val sy: Int
-            when (turns) {
-              1 -> {
-                sx = py
-                sy = srcH - 1 - px
-              }
-              2 -> {
-                sx = srcW - 1 - px
-                sy = srcH - 1 - py
-              }
-              3 -> {
-                sx = srcW - 1 - py
-                sy = px
-              }
-              else -> {
-                sx = px
-                sy = py
-              }
-            }
-            sum += buffer.get(sy * row + sx).toInt() and 0xFF
-          }
-        }
-        grey[oy * gw + ox] = sum shr 2
-      }
-    }
-    return intArrayOf(gw, gh)
   }
 }

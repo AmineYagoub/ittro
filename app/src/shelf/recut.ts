@@ -1,10 +1,12 @@
 // Cutting the guided outline again as the phone moves. The outline is
 // SAM's cut of a still, carried to the live camera by the measured
-// pan, one shift for the whole picture: it follows the phone turning,
-// but not the phone sliding or nearing, as the bottles, nearer than
-// the wall, move further (t31: half a bottle off the Guedila). Once
-// the camera has moved more than 3% of the frame since the last cut's
-// still, and that cut landed half a second ago, the next pass cuts a
+// pan, one shift and one growth for the whole picture: it follows the
+// phone turning and nearing, but not the bottles, nearer than the
+// wall, moving and growing further (t31: half a bottle off the
+// Guedila). Once the middle of the picture has moved more than 3% of
+// the frame since the last cut's still, or the picture grew or shrank
+// enough to move its edges as far, and that cut landed half a second
+// ago, the next pass cuts a
 // still taken since, moving or not: with SAM's own time, a cut about
 // every 2 s while the phone moves (founder, 2 Nov: the outline left
 // the product while the camera moved, held while it was fixed). A
@@ -55,16 +57,18 @@ export function recutDue(ctx: ReadsContext): boolean {
     return false;
   }
   const reopened = !sameOpening(from, pan);
-  const dx = pan.x - from.x;
-  const dy = pan.y - from.y;
-  if (!reopened && Math.abs(dx) <= RECUT_MOVE && Math.abs(dy) <= RECUT_MOVE) {
+  const grew = (pan.s ?? 1) / (from.s ?? 1);
+  const dx = pan.x - grew * from.x;
+  const dy = pan.y - grew * from.y;
+  if (!reopened && Math.abs(dx) <= RECUT_MOVE && Math.abs(dy) <= RECUT_MOVE && Math.abs(grew - 1) / 2 <= RECUT_MOVE) {
     return false;
   }
   if (state.cloudBusy || state.tracks.length === 0 || !deps.readContext().guiding || handBlocks(deps)) {
     return false;
   }
   if (state.recutAt === null || state.recutAt <= state.outlinedAt) {
-    deps.log(reopened ? "shelf recut, the camera reopened since the outline's photo" : `shelf recut, camera moved ${dx.toFixed(3)},${dy.toFixed(3)} since the outline's photo`);
+    const grown = Math.abs(grew - 1) >= 0.005 ? ` and grew ${grew.toFixed(2)} times` : '';
+    deps.log(reopened ? "shelf recut, the camera reopened since the outline's photo" : `shelf recut, camera moved ${dx.toFixed(3)},${dy.toFixed(3)}${grown} since the outline's photo`);
   }
   state.recutAt = now;
   state.recutPending = true;

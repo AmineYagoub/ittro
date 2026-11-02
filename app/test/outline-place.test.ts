@@ -6,7 +6,8 @@
 // pan move follows the target's own cut, never a neighbour moved over
 // it, leaving any recheck as it was. A cut keeps where the camera
 // pointed for its still, so it is placed after the camera has
-// forgotten the still (t39).
+// forgotten the still, and grows with the picture as the phone nears
+// the shelf (t39).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { boxNow } from '../src/shelf/outlines';
@@ -54,6 +55,12 @@ test('t39: a cut is placed from where the camera pointed for its still, after th
   const old: ShelfOutline = { id: 1, frame: 0, box: box(100, 200), anchor: { shot: 7, box: box(100, 200), points: null, pan: { x: -0.25, y: 0, session: 1 } } };
   assert.deepEqual(place(old), box(460, 560));
   assert.deepEqual(boxNow(old, { ...NOW, session: 2 }, stillPan), box(100, 200));
+});
+
+test('t39: a cut grows about the frame\'s middle as the picture grew since its still, then moves', () => {
+  const near: ShelfOutline = { id: 1, frame: 0, box: box(100, 200), anchor: { shot: 7, box: box(100, 200), points: null, pan: { x: 0.25, y: 0, s: 1, session: 1 } } };
+  assert.deepEqual(boxNow(near, { x: 0.5, y: 0, s: 1.5, session: 1 }, stillPan), { ...box(30, 180), y1: 280, y2: 1150 });
+  assert.deepEqual(boxNow(near, { x: 0.25, y: 0, session: 1 }, stillPan), box(100, 200));
 });
 
 test('t34: an old cut gives the target the product under the drawn outline, not the one at its raw box', () => {

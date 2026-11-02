@@ -141,6 +141,8 @@ export interface ShelfLoop {
 export interface CameraPan {
   x: number;
   y: number;
+  /** How much the picture has grown since the camera opened, 1 at first. */
+  s?: number;
   /** Each camera opening counts its motion from zero. */
   session?: number;
 }

@@ -33,8 +33,8 @@ interface SensorsNative {
   prepareShelfPhoto: (uri: string) => Promise<ShelfPhoto | null>;
   cropShelfPhoto: (photo: string, x1: number, y1: number, x2: number, y2: number) => Promise<ShelfCrop | null>;
   setHandDelegate: (delegate: string) => boolean;
-  getCameraPan: () => { x: number; y: number; session: number } | null;
-  getShotPan: (number: number) => { x: number; y: number; session: number } | null;
+  getCameraPan: () => { x: number; y: number; s?: number; session: number } | null;
+  getShotPan: (number: number) => { x: number; y: number; s?: number; session: number } | null;
   takeCameraShot: () => Promise<string | null>;
 }
 
@@ -202,9 +202,9 @@ export function setHandDelegate(delegate: HandDelegate): boolean {
 }
 
 // How far the camera has moved since it opened, 0 to 1 of the frame,
-// measured natively on every frame, and which opening; null with no
-// camera.
-export function cameraPan(): { x: number; y: number; session: number } | null {
+// how much the picture has grown (`s`, 1 at first), measured natively
+// on every frame, and which opening; null with no camera.
+export function cameraPan(): { x: number; y: number; s?: number; session: number } | null {
   if (!native) {
     return null;
   }
@@ -218,7 +218,7 @@ export function cameraPan(): { x: number; y: number; session: number } | null {
 // Where the camera pointed as still `shot` was taken, in cameraPan's
 // terms, read from the frames around the still's sensor time; null
 // when no frame of this camera opening was near it.
-export function shotPan(shot: number): { x: number; y: number; session: number } | null {
+export function shotPan(shot: number): { x: number; y: number; s?: number; session: number } | null {
   if (!native) {
     return null;
   }
