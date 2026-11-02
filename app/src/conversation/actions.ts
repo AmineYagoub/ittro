@@ -178,6 +178,10 @@ export const logHelp = (): void => {
 
 export const repromptFree = ({ context }: ContextArgs): boolean => !context.confirming && !context.guiding;
 
+/** Asking again after 8 s of silence, except on the yes screen: its one prompt stands until the help offer (t25 heard it twice in a row). */
+export const repromptDue = ({ context }: ContextArgs): boolean =>
+  repromptFree({ context }) && !(context.step === 'verdict' && context.confirmVerdict === 'yes');
+
 export const flLangLines = assign({
   step: 'language',
   pendingQuestion: null,

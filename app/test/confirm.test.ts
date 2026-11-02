@@ -228,12 +228,15 @@ test('a check begun while guiding keeps the guided box for the crop', async () =
   driver.stop();
 });
 
-test('silence after a yes repeats the choice, not the yes or the search', async () => {
+test('silence after a yes brings the help offer, not the choice again (t25)', async () => {
   const driver = await checking();
   driver.send({ type: 'CONFIRM_YES', epoch: 1, label: 'Masaad water, 1.5 litres', crop: CROP });
   await driver.flush();
+  const said = driver.spoken.length;
   await driver.advance(8000);
-  assert.equal(driver.spoken.at(-1), 'Say find another, or done.');
+  assert.equal(driver.spoken.length, said, 'the prompt is said once');
+  await driver.advance(12000);
+  assert.equal(driver.spoken.at(-1), 'Say help to hear what you can say.');
   driver.stop();
 });
 

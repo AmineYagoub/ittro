@@ -34,6 +34,7 @@ import {
   playHeard,
   raiseHeard,
   raiseQuestion,
+  repromptDue,
   repromptFree,
 } from './actions';
 import { echoFull, echoStripped } from './echo';
@@ -184,7 +185,7 @@ export const speculatingState = {
     STREAM_FAILED: { actions: [noteStreamDown, raiseLinkDown, sendStart] },
     MIC_FAILED: { guard: micDue, actions: [noteMicComplaint], target: 'saying' },
     ALERT: { guard: alertDue, actions: [noteAlert], target: 'saying' },
-    REPROMPT: { guard: repromptFree, actions: [assignReprompt, logReprompt], target: 'sayingReprompt' },
+    REPROMPT: { guard: repromptDue, actions: [assignReprompt, logReprompt], target: 'sayingReprompt' },
     HELP: { guard: repromptFree, actions: [assignHelp, logHelp], target: 'sayingHelp' },
   },
 };
