@@ -4,55 +4,79 @@ import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
-// The camera's motion between two frames, ported from ~/ittro/native
-// (Flow.kt): block matching on a 160 px grey copy of each frame. The
-// motion is the median of a 4x4 grid of patches clear of the hand, so
-// a reaching hand doesn't drag it, and each patch is matched coarse to
-// fine (±10 px on a half-size copy, then ±1 px at full size), so a
-// brisk pan is still followed. Flat patches (a wall, a clear bottle)
-// match anywhere and give no answer rather than a wrong one.
+// The camera's motion, ported from ~/ittro/native (Flow.kt): block
+// matching on a 160 px grey copy of each frame. The motion is the
+// median of a 4x4 grid of patches clear of the hand, so a reaching
+// hand doesn't drag it. Each patch of a key frame is found again in
+// the newest frame near where it was last seen, coarse to fine (±10
+// px on a half-size copy, then ±1 px at full size), then to a fraction
+// of a pixel from the match's neighbours; the key is renewed after
+// 4 px or a second. Matching each frame to the one before in whole
+// pixels read a slow drift as none: in t31 the shelf drifted 6 px of
+// 160 during a 7 s search while the pan stayed at -0.041. Replayed
+// from the t31 screen recording, the key frame read that drift as 6.1
+// px and the pan after it as 28.5 of 31, where the old flow read 0
+// and 5.5. A patch votes only on an axis its match is sharp along, at
+// least a quarter as sharp as across it: a cable says nothing about
+// motion along it. Flat patches (a wall, a clear bottle) give no
+// answer rather than a wrong one.
 private const val FLAT = 3
 
 private const val COARSE_REACH = 5
 
+private const val REKEY_PX = 4f
+
+private const val REKEY_FRAMES = 30
+
+private const val SHARP_ACROSS = 0.25f
+
 class Flow {
-  private var prev: IntArray? = null
-  private var cur: IntArray? = null
-  private var bufA = IntArray(0)
-  private var bufB = IntArray(0)
-  private var prevHalf: IntArray? = null
+  private var key = IntArray(0)
+  private var cur = IntArray(0)
+  private var keyHalf: IntArray? = null
   private var curHalf: IntArray? = null
+  private var keyed = false
+  private var age = 0
+  private var lastX = 0f
+  private var lastY = 0f
   var w = 0
     private set
   var h = 0
     private set
 
+  /** How many patches voted on the last frame's motion across. */
+  var votesX = 0
+    private set
+
+  /** How many patches voted on the last frame's motion up and down. */
+  var votesY = 0
+    private set
+
   fun reset() {
-    prev = null
-    cur = null
-    prevHalf = null
-    curHalf = null
+    keyed = false
   }
 
-  /** `grey` is w x h, upright; `avoid` is the hand's box, 0 to 1, or null. How far the picture moved, 0 to 1. */
+  /** `grey` is w x h, upright; `avoid` is the hand's box, 0 to 1, or null. How far the picture moved since the last frame, 0 to 1. */
   fun update(grey: IntArray, width: Int, height: Int, avoid: FloatArray?): FloatArray? {
-    if (width != w || height != h || bufA.size != width * height) {
+    if (width != w || height != h || cur.size != width * height) {
       w = width
       h = height
-      bufA = IntArray(width * height)
-      bufB = IntArray(width * height)
-      cur = null
-      prev = null
-      prevHalf = null
-    } else {
-      prev = cur
-      prevHalf = curHalf
+      cur = IntArray(width * height)
+      key = IntArray(width * height)
+      keyed = false
     }
-    val own = if (cur === bufA) bufB else bufA
-    System.arraycopy(grey, 0, own, 0, width * height)
-    cur = own
-    curHalf = halve(own, width, height)
+    System.arraycopy(grey, 0, cur, 0, width * height)
+    curHalf = halve(cur, width, height)
+    votesX = 0
+    votesY = 0
+    if (!keyed) {
+      rekey()
+      return null
+    }
+    val px = lastX.roundToInt()
+    val py = lastY.roundToInt()
     val xs = ArrayList<Float>()
     val ys = ArrayList<Float>()
     for (fy in floatArrayOf(0.2f, 0.4f, 0.6f, 0.8f)) {
@@ -61,33 +85,76 @@ class Flow {
         if (avoid != null && overlaps(box, avoid, 0.05f)) {
           continue
         }
-        val m = motion(box) ?: continue
-        xs.add(m[0])
-        ys.add(m[1])
+        val m = shift(box, px, py) ?: continue
+        if (!m[0].isNaN()) {
+          xs.add(m[0])
+        }
+        if (!m[1].isNaN()) {
+          ys.add(m[1])
+        }
       }
     }
+    votesX = xs.size
+    votesY = ys.size
     // fewer than three can't outvote one bad patch
-    return if (xs.size >= 3) floatArrayOf(median(xs), median(ys)) else null
+    if (xs.size < 3 && ys.size < 3) {
+      rekey()
+      return null
+    }
+    val x = if (xs.size >= 3) median(xs) else lastX
+    val y = if (ys.size >= 3) median(ys) else lastY
+    val step = floatArrayOf((x - lastX) / w, (y - lastY) / h)
+    lastX = x
+    lastY = y
+    age += 1
+    if (age >= REKEY_FRAMES || abs(x) > REKEY_PX || abs(y) > REKEY_PX) {
+      rekey()
+    }
+    return step
   }
 
   fun overlaps(a: FloatArray, b: FloatArray, grow: Float): Boolean =
     a[0] < b[2] + grow && a[2] > b[0] - grow && a[1] < b[3] + grow && a[3] > b[1] - grow
 
-  /** How the picture inside `box` (0 to 1) moved since the previous frame, 0 to 1 across the frame. */
-  fun motion(box: FloatArray): FloatArray? {
-    val p = prev ?: return null
-    val c = cur ?: return null
-    val ph = prevHalf ?: return null
+  private fun rekey() {
+    System.arraycopy(cur, 0, key, 0, cur.size)
+    keyHalf = curHalf
+    keyed = true
+    age = 0
+    lastX = 0f
+    lastY = 0f
+  }
+
+  private fun shift(box: FloatArray, px: Int, py: Int): FloatArray? {
+    val kh = keyHalf ?: return null
     val ch = curHalf ?: return null
     val half = floor(max(4f, min(12f, min((box[2] - box[0]) * w / 4, (box[3] - box[1]) * h / 4)))).toInt()
     val cx = Math.round((box[0] + box[2]) / 2 * w)
     val cy = Math.round((box[1] + box[3]) / 2 * h)
-    if (flat(p, cx, cy, half)) {
+    if (flat(key, cx, cy, half)) {
       return null
     }
-    val coarse = search(ph, ch, w / 2, h / 2, cx / 2, cy / 2, max(3, half / 2), COARSE_REACH, 0, 0) ?: return null
-    val fine = search(p, c, w, h, cx, cy, half, 1, coarse[0] * 2, coarse[1] * 2) ?: return null
-    return floatArrayOf(fine[0].toFloat() / w, fine[1].toFloat() / h)
+    val coarse = search(kh, ch, w / 2, h / 2, cx / 2, cy / 2, max(3, half / 2), COARSE_REACH, px / 2, py / 2) ?: return null
+    val fine = search(key, cur, w, h, cx, cy, half, 1, coarse[0] * 2, coarse[1] * 2) ?: return null
+    val bx = fine[0]
+    val by = fine[1]
+    if (!inside(w, h, cx, cy, half + 1 + max(abs(bx), abs(by)))) {
+      return null
+    }
+    val s0 = sad(key, cur, w, cx, cy, half, bx, by).toFloat()
+    val xm = sad(key, cur, w, cx, cy, half, bx - 1, by).toFloat()
+    val xp = sad(key, cur, w, cx, cy, half, bx + 1, by).toFloat()
+    val ym = sad(key, cur, w, cx, cy, half, bx, by - 1).toFloat()
+    val yp = sad(key, cur, w, cx, cy, half, bx, by + 1).toFloat()
+    return floatArrayOf(fit(s0, xm, xp, min(ym, yp) - s0, bx), fit(s0, ym, yp, min(xm, xp) - s0, by))
+  }
+
+  private fun fit(s0: Float, m: Float, p: Float, across: Float, at: Int): Float {
+    val rise = min(m, p) - s0
+    if (rise <= 0f || rise < SHARP_ACROSS * across) {
+      return Float.NaN
+    }
+    return at + ((m - p) / (2 * (max(m, p) - s0))).coerceIn(-0.5f, 0.5f)
   }
 
   private fun median(v: List<Float>): Float {
@@ -122,9 +189,21 @@ class Flow {
     return dev / n < FLAT
   }
 
+  private fun inside(gw: Int, gh: Int, cx: Int, cy: Int, reach: Int): Boolean =
+    cx - reach >= 0 && cy - reach >= 0 && cx + reach < gw && cy + reach < gh
+
+  private fun sad(p: IntArray, c: IntArray, gw: Int, cx: Int, cy: Int, half: Int, dx: Int, dy: Int): Int {
+    var sum = 0
+    for (y in -half until half) {
+      val a = (cy + y) * gw + cx
+      val b = (cy + y + dy) * gw + cx + dx
+      for (x in -half until half) sum += abs(p[a + x] - c[b + x])
+    }
+    return sum
+  }
+
   private fun search(p: IntArray, c: IntArray, gw: Int, gh: Int, cx: Int, cy: Int, half: Int, r: Int, ox: Int, oy: Int): IntArray? {
-    val reach = half + r + max(abs(ox), abs(oy))
-    if (cx - reach < 0 || cy - reach < 0 || cx + reach >= gw || cy + reach >= gh) {
+    if (!inside(gw, gh, cx, cy, half + r + max(abs(ox), abs(oy)))) {
       return null
     }
     var best = Int.MAX_VALUE

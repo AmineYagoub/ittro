@@ -10,22 +10,23 @@ import kotlin.math.abs
 
 // The guided outline follows the shelf on every camera frame. Each
 // frame's Y plane is sampled to a 160 px grey copy and the flow says
-// how the picture moved; the outline moves with the picture around
-// it (unless the hand covers it, or it disagrees with the rest by
-// more than 3 px of 160), as in ~/ittro/native. JavaScript sends the
-// outline as SAM cut it from a still, with the still's number; the
-// still's sensor time finds the camera's motion since, in a ring of
-// recent frames, so an outline that arrives seconds late still lands
-// on the product. The ring holds about 70 s at 30 frames a second: a
-// still is often 11 to 16 s old by the time its outline is read (t18),
-// and one older than the ring would be drawn where the product was.
+// how the picture moved; the outline moves with the whole picture.
+// It no longer follows the patch under it: a clear bottle gives that
+// patch little to match, and in t31 it crept the outline 24 px of 960
+// left with the camera still. While the hand is over the outline it
+// holds, so an arm outside the hand's box can't drag it (t31: 30 px
+// in the second before the touch). JavaScript sends the outline as
+// SAM cut it from a still, with the still's number; the still's sensor
+// time finds the camera's motion since, in a ring of recent frames, so
+// an outline that arrives seconds late still lands on the product. The
+// ring holds about 70 s at 30 frames a second: a still is often 11 to
+// 16 s old by the time its outline is read (t18), and one older than
+// the ring would be drawn where the product was.
 private const val GREY_W = 160
 
 private const val RING = 2048
 
 private const val HAND_FRESH_MS = 300L
-
-private const val LOCAL_AGREE_PX = 3f
 
 private const val SHOT_MATCH_NS = 100_000_000L
 
@@ -156,28 +157,21 @@ object OutlineTrack {
         target = placed(it)
       }
       val t = target
-      if (t != null) {
+      if (t != null && global != null) {
         val box = floatArrayOf(
           (t.box[0] + t.dx) / t.frameW,
           (t.box[1] + t.dy) / t.frameH,
           (t.box[2] + t.dx) / t.frameW,
           (t.box[3] + t.dy) / t.frameH,
         )
-        val local = if (avoid != null && flow.overlaps(box, avoid, 0.02f)) null else flow.motion(box)
-        val m = when {
-          local == null -> global
-          global == null -> local
-          abs(local[0] - global[0]) * fw <= LOCAL_AGREE_PX && abs(local[1] - global[1]) * fh <= LOCAL_AGREE_PX -> local
-          else -> global
-        }
-        if (m != null) {
-          t.dx += m[0] * t.frameW
-          t.dy += m[1] * t.frameH
+        if (avoid == null || !flow.overlaps(box, avoid, 0.02f)) {
+          t.dx += global[0] * t.frameW
+          t.dy += global[1] * t.frameH
         }
       }
       logCount += 1
       if (logCount % LOG_EVERY == 0) {
-        Log.i("IttroOutline", "pan ${"%.3f".format(panX)},${"%.3f".format(panY)} step ${global?.let { "%.4f,%.4f".format(it[0], it[1]) } ?: "none"} hand ${avoid != null} key ${target?.key ?: "-"} dx ${target?.dx?.toInt()} dy ${target?.dy?.toInt()}")
+        Log.i("IttroOutline", "pan ${"%.3f".format(panX)},${"%.3f".format(panY)} step ${global?.let { "%.4f,%.4f".format(it[0], it[1]) } ?: "none"} votes ${flow.votesX}/${flow.votesY} hand ${avoid != null} key ${target?.key ?: "-"} dx ${target?.dx?.toInt()} dy ${target?.dy?.toInt()}")
       }
       drawn = target?.copy()
     }
