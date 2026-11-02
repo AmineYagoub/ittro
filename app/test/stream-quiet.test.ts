@@ -1,15 +1,15 @@
-// A stream that hears nothing is reopened as Ittro starts a line:
-// t22's socket stayed open 150 s after its last transcript and
-// brought nothing back. Quiet alone never reopens it, since the
-// shopper may be about to talk, and a stream that heard something
-// lately is kept.
+// A stream that hears nothing is reopened, with the mic, while Ittro
+// speaks: t22's socket stayed open 150 s after its last transcript
+// and brought nothing back, and t23's reopen waited 16 s for a line
+// to start. Quiet alone never reopens it, since the shopper may be
+// about to talk, and a stream that heard something lately is kept.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createActor } from 'xstate';
 import { streamClient } from '../src/conversation/streamActor';
 import { QUIET_REOPEN_MS, createQuietWatch } from '../src/conversation/streamQuiet';
 import { openVoice } from '../src/voiceGate';
-import { emitAudioChunk } from './stubs.mjs';
+import { audioStreamCalls, emitAudioChunk } from './stubs.mjs';
 
 const CHUNK = Buffer.alloc(3840).toString('base64');
 
@@ -53,15 +53,24 @@ function readyStream(): { stop: () => void; first: SocketDouble } {
   };
 }
 
-test('the watch fires once, when Ittro starts a line after the quiet limit', () => {
+test('the watch fires once while Ittro speaks past the quiet limit', () => {
   let now = 0;
   const watch = createQuietWatch(() => now);
   now = QUIET_REOPEN_MS + 1000;
   assert.equal(watch.due(false), 0, 'quiet alone');
-  assert.equal(watch.due(true), QUIET_REOPEN_MS + 1000, 'Ittro starts a line');
+  assert.equal(watch.due(true), QUIET_REOPEN_MS + 1000, 'Ittro speaks');
   assert.equal(watch.due(true), 0, 'the same line');
   assert.equal(watch.due(false), 0);
   assert.equal(watch.due(true), 0, 'the next line comes before another quiet limit');
+});
+
+test('a line that began before the limit reopens once the limit passes (t23)', () => {
+  let now = 0;
+  const watch = createQuietWatch(() => now);
+  now = QUIET_REOPEN_MS - 2000;
+  assert.equal(watch.due(true), 0, 'Ittro starts a line before the limit');
+  now = QUIET_REOPEN_MS + 1000;
+  assert.equal(watch.due(true), QUIET_REOPEN_MS + 1000, 'the line runs past it');
 });
 
 test('anything heard holds the watch off', () => {
@@ -73,7 +82,7 @@ test('anything heard holds the watch off', () => {
   assert.equal(watch.due(true), 0);
 });
 
-test('a stream that heard nothing for 30 s reopens as Ittro starts a line (t22)', () => {
+test('a stream that heard nothing for 30 s reopens with the mic while Ittro speaks (t22, t23)', () => {
   const realNow = Date.now;
   const base = realNow();
   const stream = readyStream();
@@ -83,9 +92,11 @@ test('a stream that heard nothing for 30 s reopens as Ittro starts a line (t22)'
     emitAudioChunk(CHUNK, 1);
     assert.equal(opened.length, 1, 'quiet alone reopens nothing');
     release = openVoice();
+    const calls = audioStreamCalls.length;
     emitAudioChunk(CHUNK, 2);
     assert.equal(stream.first.closed, true);
     assert.equal(opened.length, 2);
+    assert.deepEqual(audioStreamCalls.slice(calls), ['stop', 'start'], 'the mic restarts too');
   } finally {
     Date.now = realNow;
     release?.();

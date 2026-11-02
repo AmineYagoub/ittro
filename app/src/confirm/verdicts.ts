@@ -5,7 +5,7 @@
 // verdicts clear a helper no, so it never guides twice.
 import { assignConversation as assign, mergeBrands, storeConfirmedBrand } from '../conversation/actors';
 import type { ContextArgs, EventArgs } from '../conversation/actions';
-import { DONE_CHIP, FIND_ANOTHER_CHIP, GUIDE_CHIP, READ_AGAIN_CHIP } from '../chips';
+import { verdictChips } from '../chips';
 import { shortProduct } from '../requestLines';
 import { logIttro } from '../log';
 import { partsText, thisIsLine, whereSentence } from '../guide/lines';
@@ -106,7 +106,7 @@ export const storeYes = assign({
   confirmParts: ({ context, event }: EventArgs) => (event.type === 'CONFIRM_YES' ? yesParts(event.label, context) : []),
   lastLine: ({ context, event }: EventArgs) =>
     event.type === 'CONFIRM_YES' ? shown(yesParts(event.label, context), context) : context.lastLine,
-  lastChips: ({ context }: ContextArgs) => [FIND_ANOTHER_CHIP[context.lang], DONE_CHIP[context.lang]],
+  lastChips: ({ context }: ContextArgs) => verdictChips('yes', context.lang),
 });
 
 export const storeNo = assign({
@@ -121,7 +121,7 @@ export const storeNo = assign({
   confirmParts: ({ context, event }: EventArgs) => (event.type === 'CONFIRM_NO' ? noParts(event.label, context) : []),
   lastLine: ({ context, event }: EventArgs) =>
     event.type === 'CONFIRM_NO' ? shown(noParts(event.label, context), context) : context.lastLine,
-  lastChips: ({ context }: ContextArgs) => [GUIDE_CHIP[context.lang], READ_AGAIN_CHIP[context.lang]],
+  lastChips: ({ context }: ContextArgs) => verdictChips('no', context.lang),
 });
 
 export const storeUnsure = assign({

@@ -32,3 +32,14 @@ export const FIND_ANOTHER_CHIP: Record<Language, string> = { en: 'find another',
 export const DONE_CHIP: Record<Language, string> = { en: 'done', ar: 'انتهيت', fr: 'c’est fini' };
 
 export const CANCEL_CHIP: Record<Language, string> = { en: 'cancel', ar: 'إلغاء', fr: 'annulez' };
+
+/** The verdict screen's choices: still offered while it is up, after a reminder line names others. */
+export function verdictChips(verdict: string | null, lang: Language): string[] {
+  if (verdict === 'yes') {
+    return [FIND_ANOTHER_CHIP[lang], DONE_CHIP[lang]];
+  }
+  if (verdict === 'no') {
+    return [GUIDE_CHIP[lang], READ_AGAIN_CHIP[lang]];
+  }
+  return [];
+}

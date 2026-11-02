@@ -6,8 +6,9 @@
 // the statechart stays as a second net. Restarts wait 1 s, 2 s, 4 s
 // and on, and the log says why the socket closed. A start keeps a
 // socket still on its way to ready (t20 closed one 3.7 s in). A
-// stream that has heard nothing for 30 s is reopened as Ittro starts
-// a line (t22 went deaf for 150 s with its socket open).
+// stream that has heard nothing for 30 s is reopened, with the mic,
+// while Ittro speaks (t22 went deaf for 150 s with its socket open;
+// in t23 reopened sockets stayed deaf while the mic kept running).
 import { fromCallback } from 'xstate';
 import { addAudioChunkListener, startAudioStream, stopAudioStream } from 'ittro-sensors';
 import type { StreamCommand, StreamEmitted, StreamInput } from './types';
@@ -49,11 +50,9 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
     const quiet = createQuietWatch(() => Date.now());
 
     const silence = new Uint8Array(SILENCE_FRAME_BYTES);
-    let gated = 0;
 
     const summarizeMic = (): void => {
-      note(micLine(stats.snapshot(), gated));
-      gated = 0;
+      note(micLine(stats.snapshot()));
       stats.reset();
     };
 
@@ -132,13 +131,12 @@ export const streamClient = fromCallback<StreamEmitted | StreamCommand, StreamIn
           const closed = voiceGateClosed();
           const silentMs = quiet.due(closed);
           if (silentMs > 0 && ready) {
-            note(`stream heard nothing for ${Math.round(silentMs / 1000)} s, reopening as Ittro speaks`);
+            note(`stream heard nothing for ${Math.round(silentMs / 1000)} s, reopening it and the mic as Ittro speaks`);
             closeSocket();
+            stopMic();
             openSocket();
           }
-          if (closed && heard) {
-            gated += 1;
-          }
+          stats.frame(heard, closed);
           const frame = uplinkFrame(heard, silence, closed);
           if (ready) {
             sendFrame(frame);

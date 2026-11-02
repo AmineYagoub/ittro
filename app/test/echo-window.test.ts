@@ -3,7 +3,8 @@
 // after the line moves on, and a bare yes is the shopper's only
 // while its question is open; a choice Ittro offered is the
 // shopper's whenever Ittro's voice is not playing, even while it
-// thinks, and so is anything heard after 2.5 s of quiet.
+// thinks, and so is anything heard after 2.5 s of quiet. The
+// verdict's choices stay offered while it is up (t23).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { answer, startListening } from './driver';
@@ -11,6 +12,7 @@ import { echoFull } from '../src/conversation/echo';
 import { cueText } from '../src/voiceClips';
 import { resetSpeech, speechStops } from './stubs.mjs';
 import { noteAudioEnd, openVoice } from '../src/voiceGate';
+import { HELP_CHIP } from '../src/chips';
 
 test('the first words of the playing line never reach understanding', async () => {
   resetSpeech();
@@ -189,6 +191,36 @@ test('words of the last line said 12 s after it ended are the shopper (t16)', as
       Date.now = realNow;
       release();
     }
+  } finally {
+    Date.now = realNow;
+    driver.stop();
+  }
+});
+
+test('the verdict choices are the shopper after the help offer (t23)', async () => {
+  const driver = await startListening();
+  const realNow = Date.now;
+  try {
+    const heard = { type: 'FINAL_TEXT', text: 'ابحث عن غيره.' } as const;
+    const helpLine = 'قل مساعدة لتسمع ما يمكنك قوله.';
+    const helped = {
+      ...driver.context(),
+      lang: 'ar' as const,
+      talkBusy: false,
+      step: 'verdict' as const,
+      confirmVerdict: 'yes' as const,
+      voiceAt: realNow(),
+      voiceLog: [
+        { text: 'هذا ماء مسعد. قل ابحث عن غيره، أو انتهيت.', at: realNow() - 8000 },
+        { text: helpLine, at: realNow() },
+      ],
+      lastLine: helpLine,
+      lastChips: [HELP_CHIP.ar],
+    };
+    noteAudioEnd(realNow());
+    Date.now = () => realNow() + 1700;
+    assert.equal(echoFull({ context: helped, event: heard }), false);
+    assert.equal(echoFull({ context: { ...helped, step: 'confirm' as const }, event: heard }), true, 'off the verdict it repeats Ittro');
   } finally {
     Date.now = realNow;
     driver.stop();

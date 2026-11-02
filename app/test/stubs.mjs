@@ -29,11 +29,15 @@ export function memoryStatus() {
   return null;
 }
 
+export const audioStreamCalls = [];
+
 export function startAudioStream() {
+  audioStreamCalls.push('start');
   return true;
 }
 
 export function stopAudioStream() {
+  audioStreamCalls.push('stop');
   return true;
 }
 
