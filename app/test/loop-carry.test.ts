@@ -2,10 +2,13 @@
 // camera has barely moved: t13's Guedila request waited 3.6 s for a
 // new photo and SAM on a shelf outlined seconds before. A camera that
 // moved, an old carry, the same request, or a carry of only the last
-// product (t30) start from a photo.
+// product (t30) start from a photo. A carried outline keeps its still
+// and where the camera pointed for it, and is placed from there long
+// after the camera has forgotten the still (t39).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShelfLoop } from '../src/shelf/loop';
+import { boxNow } from '../src/shelf/outlines';
 import type { LoopDeps, LoopPhoto, ShelfCarry, ShelfLoop } from '../src/shelf/loopTypes';
 import type { ShelfBox, ShelfOutline, ShelfRead } from '../src/relay';
 import type { ConversationEvent } from '../src/conversation/types';
@@ -88,8 +91,25 @@ test('t13: the next request is found from the carried crops, with no photo and n
   const [guedila] = found(next.sent);
   // Moved with the camera: 0.01 of 960 px.
   assert.equal(guedila?.box.x1, GUEDILA.x1 + 10);
-  assert.equal(guedila?.anchor, undefined);
   assert.ok(next.logs.some((line) => line.startsWith('shelf read carried')));
+});
+
+test('t39: a carried outline keeps its still and where the camera pointed for it, and is placed from there', async () => {
+  const clock = { now: 0 };
+  const first = rig(clock);
+  first.loop.setTarget('Masaad water', 1);
+  await first.loop.cloudPass([{ ...photo(), shot: 4, pan: { x: 0.1, y: 0.2, session: 1 } }]);
+  const carry = first.loop.carry({ x: 0.1, y: 0.2, session: 1 });
+  assert.ok(carry);
+  const next = rig(clock);
+  next.loop.setTarget('Guedila water', 2);
+  assert.equal(next.loop.seed(carry, { x: 0.11, y: 0.2, session: 1 }), true);
+  assert.equal(await next.loop.carriedPass(), true);
+  const [guedila] = found(next.sent);
+  assert.ok(guedila);
+  assert.deepEqual(guedila.anchor && [guedila.anchor.shot, guedila.anchor.box.x1, guedila.anchor.pan], [4, GUEDILA.x1, { x: 0.1, y: 0.2, session: 1 }]);
+  // Half a frame turned since the still, which the camera no longer remembers.
+  assert.equal(boxNow(guedila, { x: 0.6, y: 0.2, session: 1 }, () => null).x1, GUEDILA.x1 + 480);
 });
 
 test('t14: a phone moved by a tenth of the frame still carries, shifted', async () => {

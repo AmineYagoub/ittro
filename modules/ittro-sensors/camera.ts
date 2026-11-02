@@ -31,7 +31,9 @@ export interface TrackPan {
 }
 
 // The guided outline the camera draws and moves natively every frame:
-// SAM's cut in the still numbered `shot` (null: placed as it is now).
+// SAM's cut in the still numbered `shot` (null: placed as it is now),
+// moved from where the camera pointed for that still, `panX`/`panY` in
+// cameraPan()'s terms, when known; else from the still's frame time.
 export interface CameraOutline {
   key: string;
   name: string;
@@ -43,6 +45,9 @@ export interface CameraOutline {
   h: number;
   points: number[] | null;
   shot: number | null;
+  panX: number | null;
+  panY: number | null;
+  panSession: number | null;
 }
 
 export interface CameraViewProps {

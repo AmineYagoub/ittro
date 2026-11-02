@@ -188,7 +188,7 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
             deps.keepPhrase?.(request, shorter);
           }
         }
-        outlined = { ...outlined, outlines: anchorOutlines(outlined.outlines, sharpest.shot) };
+        outlined = { ...outlined, outlines: anchorOutlines(outlined.outlines, sharpest.shot, sharpest.pan) };
         const clear = handFreeCut(deps, outlined.outlines, sharpest.handBox);
         if (!clear) {
           state.outlinedAt = deps.now();

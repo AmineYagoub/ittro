@@ -40,6 +40,7 @@ export async function findPass(ctx: ReadsContext, request: string, epoch: number
   const outlines = anchorOutlines(
     found.outlines.map((outline) => ({ id: outline.id, frame: outline.frame, box: outline.box, ...(outline.mask ? { mask: outline.mask } : {}) })),
     photo.shot,
+    photo.pan,
   );
   state.outlinedAt = deps.now();
   state.outlinedPan = photo.pan ?? null;

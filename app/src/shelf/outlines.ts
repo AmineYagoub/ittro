@@ -8,6 +8,12 @@ import type { ShelfBox, ShelfMask, ShelfOutline } from '../relay';
 
 export type { ShelfBox, ShelfMask, ShelfOutline };
 
+interface Pan {
+  x: number;
+  y: number;
+  session?: number;
+}
+
 export interface PanShift {
   dx: number;
   dy: number;
@@ -100,22 +106,21 @@ export function mapPoints(points: number[], w: number, h: number, viewW: number,
   return out;
 }
 
-/** SAM's outlines tagged with the still they were cut from, when its number is known. */
-export function anchorOutlines(outlines: ShelfOutline[], shot: number | undefined): ShelfOutline[] {
+/** SAM's outlines tagged with the still they were cut from, when its number is known, and where the camera pointed for it. */
+export function anchorOutlines(outlines: ShelfOutline[], shot: number | undefined, pan?: Pan | null): ShelfOutline[] {
   if (shot === undefined) {
     return outlines;
   }
-  return outlines.map((outline) => ({ ...outline, anchor: { shot, box: outline.box, points: outline.mask?.points ?? null } }));
+  return outlines.map((outline) => ({
+    ...outline,
+    anchor: { shot, box: outline.box, points: outline.mask?.points ?? null, ...(pan ? { pan } : {}) },
+  }));
 }
 
 /** Where an outline's product is now, as the native outline draws it: SAM's box on its still, moved by the camera's motion since; its own box when that motion is unknown. */
-export function boxNow(
-  outline: ShelfOutline,
-  now: { x: number; y: number; session?: number } | null,
-  stillPan: (shot: number) => { x: number; y: number; session?: number } | null,
-): ShelfBox {
+export function boxNow(outline: ShelfOutline, now: Pan | null, stillPan: (shot: number) => Pan | null): ShelfBox {
   const anchor = outline.anchor;
-  const from = anchor ? stillPan(anchor.shot) : null;
+  const from = anchor ? (anchor.pan ?? stillPan(anchor.shot)) : null;
   if (!anchor || !from || !now || (from.session ?? 0) !== (now.session ?? 0)) {
     return outline.box;
   }
@@ -124,7 +129,7 @@ export function boxNow(
   return { ...anchor.box, x1: anchor.box.x1 + dx, y1: anchor.box.y1 + dy, x2: anchor.box.x2 + dx, y2: anchor.box.y2 + dy };
 }
 
-/** The guided outline for the camera to draw: SAM's cut and its still, else the box as it is now. */
+/** The guided outline for the camera to draw: SAM's cut, its still and where the camera pointed for it, else the box as it is now. */
 export function cameraOutline(target: ShelfOutline | null, label: string): CameraOutline | null {
   if (!target) {
     return null;
@@ -132,6 +137,7 @@ export function cameraOutline(target: ShelfOutline | null, label: string): Camer
   const anchor = target.anchor;
   const box = anchor?.box ?? target.box;
   const shot = anchor?.shot ?? null;
+  const pan = anchor?.pan;
   return {
     key: `${shot ?? 'now'}:${target.id}:${box.x1},${box.y1},${box.x2},${box.y2}:${label}`,
     name: label,
@@ -143,6 +149,9 @@ export function cameraOutline(target: ShelfOutline | null, label: string): Camer
     h: box.h,
     points: anchor ? anchor.points : (target.mask?.points ?? null),
     shot,
+    panX: pan?.x ?? null,
+    panY: pan?.y ?? null,
+    panSession: pan?.session ?? null,
   };
 }
 

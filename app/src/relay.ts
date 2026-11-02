@@ -62,12 +62,14 @@ export interface ShelfMask {
   points: number[];
 }
 
-// Where SAM cut the outline: the still's number and the box and mask
-// in that still, never moved, so the camera can place it natively.
+// Where SAM cut the outline: the still's number, where the camera
+// pointed for it, and the box and mask in that still, never moved, so
+// the camera can place it natively.
 export interface OutlineAnchor {
   shot: number;
   box: ShelfBox;
   points: number[] | null;
+  pan?: { x: number; y: number; session?: number };
 }
 
 export interface ShelfOutline {

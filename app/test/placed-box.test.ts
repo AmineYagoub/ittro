@@ -2,7 +2,10 @@
 // phone panned a bag's width while a hand was in view; the drawn
 // outline followed the Basmati, but the JavaScript box stood still,
 // the cues said "right" towards where it had been, and a new SAM cut
-// of the neighbouring bag now sat on the old box.
+// of the neighbouring bag now sat on the old box. The camera gets
+// where it pointed for a cut's still, and an outline with no still
+// moves its shape with its box (t39: a carried Masaad's shape stayed
+// drawn where the bottle had been).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { forgetPlacedBox, lastPlacedBox, placedBox, placedTarget } from '../src/guide/placedBox';
@@ -42,6 +45,25 @@ test('t15: a new cut of the neighbour on the old box does not take the target', 
   const basmati: ShelfOutline = { id: 2, frame: 0, box: box(80, 385, 255, 775) };
   const decided = decideTarget(placedTarget(BASMATI, Date.now()), [haricot, basmati], null).outline;
   assert.equal(decided?.box.x1, 80);
+  forgetPlacedBox();
+});
+
+test('t39: the camera gets where it pointed for the still, so it places the outline however old the still', () => {
+  const [cut] = anchorOutlines([{ id: 3, frame: 0, box: box(645, 389, 811, 771) }], 41, { x: 0.2, y: -0.1, session: 3 }) as [ShelfOutline];
+  const drawn = cameraOutline(cut, 'مسعد');
+  assert.deepEqual([drawn?.shot, drawn?.panX, drawn?.panY, drawn?.panSession], [41, 0.2, -0.1, 3]);
+  const unknown = cameraOutline(BASMATI, 'بسمتي');
+  assert.deepEqual([unknown?.shot, unknown?.panX, unknown?.panY, unknown?.panSession], [41, null, null, null]);
+});
+
+test('t39: an outline with no still moves its shape with its placed box', () => {
+  forgetPlacedBox();
+  const loose: ShelfOutline = { id: 0, frame: 0, box: box(493, 433, 718, 1211), mask: { points: [500, 440, 710, 440, 600, 1200] } };
+  const key = cameraOutline(loose, 'مسعد')?.key;
+  placedBox(loose, 'مسعد', { outlineKey: key, outlineDx: -600, outlineDy: 10 }, Date.now());
+  const placed = placedTarget(loose, Date.now());
+  assert.deepEqual(placed?.mask?.points, [-100, 450, 110, 450, 0, 1210]);
+  assert.deepEqual(cameraOutline(placed, 'مسعد')?.points, [-100, 450, 110, 450, 0, 1210]);
   forgetPlacedBox();
 });
 

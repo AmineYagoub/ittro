@@ -6,7 +6,12 @@
 // seconds before. The next regular pass checks the carried outlines.
 // The last product's own outlines are left behind, since the new
 // request names another: t30 re-read its one Guedila outline for 2.9 s
-// before the Masaad search began.
+// before the Masaad search began. The loop's own boxes move by the
+// camera's motion since, and each outline keeps the still it was cut
+// from and where the camera pointed for it, so the camera draws a
+// carried outline from that still like any other: in t39 a carried
+// Masaad without them was drawn on an empty wall for 24 s after the
+// phone turned away, and beside the bottles for 19 s more.
 import { biggestFirst } from './shelfTracks';
 import { moveOutlines } from './outlines';
 import { packageKind } from './match';
@@ -58,12 +63,8 @@ export function seedCarry(ctx: ReadsContext, carry: ShelfCarry, pan: CameraPan |
     deps.log(`shelf carry skipped, its ${carry.tracks.length} outlines were the last product`);
     return false;
   }
-  // Moved by the camera's motion since; the old still no longer places
-  // them, so they go without its anchor until the next SAM cut.
   state.tracks = others.map((entry) => {
-    const outline: ShelfOutline = { ...entry.outline };
-    delete outline.anchor;
-    const [moved] = moveOutlines([outline], { dx: dx * outline.box.w, dy: dy * outline.box.h, scale: 1 });
+    const [moved] = moveOutlines([entry.outline], { dx: dx * entry.outline.box.w, dy: dy * entry.outline.box.h, scale: 1 });
     return { ...entry, outline: moved as ShelfOutline, read: null };
   });
   state.crops = new Map(carry.crops);

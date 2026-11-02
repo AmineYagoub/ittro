@@ -4,7 +4,9 @@
 // sent the target to the bottle beside the Masaad. A product keeps its
 // track and read across cuts of stills taken at different pans, and a
 // pan move follows the target's own cut, never a neighbour moved over
-// it, leaving any recheck as it was.
+// it, leaving any recheck as it was. A cut keeps where the camera
+// pointed for its still, so it is placed after the camera has
+// forgotten the still (t39).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { boxNow } from '../src/shelf/outlines';
@@ -46,6 +48,12 @@ test('a cut stays at its own box across a reopened camera or an unknown still', 
   assert.deepEqual(boxNow(cut(1, box(100, 200), 4), { ...NOW, session: 2 }, stillPan), box(100, 200));
   assert.deepEqual(place(cut(1, box(100, 200), 7)), box(100, 200));
   assert.deepEqual(boxNow(cut(1, box(100, 200), 4), null, stillPan), box(100, 200));
+});
+
+test('t39: a cut is placed from where the camera pointed for its still, after the camera forgot the still', () => {
+  const old: ShelfOutline = { id: 1, frame: 0, box: box(100, 200), anchor: { shot: 7, box: box(100, 200), points: null, pan: { x: -0.25, y: 0, session: 1 } } };
+  assert.deepEqual(place(old), box(460, 560));
+  assert.deepEqual(boxNow(old, { ...NOW, session: 2 }, stillPan), box(100, 200));
 });
 
 test('t34: an old cut gives the target the product under the drawn outline, not the one at its raw box', () => {

@@ -14,7 +14,10 @@ import type { PanShift } from './outlines';
 /** Places outlines where the camera has them now; boxes stay as cut when the loop knows no stills (tests). */
 export function placer(deps: LoopDeps): (outline: ShelfOutline) => ShelfBox {
   const now = deps.pan?.() ?? null;
-  const stillPan = deps.stillPan ?? (() => null);
+  const stillPan = deps.stillPan;
+  if (!stillPan) {
+    return (outline) => outline.box;
+  }
   return (outline) => boxNow(outline, now, stillPan);
 }
 

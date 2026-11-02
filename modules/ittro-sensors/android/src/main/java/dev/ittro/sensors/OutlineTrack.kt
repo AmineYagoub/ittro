@@ -25,7 +25,9 @@ import kotlin.math.abs
 // read (t18), and one older than the ring would be drawn where the
 // product was. The same ring tells JavaScript where the camera pointed
 // for a still, so a move since is known even for a still taken as the
-// camera opened (t32).
+// camera opened (t32), and JavaScript sends that back with the outline,
+// which places it however old the still: t39 guided to a Masaad cut
+// 100 s before, carried over from the last request.
 private const val GREY_W = 160
 
 private const val RING = 2048
@@ -199,6 +201,14 @@ object OutlineTrack {
     @Suppress("UNCHECKED_CAST")
     val points = (m["points"] as? List<Any?>)?.mapNotNull { (it as? Number)?.toFloat() }?.toFloatArray()?.takeIf { it.size >= 6 }
     val t = OutlineTarget(m["key"] as String, m["name"] as? String ?: "", floatArrayOf(f("x1"), f("y1"), f("x2"), f("y2")), points, frameW, frameH)
+    val atX = (m["panX"] as? Number)?.toFloat()
+    val atY = (m["panY"] as? Number)?.toFloat()
+    if (atX != null && atY != null && (m["panSession"] as? Number)?.toInt() == session) {
+      t.dx = (panX - atX) * frameW
+      t.dy = (panY - atY) * frameH
+      Log.i("IttroOutline", "placed ${t.key} from its pan dx ${t.dx.toInt()} dy ${t.dy.toInt()}")
+      return t
+    }
     val shotNs = (m["shot"] as? Number)?.toInt()?.let { shots[it] } ?: return t.also { Log.i("IttroOutline", "placed ${t.key} no shot time") }
     val (best, gap) = nearest(shotNs)
     if (best >= 0 && gap <= SHOT_MATCH_NS) {

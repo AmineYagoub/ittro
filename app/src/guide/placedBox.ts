@@ -4,7 +4,10 @@
 // in view (t15: the phone panned a bag's width, the outline followed,
 // and the cues still said "right" towards where the bag had been).
 // Each hand frame reports the drawn outline's key and shift; when the
-// key is the guided target's, steering and rechecks use that box.
+// key is the guided target's, steering and rechecks use that box. An
+// outline with no still is drawn from its own shape, so the shape moves
+// with the box: in t39 a carried Masaad's box followed the phone off
+// the shelf while its shape stayed drawn where the bottle had been.
 import type { ShelfBox, ShelfOutline } from '../relay';
 import { cameraOutline } from '../shelf/outlines';
 
@@ -35,10 +38,19 @@ export function lastPlacedBox(now: number): ShelfBox | null {
   return latest && now - latest.at <= FRESH_MS ? latest.box : null;
 }
 
-/** The target where the camera has it now, for matching new SAM cuts against. */
+/** The target where the camera has it now, for matching new SAM cuts against; one with no still moves its shape too. */
 export function placedTarget(target: ShelfOutline | null, now: number): ShelfOutline | null {
   const box = lastPlacedBox(now);
-  return target && box ? { ...target, box } : target;
+  if (!target || !box) {
+    return target;
+  }
+  if (target.anchor) {
+    return { ...target, box };
+  }
+  const dx = box.x1 - target.box.x1;
+  const dy = box.y1 - target.box.y1;
+  const points = target.mask?.points.map((value, at) => value + (at % 2 === 0 ? dx : dy));
+  return { ...target, box, ...(points ? { mask: { points } } : {}) };
 }
 
 export function forgetPlacedBox(): void {
