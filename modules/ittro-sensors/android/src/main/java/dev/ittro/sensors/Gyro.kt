@@ -19,17 +19,22 @@ import kotlin.math.abs
 // Masaad. The gyroscope never sees the hand. While a hand is in view,
 // or the flow finds nothing to match, the outline and the pan move by
 // the turn on each axis where the turn has agreed with the flow on
-// hand-free frames. How far a radian moves the picture comes from the
-// lens and the sensor; the agreement checks the axes and scales that
-// figure (0.6 to 1.6 of it, or the turn is not used). Readings come
-// 100 times a second, the most an app may ask without a permission,
-// and each frame takes the turn at its own sensor time. The phone
-// shifting without turning is the flow's alone.
+// hand-free frames. A fast turn (over 1.2% of the frame a frame) moves
+// them by the turn too: in t34 a swing blurred the frames, the flow
+// read it backwards, and the outline left the picture for a second.
+// How far a radian moves the picture comes from the lens and the
+// sensor; the agreement checks the axes and scales that figure (0.6
+// to 1.6 of it, or the turn is not used). Readings come 100 times a
+// second, the most an app may ask without a permission, and each
+// frame takes the turn at its own sensor time. The phone shifting
+// without turning is the flow's alone.
 private const val RING = 512
 
 private const val SAMPLE_US = 10_000
 
 private const val MOVING = 0.003f
+
+private const val FAST_TURN = 0.012f
 
 private const val AGREE_FRAMES = 10
 
@@ -121,11 +126,12 @@ object Gyro : SensorEventListener {
     }
   }
 
-  /** The frame's motion: the flow's, but the turn's on each axis it has agreed on while a hand is in view or the flow is lost. Hand-free frames teach the agreement. */
+  /** The frame's motion: the flow's, but the turn's on each axis it has agreed on while a hand is in view, the phone turns fast or the flow is lost. Slower hand-free frames teach the agreement. */
   fun choose(flow: FloatArray?, turn: FloatArray?, hand: Boolean): FloatArray? {
     turn ?: return flow
     synchronized(lock) {
-      if (flow != null && !hand) {
+      val fast = abs(turn[0]) >= FAST_TURN || abs(turn[1]) >= FAST_TURN
+      if (flow != null && !hand && !fast) {
         for (axis in 0..1) {
           if (abs(turn[axis]) >= MOVING) {
             flowTimesTurn[axis] += (flow[axis] * turn[axis]).toDouble()
