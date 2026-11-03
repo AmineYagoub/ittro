@@ -1,0 +1,82 @@
+# The Android release APK from a fresh prebuild, built as the phone-test builds are: 64-bit ARM
+# only, no minifying, Android lint skipped (docs/contributing/releases.md). CI builds it with no
+# access code; the release workflow passes the relay's, which the bundle then holds, as every
+# shipped app must. Only the relay holds the Meta key. The APK leaves signed with the template's
+# debug key, until the release workflow signs it again with the release key. It may ask for no
+# permission outside the list in the last step: a new one is added there, in the same pull request,
+# so a reviewer sees it.
+name: Build the APK
+description: The Android release APK from a fresh prebuild, with its permissions checked.
+
+inputs:
+  access-code:
+    description: The relay's access code, baked into the app. Empty for CI.
+    required: false
+    default: ''
+
+outputs:
+  apk:
+    description: The built APK's path, from the repository's root.
+    value: app/android/app/build/outputs/apk/release/app-release.apk
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: 22
+        package-manager-cache: false
+
+    - name: Install the NDK, CMake, the build tools and the platform
+      shell: bash
+      run: |
+        "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+          "ndk;27.1.12297006" "cmake;3.22.1" "build-tools;37.0.0" "platforms;android-37.0" > /dev/null
+        java -version
+
+    - name: Install the locked dependencies
+      shell: bash
+      working-directory: app
+      run: npm ci --no-audit
+
+    - name: Generate the Android project
+      shell: bash
+      working-directory: app
+      run: npx expo prebuild --platform android --no-install
+
+    - name: Build the release APK
+      shell: bash
+      working-directory: app/android
+      env:
+        EXPO_PUBLIC_ACCESS_CODE: ${{ inputs.access-code }}
+      run: |
+        ./gradlew --no-daemon assembleRelease \
+          -x lint -x lintVitalAnalyzeRelease -x lintVitalReportRelease -x lintVitalRelease \
+          -PreactNativeArchitectures=arm64-v8a -Pandroid.enableMinifyInReleaseBuilds=false
+
+    - name: Check that the APK asks for no other permission
+      shell: bash
+      run: |
+        allowed=(
+          "uses-permission: name='android.permission.CAMERA'"
+          "uses-permission: name='android.permission.RECORD_AUDIO'"
+          "uses-permission: name='android.permission.INTERNET'"
+          "uses-permission: name='android.permission.ACCESS_NETWORK_STATE'"
+          "uses-permission: name='android.permission.MODIFY_AUDIO_SETTINGS'"
+          "uses-permission: name='android.permission.VIBRATE'"
+          "uses-permission: name='android.permission.WAKE_LOCK'"
+          "uses-permission: name='android.permission.SYSTEM_ALERT_WINDOW'"
+          "uses-permission: name='android.permission.READ_EXTERNAL_STORAGE' maxSdkVersion='32'"
+          "uses-permission: name='android.permission.WRITE_EXTERNAL_STORAGE' maxSdkVersion='32'"
+          "permission: dev.ittro.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+          "uses-permission: name='dev.ittro.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'"
+        )
+        found=$("$ANDROID_HOME/build-tools/37.0.0/aapt2" dump permissions \
+          app/android/app/build/outputs/apk/release/app-release.apk | grep -v '^package:')
+        extra=$(grep -v -x -F -f <(printf '%s\n' "${allowed[@]}") <<< "$found" || true)
+        if [[ -n "$extra" ]]; then
+          echo "::error title=Permissions::The APK asks for permissions not in .github/actions/apk/action.yml: $extra"
+          exit 1
+        fi
+        echo "$found"

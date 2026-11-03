@@ -1,0 +1,75 @@
+# CI on every pull request and every push to main. "Test" runs the app's lint, type check and
+# tests, the relay's type check, lint and tests, and the sensor module's lint. "Android" builds the
+# release APK from a fresh prebuild, as the release workflow does but with no access code and no
+# signing key, and checks its permissions (.github/actions/apk/action.yml). No secret is used here,
+# so pull requests from forks run the same checks.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: App
+        working-directory: app
+        run: |
+          npm ci --no-audit
+          npm run lint
+          npx tsc --noEmit
+          npm test
+
+      - name: Relay
+        working-directory: relay
+        run: |
+          npm ci --no-audit
+          npm run typecheck --if-present
+          npm run lint
+          npm test
+
+      - name: Sensor module
+        working-directory: modules/ittro-sensors
+        run: |
+          npm ci --no-audit
+          npm run lint
+
+  android:
+    name: Android
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the APK and check its permissions
+        uses: ./.github/actions/apk
