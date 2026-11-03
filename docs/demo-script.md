@@ -1,35 +1,104 @@
 # Ittro demo video script (3 minutes)
 
-One real search end to end in English: ask, guide, touch, a wrong
-bottle caught, the right one confirmed, a quick switch to Arabic,
-and which Meta model does what. Total under 180 s. Every spoken
-line below is a real Ittro line; timings are the edit budget, and
-the on-screen timer shows the real elapsed time.
+One real search in English on the rice shelf, filmed in one take of
+1:23 on 3 November 2026: the shopper asks what is on the shelf, picks
+the basmati rice, is guided to it, and Ittro reads the bag in the hand
+before it says yes. The narration before and after the take states
+what was built during the hackathon and backs it with the diagram, the
+dated build log and the code. Under 180 s in all.
 
-Cast: one shopper (the founder) holding the phone, one camera
-filming over the shoulder. The phone screen is always visible:
-every word on it is spoken. Meta models named: Muse Spark,
-SAM 3.1, Muse Voice Transcribe, MMS-TTS. No other model is named.
+The rules ask that the video shows only what was built during the
+hackathon (27 October to 4 November 2026), so that judges can tell
+it apart. Shot 2 states what was built before the take is shown;
+shot 4 backs it with the diagram, the dated build log and the code.
+
+Two voices are heard, and they must never be confused:
+
+- **The narrator:** the founder, recorded afterwards in the founder's
+  own voice. Plain sentences, no music under the speech.
+- **Ittro:** the phone's own voice, from the take as recorded. A
+  caption shows each Ittro line as it is spoken.
+
+The take is kept as it was filmed: never re-voice Ittro, never cut a
+wait out of it. Every Ittro line below is a sample of what the app
+says; caption what the take actually says. The narrator speaks over
+the take only in its two waits, never over Ittro.
+
+## The take
+
+Filmed on 3 November on a local release build of `main` at 96a0339
+plus the uncommitted fixes on `fix/start-voice-hearing`: the shorter
+first launch, a fresh start on every open, the mic that opens right
+after each line, the camera's focus wait, guidance cues that neither
+the ticks nor the six-second repeat cut, and plurals said once. Its
+build settings are the release workflow's: the relay's access code
+only, so the default relay (`ittro.djazair.dev`), the grounding find
+on, and engine cues off (`EXPO_PUBLIC_ENGINE_CUES` unset).
+
+Two voices are heard from Ittro in the take, as in the release:
+
+- **Meta MMS-TTS**, recorded: the fixed cues ("I'm checking", "Yes",
+  "A little to your right", "Your hand is lined up…").
+- **The phone's voice** (`en-us-x-tpd-network` on this phone), live:
+  every sentence with a name or an answer in it.
+
+The release page in shot 4 must be the release built from those fixes
+with the same settings, not v0.1.0 or v0.1.1, which lack them.
+
+Nothing on screen may show a secret: no terminal, no `deployed.env`,
+no `.dev.vars`, no access code.
 
 ## Shot list
 
-| # | Time | Camera shows | Shopper says | Ittro says and shows | Meta model working |
-|---|---|---|---|---|---|
-| 1 | 0:00–0:12 | Shelf with water bottles. Phone screen: Welcome. Timer starts. | "I'm looking for Masaad water, the big bottle." | "Looking for Masaad water, 1.5 litres." | Voice Transcribe hears the sentence; Spark understands the request. One clear product needs no "Is that right?" turn. |
-| 2 | 0:12–0:25 | Over the shoulder: the phone held still at the shelf. Nothing is drawn until the product is found. | — | "I see two bottles. Reading their labels. Hold the phone steady." | SAM 3.1 outlines every product; Spark reads each label. |
-| 3 | 0:25–0:55 | SAM's green outline on the Masaad 1.5 L bottle, neck and shoulders, with its name pill on the cap; it stays on the bottle as the phone moves. The shopper's free hand enters the frame. | — | "Masaad is to your right. Move your hand right." Ticks speed up as the hand nears. "Almost there." | Hand tracking runs on the phone. The direction cues are MMS-TTS recordings. |
-| 4 | 0:55–1:10 | Fingertip covers the green outline. | — | "Your hand is lined up. Reach forward slowly to feel for it." then "I'm checking." | The touch starts the check: Spark reads the hand and the bottle it holds from a fresh photo. |
-| 5 | 1:10–1:30 | Red screen, white cross, crop of a Guedila bottle. The founder holds up the wrong bottle to the camera. | (picked the neighbour by mistake) | "No. This is Guedila water. Put it back. Masaad is to your right. Say guide me, or read again." | Spark compared the label against every asked attribute and refused the yes. |
-| 6 | 1:30–1:50 | Green outline again, hand guided back, founder picks the Masaad bottle. | "Is this the right one?" | "Yes. This is Masaad water, 1.5 litres. Say find another, or done." Verdict chime, two buzzes. | Spark matched brand and size on a fresh read. |
-| 7 | 1:50–2:15 | Screen mirrors right-to-left; indicator moves top-right. | "Speak Arabic." | «حسناً، سأتكلم بالعربية الآن. قل English للعودة إلى الإنجليزية.» Then "English." → "Okay, I'll keep speaking English." | Spark understands the switch in any of the three languages; Transcribe stays biased to all three. |
-| 8 | 2:15–2:45 | Title cards over the Found screen. Shopper silent. | — | (silent cards, read by the narrator) "Every answer is checked: same step, same hand, not too old. A wrong yes is the worst outcome, so 'I can't confirm yet' always beats a guess." | Card: Transcribe listens · Spark understands and reads · SAM 3.1 finds and outlines · MMS-TTS speaks the cues. |
-| 9 | 2:45–3:00 | Logo, repo link, timer stops. | "Done." | "Okay. Say Ittro when you need me." | — |
+| # | Time | Camera shows | Spoken |
+|---|---|---|---|
+| 1 | 0:00–0:15 | Close on the El Taounia bags: the white rice and the basmati side by side, same brand, same pattern. Then the shopper with the phone. | **Narrator:** "These two bags look almost the same. One is white rice, one is basmati. A blind shopper has to ask which is which. Ittro guides the hand to the right one and reads it before it says yes." |
+| 2 | 0:15–0:35 | The phone's screen on the shelf, the outline drawn. Caption: "Built during the hackathon". | **Narrator:** "During this hackathon I built Ittro's voice conversation, its hand guidance, and the relay to Meta's models. Muse Voice Transcribe hears the shopper. Muse Spark reads the shelf and checks the product in the hand. SAM 3.1 outlines it, and the app keeps the outline on it." |
+| 3 | 0:35–1:58 | The take, 1:23, uncut: over the shoulder, phone screen visible. On-screen timer labelled "elapsed since shelf question", from the end of "What's on the shelf?". | See "Inside the take" below. |
+| 4 | 1:58–2:50 | The README's diagram for 8–10 s, then `docs/BUILD_LOG.md` scrolled through its dated days, then `relay/src/find.ts`, `relay/src/masks.ts` and `Gyro.kt`, then the release page. | **Narrator:** "This diagram shows what I built and what each Meta model does. The build log dates every piece. The relay asks Muse Spark to box each matching package in the shelf photo, and SAM 3.1 cuts each box into a mask, which the relay traces into an outline. On the phone, the outline is kept on the product with the gyroscope and the camera's own motion. Meta's models, MediaPipe's hand model, Expo and the MMS voices are existing tools. The dated entries identify our original Ittro work; existing tools and prior materials are listed separately." |
+| 5 | 2:50–3:00 | Card: Ittro, the repo link, the release link. | **Narrator:** "Ittro is open source. The app is on the release page." |
 
-## Phone numbers (fill after the phone runs, never invent)
+## Inside the take (shot 3)
 
-- Real timings this take: first outline Ys after the request, wrong-bottle no Ys, final yes Zs from the request.
-- 10-product set: found N/10, wrong yes M (must be 0), verdicts under 30 s.
-- 20-minute session: battery drain N%, memory growth N MB, heat alerts N.
+Times are from the start of the take; fill in the real ones from the
+footage.
+
+| Take | Shopper | Ittro (sample) | Narrator |
+|---|---|---|---|
+| 0:00 | | "Hi, I'm Ittro. Tell me what you're looking for, or say help." | |
+| ~0:10 | "What's on the shelf?" | | |
+| ~0:20 | | "On this shelf on top left and middle are Riz blanc and Riz Basmati, and on top right is Haricot Blanc, and on the bottom are Medina honey cups." | |
+| ~0:33 | "I want basmati rice." | "Looking for basmati rice." | While Ittro looks: "Muse Spark boxes each bag that matches; SAM 3.1 outlines them." |
+| ~0:43 | | "I found basmati rice in the middle." Then the hand cues: "A little to your right." "Keep moving your hand right." "Your hand is lined up. Reach forward slowly to feel for it." | |
+| ~1:00 | Touches the bag. | "I'm checking." | While Ittro checks: "Now it reads the bag in the hand." |
+| ~1:08 | Picks it up. Green screen. Timer stops. | "Yes. This is basmati rice. Say find another, or done." | |
+| ~1:18 | "Done." | "Okay. Say Ittro when you need me." | |
+
+The fixed cues are Meta's MMS voice and the sentences are the phone's
+voice (see "The take"). Both are Ittro and both are captioned.
+
+## Captions
+
+- Ittro's lines: white on dark, bottom of the frame, word for word.
+- Shot 4 names each Meta model on screen as the narrator says it:
+  Muse Voice Transcribe, Muse Spark, SAM 3.1, MMS-TTS.
+- Shots 2 and 4 keep the caption "Built during the hackathon" on
+  screen while the narrator says what was built.
+
+## Phone numbers (fill after the take, never invent)
+
+Measured from the footage, never from the storyboard times above.
+Two origins, each named where it is shown:
+
+- **Elapsed since shelf question** (the on-screen timer): from the end
+  of "What's on the shelf?" to the shelf answer, Xs; to the final
+  "Yes", Ts.
+- **Request to verdict:** from the end of "I want basmati rice" to the
+  outline, Ys; to the final "Yes", Zs.
+- 10-product set: found N/10, wrong yes M (must be 0), verdicts
+  under 30 s.
+- 20-minute session: battery drain N%, memory growth N MB, heat
+  alerts N.
 
 See [measure.md](measure.md) for how each number is collected and
 [BUILD_LOG.md](BUILD_LOG.md) for the dated log.
