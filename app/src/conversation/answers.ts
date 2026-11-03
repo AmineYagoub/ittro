@@ -17,13 +17,11 @@ import {
   moreAck,
   notBuilt,
   offerLanguage,
-  privacyLine,
   shorterAck,
   slowerAck,
   stopped,
   switchedTo,
   tourOffer,
-  volumeLine,
   welcome,
   welcomeBack,
   whatToFind,
@@ -47,12 +45,11 @@ export function confirmLines(answer: UnderstandAnswer, lang: Language): { reques
 
 export const acceptLanguage = assign({
   lang: ({ context }) => context.routeAnswer?.target_language as Language,
+  step: 'welcome',
+  pendingQuestion: null,
   pendingSay: ({ context }) => {
     const target = context.routeAnswer?.target_language as Language;
-    return [
-      { text: switchedTo(target, context.lang), chips: [BACK_CHIP[context.lang]] },
-      { text: privacyLine[target], chips: [] },
-    ];
+    return [{ text: switchedTo(target, context.lang), chips: [BACK_CHIP[context.lang]] }];
   },
 });
 
@@ -70,10 +67,6 @@ export const wakeLines = assign({
   pendingSay: ({ context }) => [
     { text: context.request ? welcomeBackLooking(context.request, context.lang) : welcomeBack[context.lang], chips: [] },
   ],
-});
-
-export const buttonsLines = assign({
-  pendingSay: ({ context }) => [{ text: volumeLine[context.lang], chips: [] }],
 });
 
 export const tourOfferLines = assign({

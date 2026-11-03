@@ -240,7 +240,7 @@ export const cueClip = {
   testcue: { en: 1, fr: 1 },
 };
 
-export const soundAsset = {};
+export const soundAsset = { 'proximity-tick': 1 };
 
 export const StyleSheet = {
   create: (entries) => entries,

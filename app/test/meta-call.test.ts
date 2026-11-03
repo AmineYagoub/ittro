@@ -1,9 +1,9 @@
 // One Meta call through the relay: success returns the body, and
 // every failure carries its kind — down, limited or broken — so the
 // statechart says each once.
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { RelayError, getMeta, linkKindFor, postMeta } from '../src/metaCall';
+import { RELAY_TIMEOUT_MS, RelayError, getMeta, linkKindFor, postMeta } from '../src/metaCall';
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -60,4 +60,28 @@ test('bad answers are broken, never silent defaults', async () => {
     assert.equal(error.kind, 'broken');
   });
   assert.equal(linkKindFor(new Error('plain')), 'broken');
+});
+
+test('an answer that stops halfway is down after the deadline, never a wait forever', async () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  const stalled = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode('{"ok":'));
+    },
+  });
+  try {
+    await withFetch((async () => new Response(stalled, { status: 200 })) as typeof fetch, async () => {
+      let error: unknown = null;
+      const call = postMeta('find', '/find', {}).catch((err: unknown) => {
+        error = err;
+      });
+      await new Promise((done) => setImmediate(done));
+      mock.timers.tick(RELAY_TIMEOUT_MS);
+      await Promise.race([call, new Promise((done) => setImmediate(done))]);
+      assert.ok(error instanceof RelayError);
+      assert.equal(error.kind, 'down');
+    });
+  } finally {
+    mock.timers.reset();
+  }
 });

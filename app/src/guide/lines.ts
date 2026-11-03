@@ -1,6 +1,8 @@
 // Guide sentences with names in them: the first direction, the
 // several-matches line, the wrong-product naming and the lost target.
 // DESIGN.md word for word in English; counts and names computed in.
+// A name that already ends in its kind takes the plural once: t56
+// said "two Masad bottle bottles" and "two basmati rice rices".
 // Arabic and French await a native-speaker review.
 import type { SpeechPart } from '../conversation/types';
 import type { Language } from '../theme';
@@ -68,7 +70,9 @@ export function severalPrefix(count: number, product: string, kind: string, lang
   if (lang === 'fr') {
     return `Je vois ${amount} ${kind} ${product}. Je vous guide vers le plus proche.`;
   }
-  return `I see ${amount} ${product} ${kind}. Guiding you to the nearest one.`;
+  const singular = kind.toLowerCase().replace(/s$/, '');
+  const named = singular.length > 0 && product.toLowerCase().endsWith(singular) ? `${product}s` : `${product} ${kind}`;
+  return `I see ${amount} ${named}. Guiding you to the nearest one.`;
 }
 
 export function thisIsLine(label: string, lang: Language): string {

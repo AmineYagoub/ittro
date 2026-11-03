@@ -31,8 +31,6 @@ import {
   noteHeard,
   noteHeardStripped,
   noteMicComplaint,
-  noteSaid,
-  noteSaying,
   noteSnapshot,
   noteStreamDown,
   noteStreamOpen,
@@ -53,7 +51,6 @@ import { understandInput } from './askHints';
 import { ackHeard, askTalkOn, askingState } from './askView';
 import { sweepTalkOn } from './sweepTalk';
 import type { ContextArgs } from './actions';
-import { buttonsLines } from './answers';
 import { UNDERSTAND_TIMEOUT_MS, hasLinkLine, raiseLinkDown, raiseLinkForError, raiseLinkOk, sayLinkLine, understandTimedOut } from './link';
 import { sayTo } from './sayTo';
 import { applyTranslated, skipKeep, skipSay, translateKeep } from './translation';
@@ -129,28 +126,6 @@ export const talkState = {
     sayingOver: sayTo('over', false),
     sayingResume: sayTo('resumed', true),
     sayingFlLang: sayTo('listening', true),
-    sayingFlPrivacy: {
-      entry: [markTalkBusy, noteVoice, noteSaying],
-      invoke: {
-        src: 'speakMany' as const,
-        input: ({ context }: ContextArgs) => ({ lines: context.pendingSay, lang: context.lang }),
-        onDone: { actions: [noteSaid, buttonsLines], target: 'sayingFlButtons' },
-        onError: { actions: [noteSaid, buttonsLines], target: 'sayingFlButtons' },
-      },
-      exit: [markTalkQuiet],
-      on: bargeIn,
-    },
-    sayingFlButtons: {
-      entry: [markTalkBusy, noteVoice, noteSaying],
-      invoke: {
-        src: 'speakMany' as const,
-        input: ({ context }: ContextArgs) => ({ lines: context.pendingSay, lang: context.lang }),
-        onDone: { actions: [noteSaid, chainActions.tourOfferLines], target: 'sayingFlTourOffer' },
-        onError: { actions: [noteSaid, chainActions.tourOfferLines], target: 'sayingFlTourOffer' },
-      },
-      exit: [markTalkQuiet],
-      on: bargeIn,
-    },
     sayingFlTourOffer: sayTo('listening', true),
     listening: {
       entry: [ensureStream, noteSnapshot, raiseTalkIdle],

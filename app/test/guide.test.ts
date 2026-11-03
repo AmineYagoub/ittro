@@ -76,11 +76,16 @@ test('a repeat of the same cue stays silent, a new cue speaks', async () => {
   driver.stop();
 });
 
-test('an unchanged direction repeats as a continuation every six seconds', async () => {
+test('an unchanged direction repeats as a continuation every six seconds, and the same cue then stays silent (t56)', async () => {
   const driver = await guiding();
+  driver.send(cue('hand_right_small', 0.7));
+  await driver.flush();
   await driver.advance(6000);
-  assert.equal(driver.parts.length, 3);
-  assert.deepEqual(driver.parts[2], [{ clip: 'hand_right_continue' }]);
+  assert.equal(driver.parts.length, 4);
+  assert.deepEqual(driver.parts[3], [{ clip: 'hand_right_continue' }]);
+  driver.send(cue('hand_right_small', 0.7));
+  await driver.flush();
+  assert.equal(driver.parts.length, 4);
   driver.stop();
 });
 

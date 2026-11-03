@@ -1,7 +1,10 @@
 // The camera's own still source for questions about the view: when the
 // shelf search has no fresh still, this waits for the camera to open
 // (a question may turn it on) and takes one, retrying once when the
-// search's own shot holds the camera.
+// search's own shot holds the camera. A camera the question opened
+// gets 1 s to focus first: in t54 a shot 0.9 s after it opened came
+// back unreadable ("I cannot read anything on this shelf"), and the
+// same question asked again with the camera open was read in full.
 import { useEffect } from 'react';
 import { prepareShelfPhoto } from 'ittro-sensors';
 import { setStillSource } from './stills';
@@ -12,6 +15,7 @@ import { logIttro } from '../log';
 const CAMERA_WAIT_MS = 4000;
 const CAMERA_POLL_MS = 150;
 const SHOT_RETRY_MS = 400;
+const FOCUS_SETTLE_MS = 1000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -31,8 +35,12 @@ export function useViewStill(camera: { current: SearchCamera | null }, ready: { 
   useEffect(() => {
     setStillSource(async () => {
       const started = Date.now();
+      const opening = !ready.current;
       while (!ready.current && Date.now() - started < CAMERA_WAIT_MS) {
         await sleep(CAMERA_POLL_MS);
+      }
+      if (opening && ready.current) {
+        await sleep(FOCUS_SETTLE_MS);
       }
       const eye = camera.current;
       if (!ready.current || !eye) {

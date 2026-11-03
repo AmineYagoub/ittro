@@ -210,11 +210,7 @@ One hand holds the phone at chest height, camera toward the shelf, about an arm'
 ## First launch, in order
 
 1. Permissions (screen 02): "I need the microphone to hear you and the camera to see the shelf. Android will ask twice. Double-tap Allow each time." In the phone's language too, if that is Arabic or French. If either is refused, Ittro says which one and how to allow it in settings.
-2. Choose a language (screen 20).
-3. Privacy: "I find products and guide your hand to them. I send camera pictures to Meta to find and read products. I don't keep them."
-4. Buttons: "You can also hold the volume-down key to stop me."
-5. Sound tour offer: "Do you want to hear what my sounds mean? It takes 30 seconds. Say yes or no." (screen 24)
-6. Welcome (screen 01).
+2. Choose a language (screen 20). Once it is chosen, Ittro says so once ("Okay, I'll speak English now. Say speak English to switch back.") and listens; nothing else is said first (founder, 3 November). The sound tour stays on "sounds tour".
 
 ## Real phone conditions
 
@@ -235,7 +231,6 @@ One hand holds the phone at chest height, camera toward the shelf, about an arm'
 
 ## Privacy and memory
 
-- On first launch, after the language choice: "I send camera pictures to Meta to find and read products. I don't keep them."
 - No picture is stored on the phone or the relay after its answer arrives. A picture sent to a helper is kept only until they answer, or 30 minutes at most, and is sent only after the shopper says yes.
 - The camera runs only while Ittro is looking or guiding.
 - Language, "shorter / more detail" and speaking speed are remembered between launches and never reset by updates.
@@ -294,7 +289,6 @@ PNG renders are in `screens/` at 2×, each next to an HTML file with the exact l
 
 - Ink background. Logo 112 and "Ittro". Speaking indicator.
 - Says: "Hi, I'm Ittro. Tell me what you're looking for, or say help."
-- First launch only, before it, in the chosen language: "I find products and guide your hand to them. I send camera pictures to Meta to find and read products. I don't keep them." (The first-launch order is in "Choosing a language".)
 - Chip: help. The microphone opens when the line ends (two rising notes).
 
 ### 02 Permissions (first launch only)

@@ -36,35 +36,18 @@ export function relayEndpoint(): { url: string; accessCode: string } {
   };
 }
 
-// No call waits forever: a relay that never answers counts as down
-// after this long, so the statechart says so and moves on instead of
-// ticking in silence.
+// No call waits forever: a relay that never answers, or stops in
+// the middle of its answer, counts as down after this long, so the
+// statechart says so and moves on instead of ticking in silence.
 export const RELAY_TIMEOUT_MS = 15000;
 
-async function sendMeta<T>(name: string, path: string, method: string, payload: unknown): Promise<T> {
-  const { url, accessCode } = relayEndpoint();
-  const started = Date.now();
-  noteMeta(`${name} sent`);
-  const abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(), RELAY_TIMEOUT_MS);
-  let res: Response;
-  try {
-    res = await fetch(`${url}${path}`, {
-      method,
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${accessCode}`,
-      },
-      body: method === 'GET' ? undefined : JSON.stringify(payload),
-      signal: abort.signal,
-    });
-  } catch (error) {
-    const why = abort.signal.aborted ? `timed out after ${RELAY_TIMEOUT_MS}ms` : String((error as Error)?.message ?? error);
-    noteMeta(`${name} failed down ${Date.now() - started}ms ${abort.signal.aborted ? 'timeout' : ''}`.trimEnd());
-    throw new RelayError('down', null, `no route to the relay: ${why}`);
-  } finally {
-    clearTimeout(timer);
-  }
+function timedOut(signal: AbortSignal): Promise<never> {
+  return new Promise((_, reject) => {
+    signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+  });
+}
+
+async function landMeta<T>(name: string, res: Response, started: number, signal: AbortSignal): Promise<T> {
   const elapsed = Date.now() - started;
   if (res.status === 429 || res.status === 402) {
     noteMeta(`${name} failed limited ${elapsed}ms http ${res.status}`);
@@ -76,8 +59,12 @@ async function sendMeta<T>(name: string, path: string, method: string, payload: 
   }
   let body: { ok: boolean; error?: string } & Partial<T>;
   try {
-    body = (await res.json()) as { ok: boolean; error?: string } & Partial<T>;
+    body = (await Promise.race([res.json(), timedOut(signal)])) as { ok: boolean; error?: string } & Partial<T>;
   } catch {
+    if (signal.aborted) {
+      noteMeta(`${name} failed down ${Date.now() - started}ms timeout`);
+      throw new RelayError('down', null, `the relay answer stopped: timed out after ${RELAY_TIMEOUT_MS}ms`);
+    }
     noteMeta(`${name} failed broken ${elapsed}ms bad json`);
     throw new RelayError('broken', res.status, 'relay answer is not json');
   }
@@ -85,8 +72,37 @@ async function sendMeta<T>(name: string, path: string, method: string, payload: 
     noteMeta(`${name} failed broken ${elapsed}ms ${String(body.error ?? 'refused').slice(0, 60)}`);
     throw new RelayError('broken', res.status, String(body.error ?? 'relay refused'));
   }
-  noteMeta(`${name} ok ${elapsed}ms`);
+  noteMeta(`${name} ok ${Date.now() - started}ms`);
   return body as T;
+}
+
+async function sendMeta<T>(name: string, path: string, method: string, payload: unknown): Promise<T> {
+  const { url, accessCode } = relayEndpoint();
+  const started = Date.now();
+  noteMeta(`${name} sent`);
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), RELAY_TIMEOUT_MS);
+  try {
+    let res: Response;
+    try {
+      res = await fetch(`${url}${path}`, {
+        method,
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${accessCode}`,
+        },
+        body: method === 'GET' ? undefined : JSON.stringify(payload),
+        signal: abort.signal,
+      });
+    } catch (error) {
+      const why = abort.signal.aborted ? `timed out after ${RELAY_TIMEOUT_MS}ms` : String((error as Error)?.message ?? error);
+      noteMeta(`${name} failed down ${Date.now() - started}ms ${abort.signal.aborted ? 'timeout' : ''}`.trimEnd());
+      throw new RelayError('down', null, `no route to the relay: ${why}`);
+    }
+    return await landMeta<T>(name, res, started, abort.signal);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export function postMeta<T>(name: string, path: string, payload: unknown): Promise<T> {

@@ -3,7 +3,9 @@
 // this screen only shows what it says. The camera keeps the guided
 // outline while the product is out of the picture, so it goes on
 // placing it: in t35 hiding it lost the placement, and the guide
-// called the product back in view every half second.
+// called the product back in view every half second. Every open
+// starts fresh: the last search is not taken up again (founder, 3
+// November), so Ittro welcomes the shopper and asks what to find.
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Text, View } from 'react-native';
 import type { LayoutChangeEvent } from 'react-native';
@@ -18,7 +20,7 @@ import * as Localization from 'expo-localization';
 import { initVoice, say, setSpeechRate, stopVoice } from './src/speech';
 import { warmVoice } from './src/speechWarm';
 import { logIttro } from './src/log';
-import { loadPrefs, loadSnapshot } from './src/store';
+import { loadPrefs } from './src/store';
 import { relayConfig } from './src/relay';
 import { preparePhone, restPhone, watchAppState } from './src/phone';
 import { startPhoneWatch, trackState } from './src/phoneWatch';
@@ -152,11 +154,10 @@ export default function App(): React.JSX.Element {
           setLine(refusedCamera[prefs.language]);
           return;
         }
-        const snapshot = await loadSnapshot();
         const relay = relayConfig();
         logIttro(`relay ${JSON.stringify({ url: relay.url })}`);
         const actor = createActor(conversationMachine, {
-          input: { prefs, snapshot, relayUrl: relay.url, relayCode: relay.accessCode },
+          input: { prefs, snapshot: { request: null }, relayUrl: relay.url, relayCode: relay.accessCode },
         });
         actorRef.current = actor;
         const track = trackState();

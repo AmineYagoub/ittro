@@ -40,3 +40,15 @@ test('a stale hand voids the answer', async () => {
   assert.deepEqual(script.sent.slice(-1), [{ type: 'CONFIRM_MOVED', epoch: 1 }]);
   loop.stop();
 });
+
+test('a fix taken after the photo still expires: an old one never backs a yes', async () => {
+  const { script, loop, advance } = scripted();
+  loop.begin();
+  await flush();
+  await advance(3000);
+  script.hand = fix(100, 100, 10);
+  script.answer(YES);
+  await flush();
+  assert.deepEqual(script.sent.slice(-1), [{ type: 'CONFIRM_MOVED', epoch: 1 }]);
+  loop.stop();
+});

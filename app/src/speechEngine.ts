@@ -7,7 +7,7 @@ import * as Speech from 'expo-speech';
 import type { Language } from './theme';
 import { logIttro } from './log';
 import { noteAudioEnd, noteAudioStart } from './voiceGate';
-import { dropVoice, pickedVoice } from './voicePick';
+import { dropVoice, pickedVoice, voiceDecided } from './voicePick';
 
 const SPEECH_LOCALE: Record<Language, string> = { en: 'en-US', ar: 'ar-SA', fr: 'fr-FR' };
 
@@ -110,7 +110,17 @@ function retryLog(outcome: 'error' | 'dropped', again: boolean): string {
   return again ? 'say failed, saying again' : 'say failed twice, carrying on';
 }
 
+const VOICE_WAIT_MS = 3000;
+
+async function waitForVoice(lang: Language): Promise<void> {
+  const started = Date.now();
+  while (!voiceDecided(lang) && Date.now() - started < VOICE_WAIT_MS) {
+    await sleepMs(100);
+  }
+}
+
 export async function speakWithRetry(text: string, lang: Language, rate: number, alive: () => boolean): Promise<void> {
+  await waitForVoice(lang);
   const first = await speakOnce(text, lang, rate);
   if (!alive() || first === 'done' || first === 'stopped') {
     return;

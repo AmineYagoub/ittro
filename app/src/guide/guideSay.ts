@@ -1,6 +1,9 @@
 // What each guiding moment says: the assigns that write the line to
 // the screen the moment its clips start, the guards that route the
-// hand frames, and the sounds that mark losing and refusal.
+// hand frames, and the sounds that mark losing and refusal. The six-
+// second repeat says the continue wording but keeps the cue it
+// continues: in t56 it kept hand_right_continue, so the next frame's
+// unchanged hand_right_small read as new and cut the repeat 0.14 s in.
 import { Vibration } from 'react-native';
 import { assignConversation as assign, raiseConversation as raise } from '../conversation/actors';
 import type { ContextArgs, EventArgs } from '../conversation/actions';
@@ -127,7 +130,6 @@ export const trackCue = assign({
 });
 
 export const sayContinue = assign({
-  guideCue: ({ context }: ContextArgs) => (context.guideCue ? continueIdFor(context.guideCue) : null),
   guideParts: ({ context }: ContextArgs) => (context.guideCue ? [{ clip: continueIdFor(context.guideCue) }] : []),
   lastLine: ({ context }: ContextArgs) =>
     context.guideCue ? shown([{ clip: continueIdFor(context.guideCue) }], context) : context.lastLine,

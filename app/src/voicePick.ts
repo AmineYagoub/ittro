@@ -2,7 +2,12 @@
 // natural voice the phone has installed, picked when the language
 // warms and logged, so a phone run shows which voice spoke. Enhanced
 // and network voices come first, then an Algerian or Maghreb Arabic
-// one. A picked voice that fails is dropped for the phone's default.
+// one. English prefers a US voice, and a male US one most: the MMS cue
+// clips are a male voice (about 110 Hz), and t45–t47 picked an Indian
+// English voice whose switch with the clips was heard in the check. A
+// picked voice that fails is dropped for the phone's default. A line
+// waits up to 3 s for the pick: in t50 "Welcome back" was sent 2 s
+// before the voices were listed and spoke in the default voice.
 import type { Language } from './theme';
 
 export interface InstalledVoice {
@@ -13,6 +18,8 @@ export interface InstalledVoice {
 }
 
 const MAGHREB = ['ar-dz', 'ar-ma', 'ar-tn', 'ar-ly'];
+
+const MALE_US = ['en-us-x-iom', 'en-us-x-iol', 'en-us-x-tpd'];
 
 const picked: Partial<Record<Language, string | null>> = {};
 
@@ -33,6 +40,12 @@ export function voiceScore(voice: InstalledVoice, lang: Language): number {
   if (lang === 'ar' && MAGHREB.some((code) => locale.startsWith(code))) {
     score += 3;
   }
+  if (lang === 'en' && locale.startsWith('en-us')) {
+    score += 1;
+    if (MALE_US.some((code) => id.startsWith(code))) {
+      score += 2;
+    }
+  }
   return score;
 }
 
@@ -52,6 +65,23 @@ export function pickVoice(voices: InstalledVoice[], lang: Language): InstalledVo
 
 export function keepVoice(lang: Language, voice: InstalledVoice | null): void {
   picked[lang] = voice ? voice.identifier : null;
+  pending.delete(lang);
+}
+
+const pending = new Set<Language>();
+
+/** The voice list was asked for: lines in the language wait for the pick. */
+export function voicePending(lang: Language, waiting: boolean): void {
+  if (waiting) {
+    pending.add(lang);
+  } else {
+    pending.delete(lang);
+  }
+}
+
+/** Whether a line in the language may speak now: no pick is on its way. */
+export function voiceDecided(lang: Language): boolean {
+  return !pending.has(lang);
 }
 
 /** The identifier to speak the language with, when one was picked. */
