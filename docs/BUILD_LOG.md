@@ -53,11 +53,32 @@ flowchart LR
   style tools fill:#F9FAFB,stroke:#6B7280
 ```
 
+## What was built during the event
+
+New work only, 26 October 2026 onward. Each day below has every change with its commit; what was not built here is at the end.
+
+- 27 Oct: repo from template, Expo app with camera screen, Kotlin sensor skeleton, relay with strict Spark gate, trilingual design pack (31 screens, 11 sounds, 30 voice cues).
+- 28 Oct: spoken conversation as one statechart, proven on the real phone; realtime Voice Transcribe streaming; silence clock, epoch stale-guards, language switching; shelf search (SAM outlines, label reads, tracker, masks); background-talk ignore; re-say of dropped lines.
+- 29 Oct: lone product names always answered; hand guiding from live camera frames with clips, ticks and meter; in-hand confirm with yes/no/unsure/picture verdicts and word-for-word detail reads; earbud and volume buttons; helper pairing, asking and answers; link states, brand memory, per-search timing logs and the phone measurement procedure.
+- 30 Oct: fixes from the first phone runs: each line said once, Ittro never answers its own voice, the found product announced by name at once, only the found product outlined, label reads at minimal effort.
+- 31 Oct: an outside reviewer's commit (mic muted while Ittro speaks, one guide target, deadlines on every call); the target kept by what it reads; a clear request searched at once; the touch on the guided product starts the check.
+- 1 Nov: SAM's own outline drawn natively and following the camera, a 4:3 preview, finer outlines; reflections never the product; the last shelf read again at once for the next request; a named variety must be the one on the label.
+- 1 Nov, evening: the grounding find (Spark boxes each matching package, SAM cuts each box); questions about the shelf answered on the spot; the shelf named in the shopper's language, and a wrong shelf says so; a sweep that remembers what each stop read.
+- 2 Nov: fixes from phone tests t21–t44: the plain mic, so Ittro keeps hearing; the outline moves with the phone's turn from the gyroscope, grows and shrinks as the phone steps closer, and holds while the hand reaches; it is cut again while the phone moves; the relay mends SAM's torn mask rows; the relay is type-checked.
+- 3 Nov: CI on every pull request and signed releases built by CI (v0.1.0, then v0.1.1 with the hand model); fixes from phone tests t45–t56 for the recorded demo: a shorter first launch, one live voice, the mic that opens when a line ends, and guidance cues nothing cuts.
+
 ## 3 November 2026
 
 - CI checks every pull request: the app's lint, type check and tests, the relay's checks, the sensor module's lint, and a release APK built from a fresh prebuild with its permissions checked against an allowlist. A fresh prebuild had failed since 30 October, because the network plugin's file step returned nothing; it now returns its mod (#1).
 - release-please versions the app and the relay together from the pull request titles. On a release, CI builds the APK from the tag with the relay's access code, signs it and attaches it to the release with its checksum, then deploys the relay and checks it (#1). The first release, v0.1.0, was built and published this way (#2).
 - The fixes from phone tests t21–t44 reached `main` as one squashed pull request (#3); each is listed under 2 November with its own commit.
+- v0.1.0 shipped without MediaPipe's hand model: the model is gitignored and the APK build never fetched it, so on the phone (t45) no hand was seen and every in-hand check was dropped as "hand missing". The build now fetches it against a pinned hash and fails when the APK lacks it (#4); v0.1.1 carries it (#5).
+- Fixes from phone tests t45–t56, each found on the phone and fixed by cause, with a test that fails without it:
+  - Start: first launch ends with the language, after the three language prompts and one switch line; the privacy, volume-key and tour lines are gone, and the tour's yes/no step no longer swallows a question (t45, t46). Every open starts fresh, without taking up the last search.
+  - Voice: English prefers a male US voice, nearest the MMS cue clips, over the Indian English voice t45–t47 picked, and the first line waits for the pick (t50).
+  - Hearing: the mic opens when a line ends, not when its word-count estimate runs out; in t49 the estimate outlived the audio by 3.4 s and cut the shopper's answer, which had to be said twice.
+  - Shelf question: a camera the question opened gets 1 s to focus before its photo (t54: "I cannot read anything on this shelf").
+  - Guidance: ticks and chimes play on their own player, so they no longer stop each cue a fifth of a second in, which showed its text with nothing heard (t54); the six-second repeat keeps its cue, so the next frame no longer cuts it (t56); "two Masad bottle bottles" is said "two Masad bottles" (t56).
 
 ## 2 November 2026
 
