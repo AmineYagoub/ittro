@@ -65,19 +65,6 @@ export interface ConversationSnapshot {
   request: string | null;
 }
 
-export async function loadSnapshot(): Promise<ConversationSnapshot> {
-  try {
-    const raw = await AsyncStorage.getItem(SNAPSHOT_KEY);
-    if (!raw) {
-      return { request: null };
-    }
-    const parsed = JSON.parse(raw) as Partial<ConversationSnapshot>;
-    return { request: typeof parsed.request === 'string' ? parsed.request : null };
-  } catch {
-    return { request: null };
-  }
-}
-
 export async function saveSnapshot(snapshot: ConversationSnapshot): Promise<void> {
   try {
     await AsyncStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot));
