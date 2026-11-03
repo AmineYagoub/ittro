@@ -47,10 +47,10 @@ flowchart LR
   class app,relay built
   class asr,spark,sam,mms model
   class tts,expo,mp,cf tool
-  style built fill:#F0FDF4,stroke:#15803D
-  style api fill:#EFF6FF,stroke:#1D4ED8
-  style voices fill:#F9FAFB,stroke:#6B7280
-  style tools fill:#F9FAFB,stroke:#6B7280
+  style built fill:#F0FDF4,stroke:#15803D,color:#052E16
+  style api fill:#EFF6FF,stroke:#1D4ED8,color:#172554
+  style voices fill:#F9FAFB,stroke:#6B7280,color:#111827
+  style tools fill:#F9FAFB,stroke:#6B7280,color:#111827
 ```
 
 ## What was built during the event
