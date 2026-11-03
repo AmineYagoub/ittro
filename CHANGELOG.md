@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.2.0](https://github.com/AmineYagoub/ittro/compare/v0.1.1...v0.2.0) (2026-11-03)
+
+
+### New
+
+* **voice:** every open starts fresh ([ae29f28](https://github.com/AmineYagoub/ittro/commit/ae29f28198080ec3084da81e88eec3e98059d149))
+* **voice:** first launch ends with the language ([ae29f28](https://github.com/AmineYagoub/ittro/commit/ae29f28198080ec3084da81e88eec3e98059d149))
+
+
+### Fixed
+
+* **confirm:** a word that changes the product or another amount is a no ([ae29f28](https://github.com/AmineYagoub/ittro/commit/ae29f28198080ec3084da81e88eec3e98059d149))
+* **confirm:** an old hand fix never backs a verdict, whenever it was taken ([ae29f28](https://github.com/AmineYagoub/ittro/commit/ae29f28198080ec3084da81e88eec3e98059d149))
+* **guide:** a name that ends in its kind takes the plural once ([ae29f28](https://github.com/AmineYagoub/ittro/commit/ae29f28198080ec3084da81e88eec3e98059d149))
+* **guide:** the six-second repeat keeps its cue ([ae29f28](https://github.com/AmineYagoub/ittro/commit/ae29f28198080ec3084da81e88eec3e98059d149))
+* **search:** let a camera the question opened focus first ([ae29f28](https://github.com/AmineYagoub/ittro/commit/ae29f28198080ec3084da81e88eec3e98059d149))
+* **server:** the relay deadline holds until the answer is read ([ae29f28](https://github.com/AmineYagoub/ittro/commit/ae29f28198080ec3084da81e88eec3e98059d149))
+* **voice:** one male US voice, from the first line ([ae29f28](https://github.com/AmineYagoub/ittro/commit/ae29f28198080ec3084da81e88eec3e98059d149))
+* **voice:** open the mic when a line ends, not at its estimate ([ae29f28](https://github.com/AmineYagoub/ittro/commit/ae29f28198080ec3084da81e88eec3e98059d149))
+* **voice:** sounds no longer cut guidance cues ([ae29f28](https://github.com/AmineYagoub/ittro/commit/ae29f28198080ec3084da81e88eec3e98059d149))
+
 ## [0.1.1](https://github.com/AmineYagoub/ittro/compare/v0.1.0...v0.1.1) (2026-11-03)
 
 
