@@ -62,3 +62,11 @@ test('a late engine start after done keeps the gate closed through the audio', a
   assert.equal(voiceGateClosed(heard + speechBudgetMs(text)), true, 'closed through the played audio');
   assert.equal(voiceGateClosed(heard + speechBudgetMs(text) + VOICE_TAIL_MS + 5000), false);
 });
+
+test('the end of a line opens the gate after the plain tail, not its word-count budget (t49)', async () => {
+  resetSpeech();
+  const text = 'On this shelf there are four water bottles, two Messad on the left and right and two Guedila in the middle.';
+  await say(text, 'en');
+  await sleep(VOICE_TAIL_MS + 400);
+  assert.equal(voiceGateClosed(Date.now()), false);
+});

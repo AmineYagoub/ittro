@@ -5,8 +5,12 @@
 // audio the speaker actually plays: the engine's start and end
 // callbacks bracket it, a start that arrives after the promise
 // resolved re-closes it, and a settle poll holds it while the
-// engine still reports speaking. The design's own fallback
-// (DESIGN.md, "Interrupting"); the earbud button still interrupts.
+// engine still reports speaking. A start holds the gate for the
+// line's word-count budget, in case its end never comes; the end,
+// when it comes, replaces that hold with the plain tail. In t49 the
+// budget outlived the audio by 3.4 s and cut the shopper's answer.
+// The design's own fallback (DESIGN.md, "Interrupting"); the earbud
+// button still interrupts.
 import * as Speech from 'expo-speech';
 
 export const VOICE_TAIL_MS = 800;
@@ -79,5 +83,5 @@ export function noteAudioStart(budgetMs: number, now: number = Date.now()): void
 }
 
 export function noteAudioEnd(now: number = Date.now()): void {
-  voiceTailUntil = Math.max(voiceTailUntil, now + VOICE_TAIL_MS);
+  voiceTailUntil = now + VOICE_TAIL_MS;
 }
