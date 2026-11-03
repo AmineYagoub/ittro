@@ -6,7 +6,7 @@
 import * as Speech from 'expo-speech';
 import type { Language } from './theme';
 import { logIttro } from './log';
-import { keepVoice, pickVoice } from './voicePick';
+import { keepVoice, pickVoice, voicePending } from './voicePick';
 
 let warmedLang: Language | null = null;
 
@@ -15,15 +15,18 @@ export function warmVoice(lang: Language): void {
     return;
   }
   warmedLang = lang;
+  voicePending(lang, true);
   void Speech.getAvailableVoicesAsync().then(
     (voices) => {
       const count = voices.filter((voice) => voice.language.startsWith(lang)).length;
       const best = pickVoice(voices, lang);
       keepVoice(lang, best);
       logIttro(`voice ready ${lang} (${count} voices) ${best ? `speaking with ${best.identifier} ${best.quality}` : 'speaking with the default voice'}`);
+      logIttro(`voices ${lang}: ${voices.filter((voice) => voice.language.startsWith(lang)).map((voice) => voice.identifier).join(' ')}`);
     },
     () => {
       warmedLang = null;
+      voicePending(lang, false);
     },
   );
 }
