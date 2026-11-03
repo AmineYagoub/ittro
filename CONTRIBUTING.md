@@ -11,19 +11,64 @@ Thanks for helping. Newcomers are welcome: you don't need to be an expert, and n
 
 ## Set up
 
-<!-- The exact commands: what to install (with versions), how to get the dependencies, how to run the project. -->
+You need Node 22 and npm. To build the Android app you also need JDK 17 and the Android SDK (with `ANDROID_HOME` set); the tests and lints run without it.
 
 ```bash
 git clone https://github.com/AmineYagoub/ittro
-cd NAME
-# install the dependencies
-# run the project
+cd ittro
+(cd app && npm install)
+(cd relay && npm install)
+node app/scripts/fetch-hand-model.mjs   # MediaPipe's hand model, checked against its pinned hash
 ```
 
-## Run the tests
+## Run the checks
+
+These are the checks CI runs on every pull request, so a pull request that passes them here passes there too:
 
 ```bash
-# the command CI runs, so a pull request passes there too
+(cd app && npx tsc --noEmit && npm run lint && npm test)
+(cd relay && npm run typecheck && npm run lint && npm test)
+(cd modules/ittro-sensors && npm run lint)
+```
+
+CI also builds a release APK from a fresh `npx expo prebuild`. To build one yourself:
+
+```bash
+cd app && npx expo prebuild --platform android --no-install
+cd android && ./gradlew assembleRelease -x lint -PreactNativeArchitectures=arm64-v8a
+```
+
+Try a change on a real Android phone over wireless adb. To use your own relay, create `relay/.dev.vars` (it is gitignored) with `META_API_KEY` and `APP_ACCESS_CODE`, run `npx wrangler dev` in `relay/`, and build the app with `EXPO_PUBLIC_RELAY_URL` and `EXPO_PUBLIC_ACCESS_CODE` set. Never commit a key or a code.
+
+## Find your way around
+
+| Folder | What lives there |
+|---|---|
+| `app/src/conversation/` | The statechart: talking, listening, understanding, and the routing table for every sentence |
+| `app/src/shelf/` | The shelf search: photos, the find, outlines and the sweep |
+| `app/src/guide/` | Hand guidance: cues, ticks, the reach and the pick-up |
+| `app/src/confirm/` | The check of the product in the hand |
+| `app/src/helper/` | Asking a sighted helper |
+| `app/test/` | The app's tests, run by `node --test` against stubs of the native modules |
+| `modules/ittro-sensors/` | The Kotlin native module: mic, camera frames, hand tracking, the outline that follows the phone |
+| `relay/src/` | The Cloudflare Worker: one file per route, and the gate every route passes |
+| `docs/design/` | The design: [DESIGN.md](docs/design/DESIGN.md) is the spec, with the screens, sounds and voice cues |
+| `docs/decisions/` | Decision records |
+
+The whole app is one XState statechart. `live` holds seven parallel regions; `paused` (a call, a lock, another app) and `over` sit beside it:
+
+```text
+conversation
+├── live (parallel)
+│   ├── talk:    boot → first launch → saying ⇄ listening → understanding → routing
+│   ├── silence: quiet → waiting → reminding (8 s, 20 s, 60 s)
+│   ├── search:  idle ⇄ active
+│   ├── guide:   idle → aiming → directing → almost → reaching → picking
+│   ├── confirm: idle → checking → yes / no / unsure / picture / giveup
+│   ├── helper:  idle → pairing → waiting → answered
+│   └── link:    ok / down / limited / broken
+├── paused → "Welcome back. Still looking for …"
+└── over   → "Say Ittro when you need me."
 ```
 
 ## Send a pull request
@@ -65,6 +110,10 @@ You're welcome to use AI coding tools, on these terms:
 - **Check what a tool finds** before you report it, and report security problems privately. An unchecked report is closed.
 - **Keep private things out of AI tools:** unpublished security reports, other people's personal data, and any secret.
 - Maintainers may close a low-effort generated pull request or issue without a detailed review.
+
+## Who decides
+
+The maintainer, [Amine Yagoub](https://github.com/AmineYagoub), sets the project's direction, reviews and merges pull requests, publishes releases and handles security reports. What the project does next is proposed in an issue, where anyone can comment; the maintainer decides and says why. A change to a principle, a licence, a data flow or money needs a [decision record](docs/contributing/workflow.md#decision-records). Steady, careful contributions and reviews can lead to an invitation to help maintain.
 
 ## Our pledge
 

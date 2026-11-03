@@ -2,9 +2,96 @@
 
 A dated log of what was built each day, for the hackathon submission. New work only: everything here dates from 26 October 2026 onward.
 
+## The whole system
+
+Everything Ittro does, in one map. The [README](../README.md) shows the short version. Green is what was built during the hackathon, blue are Meta's models, grey are existing tools. The sighted helper is optional and not part of the demo.
+
+```mermaid
+flowchart LR
+  shopper(["<b>Shopper</b><br/>blind or low vision"])
+  helper(["<b>Sighted helper</b><br/>optional, in a browser"])
+  subgraph built["Built during the hackathon"]
+    app["<b>Ittro app</b><br/>on&nbsp;the&nbsp;phone<br/><div style='text-align:left'>•&nbsp;voice&nbsp;conversation<br/>•&nbsp;hand&nbsp;guidance<br/>•&nbsp;outline&nbsp;tracking<br/>•&nbsp;asks&nbsp;a&nbsp;helper</div>"]
+    relay["<b>Relay</b><br/>on&nbsp;Cloudflare&nbsp;Workers<br/><div style='text-align:left'>•&nbsp;access&nbsp;gate<br/>•&nbsp;understand,&nbsp;find,&nbsp;confirm<br/>•&nbsp;mask&nbsp;tracing<br/>•&nbsp;helper&nbsp;pairing&nbsp;and&nbsp;push</div>"]
+  end
+  subgraph api["Meta Model API"]
+    asr["<b>Muse Voice Transcribe</b><br/>hears the shopper"]
+    spark["<b>Muse Spark</b><br/><div style='text-align:left'>•&nbsp;understands&nbsp;the&nbsp;request<br/>•&nbsp;finds&nbsp;the&nbsp;product<br/>•&nbsp;checks&nbsp;the&nbsp;label<br/>•&nbsp;answers&nbsp;about&nbsp;the&nbsp;shelf</div>"]
+    sam["<b>SAM 3.1</b><br/>outlines each package"]
+  end
+  subgraph voices["Voices on the phone"]
+    mms["<b>Meta MMS-TTS</b><br/>recorded cues,<br/>English and French"]
+    tts["<b>Android voice</b><br/>sentences and<br/>all Arabic"]
+  end
+  subgraph tools["Existing tools"]
+    expo["Expo, React Native"]
+    mp["MediaPipe hand model"]
+    cf["Cloudflare Workers"]
+  end
+  shopper <-->|"voice, camera /<br/>guidance, vibration"| app
+  mms -->|"cues"| app
+  tts -->|"sentences"| app
+  mp -->|"finds the hand"| app
+  expo -.-> app
+  app <-->|"speech, photos /<br/>outlines, answers"| relay
+  cf -.-> relay
+  relay --> asr
+  relay --> spark
+  relay --> sam
+  relay <-->|"photo, question /<br/>answer"| helper
+  classDef person fill:#FEF3C7,stroke:#B45309,color:#451A03
+  classDef built fill:#DCFCE7,stroke:#15803D,color:#052E16
+  classDef model fill:#DBEAFE,stroke:#1D4ED8,color:#172554
+  classDef tool fill:#F3F4F6,stroke:#6B7280,color:#111827
+  class shopper,helper person
+  class app,relay built
+  class asr,spark,sam,mms model
+  class tts,expo,mp,cf tool
+  style built fill:#F0FDF4,stroke:#15803D
+  style api fill:#EFF6FF,stroke:#1D4ED8
+  style voices fill:#F9FAFB,stroke:#6B7280
+  style tools fill:#F9FAFB,stroke:#6B7280
+```
+
+## What was built during the event
+
+New work only, 26 October 2026 onward. Each day below has every change with its commit; what was not built here is at the end.
+
+- 27 Oct: repo from template, Expo app with camera screen, Kotlin sensor skeleton, relay with strict Spark gate, trilingual design pack (31 screens, 11 sounds, 30 voice cues).
+- 28 Oct: spoken conversation as one statechart, proven on the real phone; realtime Voice Transcribe streaming; silence clock, epoch stale-guards, language switching; shelf search (SAM outlines, label reads, tracker, masks); background-talk ignore; re-say of dropped lines.
+- 29 Oct: lone product names always answered; hand guiding from live camera frames with clips, ticks and meter; in-hand confirm with yes/no/unsure/picture verdicts and word-for-word detail reads; earbud and volume buttons; helper pairing, asking and answers; link states, brand memory, per-search timing logs and the phone measurement procedure.
+- 30 Oct: fixes from the first phone runs: each line said once, Ittro never answers its own voice, the found product announced by name at once, only the found product outlined, label reads at minimal effort.
+- 31 Oct: an outside reviewer's commit (mic muted while Ittro speaks, one guide target, deadlines on every call); the target kept by what it reads; a clear request searched at once; the touch on the guided product starts the check.
+- 1 Nov: SAM's own outline drawn natively and following the camera, a 4:3 preview, finer outlines; reflections never the product; the last shelf read again at once for the next request; a named variety must be the one on the label.
+- 1 Nov, evening: the grounding find (Spark boxes each matching package, SAM cuts each box); questions about the shelf answered on the spot; the shelf named in the shopper's language, and a wrong shelf says so; a sweep that remembers what each stop read.
+- 2 Nov: fixes from phone tests t21–t44: the plain mic, so Ittro keeps hearing; the outline moves with the phone's turn from the gyroscope, grows and shrinks as the phone steps closer, and holds while the hand reaches; it is cut again while the phone moves; the relay mends SAM's torn mask rows; the relay is type-checked.
+- 3 Nov: CI on every pull request and signed releases built by CI (v0.1.0, then v0.1.1 with the hand model); fixes from phone tests t45–t56 for the recorded demo: a shorter first launch, one live voice, the mic that opens when a line ends, and guidance cues nothing cuts; from a code review, a yes that needs every word and amount on the label to agree.
+
+## 3 November 2026
+
+- CI checks every pull request: the app's lint, type check and tests, the relay's checks, the sensor module's lint, and a release APK built from a fresh prebuild with its permissions checked against an allowlist. A fresh prebuild had failed since 30 October, because the network plugin's file step returned nothing; it now returns its mod (#1).
+- release-please versions the app and the relay together from the pull request titles. On a release, CI builds the APK from the tag with the relay's access code, signs it and attaches it to the release with its checksum, then deploys the relay and checks it (#1). The first release, v0.1.0, was built and published this way (#2).
+- The fixes from phone tests t21–t44 reached `main` as one squashed pull request (#3); each is listed under 2 November with its own commit.
+- v0.1.0 shipped without MediaPipe's hand model: the model is gitignored and the APK build never fetched it, so on the phone (t45) no hand was seen and every in-hand check was dropped as "hand missing". The build now fetches it against a pinned hash and fails when the APK lacks it (#4); v0.1.1 carries it (#5).
+- Fixes from phone tests t45–t56, each found on the phone and fixed by cause, with a test that fails without it:
+  - Start: first launch ends with the language, after the three language prompts and one switch line; the privacy, volume-key and tour lines are gone, and the tour's yes/no step no longer swallows a question (t45, t46). Every open starts fresh, without taking up the last search.
+  - Voice: English prefers a male US voice, nearest the MMS cue clips, over the Indian English voice t45–t47 picked, and the first line waits for the pick (t50).
+  - Hearing: the mic opens when a line ends, not when its word-count estimate runs out; in t49 the estimate outlived the audio by 3.4 s and cut the shopper's answer, which had to be said twice.
+  - Shelf question: a camera the question opened gets 1 s to focus before its photo (t54: "I cannot read anything on this shelf").
+  - Guidance: ticks and chimes play on their own player, so they no longer stop each cue a fifth of a second in, which showed its text with nothing heard (t54); the six-second repeat keeps its cue, so the next frame no longer cuts it (t56); "two Masad bottle bottles" is said "two Masad bottles" (t56).
+- Fixes from a code review of the in-hand check, each with a test that fails without it:
+  - A yes needs the label to agree word by word: a word that changes the product ("unsalted" for "salted", "Coca-Cola Zero" for "Coca-Cola", "sans", "بدون") or another amount is a no. Sizes read the decimal comma and the Arabic decimal sign, so 1,5 L no longer matches 1,75 L, and compare across units, so 1 kg matches 1000 g (42d604f).
+  - A hand fix older than 2 s voids the answer whenever it was taken; a fix taken just after the photo had passed however old it was, so a yes could land on a product already put back (1166685).
+  - The 15 s relay deadline holds until the answer is read, so an answer that stalls halfway is said as the link down instead of a silent wait (322595c).
+
 ## 2 November 2026
 
 - The relay and its tests are now type-checked with `npm run typecheck`. Wrangler bundles the relay without checking types, which is how the `addSpendUsd` call without an import reached the deployed Worker. The check fails on the relay as it was before 74c233a, and the bundle Wrangler builds is unchanged. Node's types (`@types/node` 22) were added for the tests only, and ten type errors in four test files, never checked before, are fixed (50646a3).
+- Fixes from phone tests t21–t44, each found on the phone and fixed by cause (#3):
+  - Hearing: an offered choice is heard while Ittro thinks (a4efbb9); a stream that has heard nothing for 30 s is reopened (3ccc609); Ittro keeps hearing the shopper after a yes (f6c163d); the mic records from the plain source, which ended the deafness of t25 and t26 (5fa811a); another spelling of the asked name counts as the asked name (218a3c3).
+  - The outline follows the phone: it follows slow drift and holds under the hand (3fffd30); exposure changes no longer read as motion (d60a54d); it moves with the gyroscope while a hand is in view (f91f5c8) and on a fast turn (d83b969); it grows and shrinks as the phone steps closer or back (41b4959); the gyroscope's creep is learned while the phone holds still and taken off the turn (8b3c24e, d91a634).
+  - The outline is cut again: once the phone rests after a move (f7bc11d), while it moves and with a hand clear of the product (4ddfce4); every cut is placed on the still it was cut from (6112885, 9fa3b74, 1f44fb4); the outline is kept while the product is out of view, and out of view is said once (641c10e, b018faa).
+  - The relay mends rows SAM left short, so a clear bottle's outline no longer zig-zags into the bottle beside it (1445d5f).
 
 ## 1 November 2026, evening
 
