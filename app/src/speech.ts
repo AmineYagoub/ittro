@@ -1,6 +1,9 @@
 // Ittro's single voice. TalkBack on: everything goes through the screen
 // reader's announcements. TalkBack off: expo-speech and recorded clips.
-// One line cancels the last, so two voices never talk at once.
+// One line cancels the last, so two voices never talk at once. Sounds
+// (ticks, chimes) play on their own player and never cut a line: in t54
+// the proximity ticks, every quarter second, stopped each guidance cue
+// a fifth of a second in, so its text showed and nothing was heard.
 import { AccessibilityInfo } from 'react-native';
 import * as Speech from 'expo-speech';
 import { createAudioPlayer } from 'expo-audio';
@@ -114,15 +117,15 @@ function stopPlayer(): void {
   }
 }
 
-function playFile(source: unknown, rate: number, voice: boolean): Promise<void> {
+function playFile(source: unknown, rate: number): Promise<void> {
   const g = ++generation;
   stopPlayer();
-  const release = voice ? openVoice() : null;
+  const release = openVoice();
   let player: AudioPlayer;
   try {
     player = createAudioPlayer(source as number);
   } catch {
-    release?.();
+    release();
     return Promise.resolve();
   }
   activePlayer = player;
@@ -136,7 +139,7 @@ function playFile(source: unknown, rate: number, voice: boolean): Promise<void> 
     } catch {
       // Nothing plays; the line still shows.
     }
-    release?.();
+    release();
     return Promise.resolve();
   }
   return new Promise((resolve) => {
@@ -154,7 +157,7 @@ function playFile(source: unknown, rate: number, voice: boolean): Promise<void> 
         activePlayer = null;
       }
       player.remove();
-      release?.();
+      release();
       resolve();
     };
     const timer = setTimeout(() => {
@@ -195,13 +198,48 @@ export function sayClip(id: string, lang: Language): Promise<void> {
   if (!clip) {
     return say(cue[lang], lang);
   }
-  return playFile(clip, speechRate, true);
+  return playFile(clip, speechRate);
+}
+
+let soundPlayer: AudioPlayer | null = null;
+
+function dropSound(player: AudioPlayer): void {
+  if (soundPlayer === player) {
+    soundPlayer = null;
+  }
+  try {
+    player.remove();
+  } catch {
+    // Already gone.
+  }
 }
 
 export function playSound(name: SoundName): void {
   const stem = soundFile[name].replace(/\.wav$/, '');
   const asset = (soundAsset as Record<string, unknown>)[stem];
-  if (asset) {
-    void playFile(asset, 1, false);
+  if (!asset) {
+    return;
+  }
+  if (soundPlayer) {
+    dropSound(soundPlayer);
+  }
+  let player: AudioPlayer;
+  try {
+    player = createAudioPlayer(asset as number);
+  } catch {
+    return;
+  }
+  soundPlayer = player;
+  const subscription = player.addListener('playbackStatusUpdate', (status) => {
+    if (status.didJustFinish) {
+      subscription.remove();
+      dropSound(player);
+    }
+  });
+  try {
+    player.play();
+  } catch {
+    subscription.remove();
+    dropSound(player);
   }
 }

@@ -3,7 +3,7 @@
 // when the engine already played the line, and when it never does.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { say, sayClip } from '../src/speech';
+import { playSound, say, sayClip } from '../src/speech';
 import { warmVoice } from '../src/speechWarm';
 import { setLogsOverride } from '../src/log';
 import {
@@ -138,6 +138,23 @@ test('sayClip ends when the clip finishes', async () => {
     await sleep(100);
     const player = audioPlayers[audioPlayers.length - 1] as { finish: () => void } | undefined;
     player?.finish();
+    assert.equal(await settles(played, 2000), true);
+  } finally {
+    resetSpeech();
+  }
+});
+
+test('a tick during a cue leaves the cue playing (t54)', async () => {
+  resetSpeech();
+  try {
+    const played = sayClip('testcue', 'en');
+    await sleep(100);
+    const cue = audioPlayers[audioPlayers.length - 1] as { playing: boolean; finish: () => void } | undefined;
+    playSound('proximityTick');
+    await sleep(500);
+    assert.equal(cue?.playing, true, 'the tick did not stop the cue');
+    assert.equal(await settles(played, 50), false, 'the cue is still being said');
+    cue?.finish();
     assert.equal(await settles(played, 2000), true);
   } finally {
     resetSpeech();
