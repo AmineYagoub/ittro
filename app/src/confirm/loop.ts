@@ -34,21 +34,21 @@ function moveLimit(shot: HandFix): number {
   return Math.max(MOVE_PX, 1.5 * shot.handWidth);
 }
 
-function movedSince(shot: HandFix | null, now: HandFix | null, shotAt: number, landedAt: number): boolean {
+function movedSince(shot: HandFix | null, now: HandFix | null, landedAt: number): boolean {
   if (!shot || !now) {
     return true;
   }
-  if (now.atMs < shotAt && landedAt - now.atMs > STALE_MS) {
+  if (landedAt - now.atMs > STALE_MS) {
     return true;
   }
   return Math.hypot(now.x - shot.x, now.y - shot.y) > moveLimit(shot);
 }
 
-function dropReason(shot: HandFix | null, now: HandFix | null, shotAt: number, landedAt: number): string {
+function dropReason(shot: HandFix | null, now: HandFix | null, landedAt: number): string {
   if (!shot || !now) {
     return 'hand missing';
   }
-  if (now.atMs < shotAt && landedAt - now.atMs > STALE_MS) {
+  if (landedAt - now.atMs > STALE_MS) {
     return 'hand stale';
   }
   return 'hand moved';
@@ -92,7 +92,6 @@ export function createConfirmLoop(deps: ConfirmLoopDeps): ConfirmLoop {
     state.tries += 1;
     state.flight += 1;
     state.lastShotAt = deps.now();
-    const shotAt = deps.now();
     const epoch = ctx.epoch;
     const hand = deps.handNow();
     const detail = ctx.detailKind;
@@ -121,8 +120,8 @@ export function createConfirmLoop(deps: ConfirmLoopDeps): ConfirmLoop {
           return;
         }
         const landed = deps.handNow();
-        if (movedSince(hand, landed, shotAt, deps.now())) {
-          deps.log(`confirm answer dropped: ${dropReason(hand, landed, shotAt, deps.now())}`);
+        if (movedSince(hand, landed, deps.now())) {
+          deps.log(`confirm answer dropped: ${dropReason(hand, landed, deps.now())}`);
           deps.send({ type: 'CONFIRM_MOVED', epoch });
           return;
         }
@@ -145,8 +144,8 @@ export function createConfirmLoop(deps: ConfirmLoopDeps): ConfirmLoop {
         return;
       }
       const landed = deps.handNow();
-      if (movedSince(hand, landed, shotAt, deps.now())) {
-        deps.log(`confirm answer dropped: ${dropReason(hand, landed, shotAt, deps.now())}`);
+      if (movedSince(hand, landed, deps.now())) {
+        deps.log(`confirm answer dropped: ${dropReason(hand, landed, deps.now())}`);
         deps.send({ type: 'CONFIRM_MOVED', epoch });
         return;
       }
