@@ -32,12 +32,17 @@ export interface SceneResult {
   scene: SceneKind;
   kinds: string[];
   aisle_hint: string | null;
+  /** What the shelf mostly holds, as a shop sign names it in the shopper's language. */
+  shelf_label: string | null;
+  /** Whether the shelf holds the kind of product requested. */
+  fits_request: boolean;
 }
 
 export interface ClassifyArgs {
   request: string;
   image: string;
   mime: string;
+  language?: string;
 }
 
 export interface PhraseArgs {
@@ -119,8 +124,10 @@ const CLASSIFY_SCHEMA: SparkSchema = {
       scene: { type: 'string', enum: ['shelf', 'floor', 'other'] },
       kinds: { type: 'array', items: { type: 'string' } },
       aisle_hint: { type: ['string', 'null'] },
+      shelf_label: { type: ['string', 'null'] },
+      fits_request: { type: 'boolean' },
     },
-    required: ['scene', 'kinds', 'aisle_hint'],
+    required: ['scene', 'kinds', 'aisle_hint', 'shelf_label', 'fits_request'],
   },
   strict: true,
 };
@@ -132,7 +139,9 @@ function isScene(value: unknown): value is SceneResult {
     (scene['scene'] === 'shelf' || scene['scene'] === 'floor' || scene['scene'] === 'other') &&
     Array.isArray(scene['kinds']) &&
     (scene['kinds'] as unknown[]).every((kind) => typeof kind === 'string') &&
-    (typeof scene['aisle_hint'] === 'string' || scene['aisle_hint'] === null)
+    (typeof scene['aisle_hint'] === 'string' || scene['aisle_hint'] === null) &&
+    (typeof scene['shelf_label'] === 'string' || scene['shelf_label'] === null) &&
+    typeof scene['fits_request'] === 'boolean'
   );
 }
 
@@ -194,6 +203,11 @@ const CLASSIFY_INSTRUCTIONS = [
   'other otherwise. kinds lists the package kinds visible on a shelf as short English plurals,',
   'such as ["bags", "jars"]; empty when no shelf is in view. aisle_hint names where to ask for the',
   'requested product, such as "the water aisle", or null when the shelf already shows its kind.',
+  'shelf_label names what the shelf mostly holds in one or two words in the shopper\'s language (en, ar or fr), the way a',
+  'shop sign would ("biscuits", "البسكويت"); null when no shelf is in view or it holds no clear kind. fits_request is true',
+  'when the shelf holds the kind of product requested (any rice for rice, any water bottle for water), false when it holds',
+  'another kind or no shelf is in view. When you cannot tell, fits_request is true: the shopper looks here before being',
+  'sent elsewhere.',
 ].join(' ');
 
 export async function classifyScene(
@@ -207,7 +221,7 @@ export async function classifyScene(
     {
       role: 'user',
       content: [
-        { type: 'input_text', text: `Request: ${args.request}` },
+        { type: 'input_text', text: `Request: ${args.request}\nShopper's language: ${args.language === 'ar' || args.language === 'fr' ? args.language : 'en'}` },
         imagePart(args.image, args.mime),
       ],
     },

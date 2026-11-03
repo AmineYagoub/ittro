@@ -1,12 +1,21 @@
 // Shelf outlines: what SAM found, moved with the phone between SAM
 // calls. Boxes and mask polygons live in source pixels; the tracker
 // shifts both by the measured pan so they stay on the products while
-// the phone moves. The phone never decodes masks: the relay ships the
-// polygons, and moving them is a few dozen adds.
+// the phone moves, and a cut is placed where the camera has it now,
+// grown about the frame's middle as the picture grew (t39). The phone
+// never decodes masks: the relay ships the polygons, and moving them
+// is a few dozen adds.
 import type { CameraOutline } from 'ittro-sensors';
 import type { ShelfBox, ShelfMask, ShelfOutline } from '../relay';
 
 export type { ShelfBox, ShelfMask, ShelfOutline };
+
+interface Pan {
+  x: number;
+  y: number;
+  s?: number;
+  session?: number;
+}
 
 export interface PanShift {
   dx: number;
@@ -100,15 +109,36 @@ export function mapPoints(points: number[], w: number, h: number, viewW: number,
   return out;
 }
 
-/** SAM's outlines tagged with the still they were cut from, when its number is known. */
-export function anchorOutlines(outlines: ShelfOutline[], shot: number | undefined): ShelfOutline[] {
+/** SAM's outlines tagged with the still they were cut from, when its number is known, and where the camera pointed for it. */
+export function anchorOutlines(outlines: ShelfOutline[], shot: number | undefined, pan?: Pan | null): ShelfOutline[] {
   if (shot === undefined) {
     return outlines;
   }
-  return outlines.map((outline) => ({ ...outline, anchor: { shot, box: outline.box, points: outline.mask?.points ?? null } }));
+  return outlines.map((outline) => ({
+    ...outline,
+    anchor: { shot, box: outline.box, points: outline.mask?.points ?? null, ...(pan ? { pan } : {}) },
+  }));
 }
 
-/** The guided outline for the camera to draw: SAM's cut and its still, else the box as it is now. */
+/** Where an outline's product is now, as the native outline draws it: SAM's box on its still, moved and grown by the camera's motion since; its own box when that motion is unknown. */
+export function boxNow(outline: ShelfOutline, now: Pan | null, stillPan: (shot: number) => Pan | null): ShelfBox {
+  const anchor = outline.anchor;
+  const from = anchor ? (anchor.pan ?? stillPan(anchor.shot)) : null;
+  if (!anchor || !from || !now || (from.session ?? 0) !== (now.session ?? 0)) {
+    return outline.box;
+  }
+  const grew = (now.s ?? 1) / (from.s ?? 1);
+  return grownBox(anchor.box, grew, (now.x - grew * from.x) * anchor.box.w, (now.y - grew * from.y) * anchor.box.h);
+}
+
+/** A box grown `grew` times about its frame's middle, then moved by dx and dy, as the camera draws a cut. */
+export function grownBox(box: ShelfBox, grew: number, dx: number, dy: number): ShelfBox {
+  const x = (at: number) => at + (grew - 1) * (at - box.w / 2) + dx;
+  const y = (at: number) => at + (grew - 1) * (at - box.h / 2) + dy;
+  return { ...box, x1: x(box.x1), y1: y(box.y1), x2: x(box.x2), y2: y(box.y2) };
+}
+
+/** The guided outline for the camera to draw: SAM's cut, its still and where the camera pointed for it, else the box as it is now. */
 export function cameraOutline(target: ShelfOutline | null, label: string): CameraOutline | null {
   if (!target) {
     return null;
@@ -116,6 +146,7 @@ export function cameraOutline(target: ShelfOutline | null, label: string): Camer
   const anchor = target.anchor;
   const box = anchor?.box ?? target.box;
   const shot = anchor?.shot ?? null;
+  const pan = anchor?.pan;
   return {
     key: `${shot ?? 'now'}:${target.id}:${box.x1},${box.y1},${box.x2},${box.y2}:${label}`,
     name: label,
@@ -127,6 +158,10 @@ export function cameraOutline(target: ShelfOutline | null, label: string): Camer
     h: box.h,
     points: anchor ? anchor.points : (target.mask?.points ?? null),
     shot,
+    panX: pan?.x ?? null,
+    panY: pan?.y ?? null,
+    panS: pan?.s ?? null,
+    panSession: pan?.session ?? null,
   };
 }
 

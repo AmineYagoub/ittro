@@ -7,7 +7,9 @@
 import { assignConversation as assign } from './actors';
 import { partsText } from '../guide/lines';
 import type { ConversationContext, ExpressionEvent, VoiceEcho } from './types';
-import { voiceQuietMs } from '../voiceGate';
+import type { EventArgs as EchoArgs } from './actions';
+import { verdictChips } from '../chips';
+import { voiceGateClosed, voiceQuietMs } from '../voiceGate';
 
 const COVERAGE = 0.5;
 
@@ -240,11 +242,6 @@ function eventText(event: ExpressionEvent): string | null {
   return event.type === 'FINAL_TEXT' || event.type === 'PARTIAL_TEXT' ? event.text : null;
 }
 
-interface EchoArgs {
-  context: ConversationContext;
-  event: ExpressionEvent;
-}
-
 const SHORT_ANSWERS = new Set(['yes', 'no', 'نعم', 'لا', 'oui', 'non']);
 
 const ANSWER_QUESTIONS = new Set([
@@ -252,6 +249,7 @@ const ANSWER_QUESTIONS = new Set([
   'language_offer',
   'tour_offer',
   'close_alternative',
+  'view_offer',
   'helper_send',
   'helper_offer',
 ]);
@@ -264,12 +262,15 @@ function shortAnswerOpen(context: ConversationContext, text: string): boolean {
   );
 }
 
-// The mic is gated while Ittro speaks, so an offered choice heard
-// while Ittro is quiet, or anything heard once the gate has been open
-// 2.5 s, is the shopper (t12, t16 dropped "ابحث عن غيره" 12 s after).
+// The mic is gated while Ittro's voice plays, so an offered choice heard
+// with the gate open, or anything once it has been open 2.5 s, is the
+// shopper (t12, t16; t21 dropped "ابحث عن غيره" while understanding).
+// The verdict's choices stay offered while it is up: t23 dropped them
+// just after the help offer had named only "help".
 function shopperForSure(context: ConversationContext, text: string): boolean {
   const said = normalize(text);
-  return !context.talkBusy && (voiceQuietMs() >= 2500 || (said.length > 0 && context.lastChips.some((chip) => normalize(chip) === said)));
+  const offered = context.step === 'verdict' ? [...context.lastChips, ...verdictChips(context.confirmVerdict, context.lang)] : context.lastChips;
+  return !voiceGateClosed() && (voiceQuietMs() >= 2500 || (said.length > 0 && offered.some((chip) => normalize(chip) === said)));
 }
 
 export const echoFull = ({ context, event }: EchoArgs): boolean => {

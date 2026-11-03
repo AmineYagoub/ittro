@@ -4,10 +4,19 @@
 // natively on every frame). t13 found the Guedila 8.3 s after the
 // request, 3.6 s of it a new photo and SAM for a shelf outlined
 // seconds before. The next regular pass checks the carried outlines.
+// The last product's own outlines are left behind, since the new
+// request names another: t30 re-read its one Guedila outline for 2.9 s
+// before the Masaad search began. The loop's own boxes move by the
+// camera's motion since, and each outline keeps the still it was cut
+// from and where the camera pointed for it, so the camera draws a
+// carried outline from that still like any other: in t39 a carried
+// Masaad without them was drawn on an empty wall for 24 s after the
+// phone turned away, and beside the bottles for 19 s more.
 import { biggestFirst } from './shelfTracks';
 import { moveOutlines } from './outlines';
 import { packageKind } from './match';
 import { readCrops, reportVerdicts } from './loopReads';
+import { noteSeen, readName } from './inventory';
 import type { ReadsContext } from './loopReads';
 import type { CameraPan, LoopState, ShelfCarry } from './loopTypes';
 import type { ShelfCrop, ShelfOutline } from '../relay';
@@ -49,12 +58,13 @@ export function seedCarry(ctx: ReadsContext, carry: ShelfCarry, pan: CameraPan |
     deps.log(`shelf carry dropped, camera moved ${dx.toFixed(3)},${dy.toFixed(3)}`);
     return false;
   }
-  // Moved by the camera's motion since; the old still no longer places
-  // them, so they go without its anchor until the next SAM cut.
-  state.tracks = carry.tracks.map((entry) => {
-    const outline: ShelfOutline = { ...entry.outline };
-    delete outline.anchor;
-    const [moved] = moveOutlines([outline], { dx: dx * outline.box.w, dy: dy * outline.box.h, scale: 1 });
+  const others = carry.tracks.filter((entry) => entry.read?.verdict !== 'yes');
+  if (others.length === 0) {
+    deps.log(`shelf carry skipped, its ${carry.tracks.length} outlines were the last product`);
+    return false;
+  }
+  state.tracks = others.map((entry) => {
+    const [moved] = moveOutlines([entry.outline], { dx: dx * entry.outline.box.w, dy: dy * entry.outline.box.h, scale: 1 });
     return { ...entry, outline: moved as ShelfOutline, read: null };
   });
   state.crops = new Map(carry.crops);
@@ -96,6 +106,13 @@ export async function runCarried(ctx: ReadsContext): Promise<boolean> {
     state.readAt = deps.now();
     deps.log(`shelf read carried ${answer.readMs}ms verdicts ${answer.reads.map((read) => read.verdict).join(',')}`);
     state.tracks = state.tracks.map((entry) => ({ ...entry, read: answer.reads.find((read) => read.id === `shelf-${entry.track}`) ?? null }));
+    const pan = deps.pan?.() ?? null;
+    for (const entry of state.tracks) {
+      const name = entry.read ? readName(entry.read) : null;
+      if (name) {
+        noteSeen(name, entry.outline.box, pan, deps.now());
+      }
+    }
     reportVerdicts(ctx, request, answer.reads, epoch);
     return true;
   } finally {

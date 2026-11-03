@@ -1,7 +1,13 @@
 // Mask outlines: SAM's raster masks become small polygons the phone
 // can shift and draw without decoding anything. The relay pays the
 // base85 decode once per SAM pass; each outline ships as a few dozen
-// frame pixels and moves with the same pan as its box.
+// frame pixels and moves with the same pan as its box. Each traced row
+// keeps the mask's first and last pixel, and a row that falls short of
+// the rows a little above and below it on a side is mended to them: SAM
+// left a clear bottle's far side out of some rows where the bottle
+// beside it shows through, and in t43 the line zig-zagged into the
+// Guedila for 9 s. A notch longer than the reach stays, and so does
+// any shape that only widens or narrows, like the shoulders.
 import { decodeMaskToRaster } from '@meta-sam/parser';
 import type { SegmentationMask, SegmentationMaskBounds } from '@meta-sam/parser';
 
@@ -13,6 +19,10 @@ export const MASK_POINTS = 160;
 // from SAM's mask: 1% straightened a bottle's shoulders into one line
 // (9 points for a 1.5 L bottle, 1 Nov); 0.25% keeps the curve.
 export const MASK_TOLERANCE = 0.0025;
+
+// How far above and below a short row looks for the rows that mend it,
+// as a share of the traced rows: 6 of 128 fills a notch of up to 11.
+export const MASK_MEND = 0.05;
 
 function frameX(bounds: SegmentationMaskBounds, maskW: number, mx: number): number {
   const span = bounds.right - bounds.left;
@@ -26,16 +36,31 @@ function frameY(bounds: SegmentationMaskBounds, maskH: number, my: number): numb
   return Math.min(bounds.bottom, Math.max(bounds.top, Math.round(y)));
 }
 
-function ringFrom(raster: Uint8Array, mask: SegmentationMask, bounds: SegmentationMaskBounds): number[] {
-  const left: number[] = [];
-  const right: number[] = [];
-  const rows = Math.min(MASK_ROWS, mask.height);
+function mended(edge: number[], reach: number, outward: number): number[] {
+  return edge.map((x, at) => {
+    let above = -Infinity;
+    let below = -Infinity;
+    for (let near = Math.max(0, at - reach); near < at; near += 1) {
+      above = Math.max(above, (edge[near] as number) * outward);
+    }
+    for (let near = at + 1; near <= Math.min(edge.length - 1, at + reach); near += 1) {
+      below = Math.max(below, (edge[near] as number) * outward);
+    }
+    return Math.max(x * outward, Math.min(above, below)) * outward;
+  });
+}
+
+function ringFrom(raster: Uint8Array, width: number, height: number, bounds: SegmentationMaskBounds): number[] {
+  const ys: number[] = [];
+  const firsts: number[] = [];
+  const lasts: number[] = [];
+  const rows = Math.min(MASK_ROWS, height);
   for (let row = 0; row < rows; row += 1) {
-    const my = Math.min(mask.height - 1, Math.floor(((row + 0.5) * mask.height) / rows));
-    const base = my * mask.width;
+    const my = Math.min(height - 1, Math.floor(((row + 0.5) * height) / rows));
+    const base = my * width;
     let first = -1;
     let last = -1;
-    for (let mx = 0; mx < mask.width; mx += 1) {
+    for (let mx = 0; mx < width; mx += 1) {
       if (raster[base + mx] === 1) {
         if (first < 0) {
           first = mx;
@@ -46,12 +71,19 @@ function ringFrom(raster: Uint8Array, mask: SegmentationMask, bounds: Segmentati
     if (first < 0) {
       continue;
     }
-    left.push(frameX(bounds, mask.width, first), frameY(bounds, mask.height, my));
-    right.push(frameX(bounds, mask.width, last), frameY(bounds, mask.height, my));
+    ys.push(my);
+    firsts.push(first);
+    lasts.push(last);
   }
-  const ring = [...left];
-  for (let at = right.length - 2; at >= 0; at -= 2) {
-    ring.push(right[at] as number, right[at + 1] as number);
+  const reach = Math.max(2, Math.round(ys.length * MASK_MEND));
+  const left = mended(firsts, reach, -1);
+  const right = mended(lasts, reach, 1);
+  const ring: number[] = [];
+  for (let at = 0; at < ys.length; at += 1) {
+    ring.push(frameX(bounds, width, left[at] as number), frameY(bounds, height, ys[at] as number));
+  }
+  for (let at = ys.length - 1; at >= 0; at -= 1) {
+    ring.push(frameX(bounds, width, right[at] as number), frameY(bounds, height, ys[at] as number));
   }
   return ring;
 }
@@ -125,7 +157,12 @@ export function traceMaskOutline(mask: SegmentationMask, bounds: SegmentationMas
   } catch {
     return null;
   }
-  const ring = dedupe(ringFrom(raster, mask, bounds));
+  return traceRaster(raster, mask.width, mask.height, bounds);
+}
+
+/** The outline of a decoded mask, `width` by `height` cells of 0 and 1 covering `bounds`, as frame pixels x, y, x, y, ...; null when too little is set. */
+export function traceRaster(raster: Uint8Array, width: number, height: number, bounds: SegmentationMaskBounds): number[] | null {
+  const ring = dedupe(ringFrom(raster, width, height, bounds));
   if (ring.length < 6) {
     return null;
   }

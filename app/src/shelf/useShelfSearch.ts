@@ -8,27 +8,37 @@
 // cloud pass tells the shopper. Every fortieth pan logs its rate and
 // cost, so the phone check reads pans per second, applied shifts and
 // heat straight from the log. An optional shot listener hears each
-// cloud photo, which the guide loop caches for its crops.
+// cloud photo, which the guide loop caches for its crops. Each photo
+// carries the still's number, which places SAM's cut on the live
+// camera, and the time its shot began, so a sweep stop reads only
+// stills from after the camera settled. The pan is measured on the
+// whole frame, and a hand near the lens is most of it: its motion read
+// as the shelf moving and dragged every outline after the hand, so
+// while a hand is in view the outlines hold until the next SAM pass
+// re-anchors them. Each photo also keeps where the camera pointed as
+// the still was taken (from the frames around it: in t32 the camera
+// opened with the search, and the shot began before its first frame),
+// and the loop hears whether a hand is in view, so the guided outline
+// is cut again as the phone moves (t31, t38). A photo also notes a
+// hand seen as it was taken, and where: while guiding, SAM cut the
+// hand in with the product it touched (t34), so a still with a hand
+// near the product is not cut, and outlines a hand touches are
+// dropped.
 import { useEffect, useMemo, useRef } from 'react';
-import { cameraPan, cropShelfPhoto, prepareShelfPhoto, thermalStatus, validTrackPan } from 'ittro-sensors';
+import { cameraPan, prepareShelfPhoto, shotPan, thermalStatus, validTrackPan } from 'ittro-sensors';
 import type { TrackPan } from 'ittro-sensors';
-import { classifySceneView, findShelf, outlineShelf, fetchPackagePhrase, readShelfCrops } from '../relay';
-import type { ShelfCrop } from '../relay';
-import type { Language } from '../theme';
 import { speech } from '../theme';
 import { playSound } from '../speech';
 import { createShelfLoop } from './loop';
-import { cachedPhrase, rememberPhrase } from './phraseCache';
+import { searchDeps } from './searchDeps';
+import { keepStill } from './stills';
 import type { LoopPhoto, ShelfCarry, ShelfLoop } from './loopTypes';
 import { decodeBase64, ingestGrey } from './tracker';
 import type { GreyFrame } from './tracker';
-import { CROP_MARGIN, expandBox } from './outlines';
 import type { ConversationContext, ConversationEvent } from '../conversation/types';
-import { handCoversTarget } from '../conversation/searchTarget';
 import { lastHandFix } from '../guide/frames';
 import type { HandFix } from '../guide/types';
 import { logIttro } from '../log';
-import { lastPlacedBox } from '../guide/placedBox';
 
 export interface SearchCamera {
   takeShot: () => Promise<string | null>;
@@ -111,56 +121,24 @@ export function useShelfSearch(
       return undefined;
     }
     const wanted: string = request;
+    let stopped = false;
     const loop = createShelfLoop({
-      now: () => Date.now(),
-      outline: outlineShelf,
-      fetchPhrase: (wantedText, image, mime) => cachedPhrase(wantedText, image, mime, fetchPackagePhrase),
-      keepPhrase: rememberPhrase,
-      find: findShelf,
-      read: readShelfCrops,
-      classify: classifySceneView,
-      cutCrops: async (image, tracks) => {
-        const crops: ShelfCrop[] = [];
-        for (const entry of tracks) {
-          const grown = expandBox(entry.outline.box, CROP_MARGIN);
-          const cut = await cropShelfPhoto(image, grown.x1, grown.y1, grown.x2, grown.y2);
-          if (cut) {
-            crops.push({ id: `shelf-${entry.track}`, image: cut.image, mime: cut.mime });
-          }
-        }
-        return crops;
-      },
-      readContext: () => {
-        const context = actor.current?.getSnapshot().context;
-        return {
-          lang: (context?.lang ?? 'en') as Language,
-          alternative: context?.alternative ?? null,
-          checkedCount: context?.checkedCount ?? 0,
-          guiding: context?.guiding ?? false,
-          handCovering: handCoversTarget(context?.guideHand ?? null, lastPlacedBox(Date.now()) ?? context?.guideTarget?.box ?? null),
-          guideLost: context?.guideOutOfView ?? false,
-          guideRecheck: context?.guideRecheck ?? false,
-          guideBox: context?.guideTarget ? (lastPlacedBox(Date.now()) ?? context.guideTarget.box) : null,
-        };
-      },
-      send: (event) => {
-        if (!stopped) {
-          actor.current?.send(event);
-        }
-      },
-      log: (line) => {
-        note(line);
-      },
+      ...searchDeps(actor, () => stopped),
+      handInView: () => panFrozenByHand(lastHandFix(), Date.now()),
+      handBox: () => lastHandFix()?.box ?? null,
     });
     const carried = held.current.carry;
     held.current = { loop, carry: null, ring: [], wanted, photoW: 0, stats: freshStats() };
-    let stopped = false;
     let shooting = false;
     syncTarget();
     if (carried) {
       loop.seed(carried, cameraPan());
     }
     const cloudTimer = setInterval(() => {
+      const context = actor.current?.getSnapshot().context;
+      if (context && shouldTickForSearch(context.searching, context.guiding, context.confirming)) {
+        loop.sweepTick();
+      }
       void cloudTick();
     }, CLOUD_EVERY_MS);
     const soundTimer = setInterval(() => {
@@ -205,6 +183,7 @@ export function useShelfSearch(
       try {
         syncTarget();
         const shotStart = Date.now();
+        const startPan = cameraPan();
         let uri: string | null = null;
         try {
           uri = await eye.takeShot();
@@ -228,9 +207,23 @@ export function useShelfSearch(
         } catch {
           grey = { data: new Uint8Array(0), w: 0, h: 0 };
         }
-        // The still's number places SAM's cut on the live camera.
         const shot = Number(/ittro-shot-(\d+)\.jpg$/.exec(uri)?.[1] ?? Number.NaN);
-        const photo = { image: prepared.photo, mime: 'image/jpeg', w: prepared.w, h: prepared.h, grey, ...(Number.isFinite(shot) ? { shot } : {}) };
+        const stillPan = (Number.isFinite(shot) ? shotPan(shot) : null) ?? startPan;
+        const handFix = lastHandFix();
+        const handSeen = handFix !== null && handFix.atMs >= shotStart - HAND_PAN_FREEZE_MS;
+        const photo = {
+          image: prepared.photo,
+          mime: 'image/jpeg',
+          w: prepared.w,
+          h: prepared.h,
+          grey,
+          at: shotStart,
+          hand: handSeen,
+          handBox: handSeen ? (handFix.box ?? null) : null,
+          ...(stillPan ? { pan: stillPan } : {}),
+          ...(Number.isFinite(shot) ? { shot } : {}),
+        };
+        keepStill({ image: prepared.photo, mime: 'image/jpeg', w: prepared.w, h: prepared.h, at: Date.now() });
         const ring = [...held.current.ring, photo].slice(-3);
         held.current.ring = ring;
         shooting = false;
@@ -271,11 +264,6 @@ export function useShelfSearch(
         stats.count += 1;
         stats.panMs.push(pan.panMs);
         if (panFrozenByHand(lastHandFix(), Date.now())) {
-          // The pan is measured on the whole frame, and a hand near
-          // the lens is most of it: its motion read as the shelf
-          // moving and dragged every outline after the hand. While
-          // a hand is in view the outlines hold; the next SAM pass
-          // re-anchors them.
           stats.frozen += 1;
           return;
         }

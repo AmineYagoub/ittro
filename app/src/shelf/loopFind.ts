@@ -3,13 +3,20 @@
 // line no longer waits on a phrase, SAM on every package and crop
 // reads. Only the requested product comes back, read yes by the name
 // printed on it. When none is in view the pass goes on the old way,
-// whose reads say what is there instead: a close match, a swept shelf,
-// a turn.
+// whose reads say what is there instead and start the sweep. The found
+// card shows the target's label, the biggest yes, and the found line
+// goes before the outlines, so they land on a known target and "I see
+// two products, reading their labels" is not said for a label already
+// read. The outlines keep the still's camera pan: the still is about
+// 7 s old when they land (t31), and a move since is cut again
+// (recut.ts).
 import type { ShelfRead } from '../relay';
 import { anchorOutlines } from './outlines';
 import { biggestFirst, reconcileTracks } from './shelfTracks';
 import { outlineSignature, packageKind } from './match';
 import { reportVerdicts } from './loopReads';
+import { noteSeen } from './inventory';
+import { placer } from './place';
 import type { ReadsContext } from './loopReads';
 import type { LoopPhoto } from './loopTypes';
 
@@ -33,18 +40,21 @@ export async function findPass(ctx: ReadsContext, request: string, epoch: number
   const outlines = anchorOutlines(
     found.outlines.map((outline) => ({ id: outline.id, frame: outline.frame, box: outline.box, ...(outline.mask ? { mask: outline.mask } : {}) })),
     photo.shot,
+    photo.pan,
   );
   state.outlinedAt = deps.now();
+  state.outlinedPan = photo.pan ?? null;
   state.readAt = deps.now();
   state.sceneChanged = false;
   state.emptyOutlines = 0;
-  state.tracks = reconcileTracks(state.tracks, outlines, nextId);
+  state.tracks = reconcileTracks(state.tracks, outlines, nextId, placer(deps));
+  const pan = deps.pan?.() ?? null;
   const reads: ShelfRead[] = state.tracks.map((entry) => {
     const label = found.outlines[outlines.indexOf(entry.outline)]?.label || request;
+    noteSeen(label, entry.outline.box, pan, deps.now());
     entry.read = { id: `shelf-${entry.track}`, brand_text: label, size_text: null, verdict: 'yes', spoken: label };
     return entry.read;
   });
-  // The found card shows the target's label, the biggest yes.
   const target = biggestFirst(state.tracks)[0];
   if (target) {
     const [cut] = await deps.cutCrops(photo.image, [{ track: target.track, outline: target.outline }]);
@@ -55,14 +65,11 @@ export async function findPass(ctx: ReadsContext, request: string, epoch: number
       state.crops.set(target.track, `data:${cut.mime};base64,${cut.image}`);
     }
   }
-  // Found before outlined: the outlines then land on a known target, and
-  // "I see two products, reading their labels" is not said for a label
-  // already read.
   reportVerdicts(ctx, request, reads, epoch);
   const signature = outlineSignature(outlines);
   if (signature !== state.lastSignature) {
     state.lastSignature = signature;
-    deps.send({ type: 'SHELF_OUTLINED', outlines, kind: packageKind(state.phrases.get(request) ?? request, deps.readContext().lang) });
+    deps.send({ type: 'SHELF_OUTLINED', outlines, now: outlines.map(placer(deps)), kind: packageKind(state.phrases.get(request) ?? request, deps.readContext().lang) });
   }
   return true;
 }

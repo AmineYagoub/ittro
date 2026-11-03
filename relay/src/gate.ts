@@ -111,3 +111,12 @@ export async function recordSparkCost(env: Env): Promise<void> {
 export async function recordSamCost(env: Env): Promise<void> {
   await addSpendUsd(env, Number(env.SAM_COST_USD ?? '0.0025'));
 }
+
+/** Runs one Meta call and charges it to the day's spend whether its answer passes the checks or not, since Meta bills both. */
+export async function charged<T>(record: () => Promise<void>, call: () => Promise<T>): Promise<T> {
+  try {
+    return await call();
+  } finally {
+    await record().catch(() => undefined);
+  }
+}

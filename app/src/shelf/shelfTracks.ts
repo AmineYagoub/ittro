@@ -1,9 +1,11 @@
 // Tracked outlines: each SAM outline keeps a stable track across
 // passes, and its reading stays with it. A fresh outline matching an
 // old one by overlap reuses the track; only new or unsure tracks are
-// read again, so settled products cost nothing.
+// read again, so settled products cost nothing. The overlap is taken
+// where the camera has both now, each moved from its own still as the
+// guided outline is drawn (t34), when the loop knows the stills.
 import { boxArea, boxOverlap } from './outlines';
-import type { ShelfOutline, ShelfRead } from '../relay';
+import type { ShelfBox, ShelfOutline, ShelfRead } from '../relay';
 
 export interface Tracked {
   track: string;
@@ -11,7 +13,12 @@ export interface Tracked {
   read: ShelfRead | null;
 }
 
-export function reconcileTracks(prev: Tracked[], fresh: ShelfOutline[], makeId: () => string): Tracked[] {
+export function reconcileTracks(
+  prev: Tracked[],
+  fresh: ShelfOutline[],
+  makeId: () => string,
+  where: (outline: ShelfOutline) => ShelfBox = (outline) => outline.box,
+): Tracked[] {
   const taken = new Set<number>();
   const next: Tracked[] = [];
   for (const old of prev) {
@@ -21,7 +28,7 @@ export function reconcileTracks(prev: Tracked[], fresh: ShelfOutline[], makeId: 
       if (taken.has(at)) {
         continue;
       }
-      const overlap = boxOverlap(old.outline.box, (fresh[at] as ShelfOutline).box);
+      const overlap = boxOverlap(where(old.outline), where(fresh[at] as ShelfOutline));
       if (overlap >= bestOverlap) {
         bestOverlap = overlap;
         best = at;

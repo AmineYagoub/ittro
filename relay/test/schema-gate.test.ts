@@ -66,7 +66,7 @@ test('reads the message item when reasoning comes first', async () => {
           ],
         },
       ],
-    }),
+    }) as unknown as typeof fetch,
     apiBase: 'https://example.invalid',
     apiKey: 'key',
     input: { transcript: 'yes' },

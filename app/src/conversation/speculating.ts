@@ -1,9 +1,17 @@
 // Speculative understanding: while the shopper is still speaking,
-// partial transcripts start understanding early. When the final text
-// matches what was speculated, its answer routes at once.
-import { assignConversation as assign } from './actors';
+// partial transcripts start understanding early. One call goes out
+// per sentence, for the first partial worth asking; later partials
+// only note the newest text. Its answer routes at once only for a
+// final of the very text it answered, and an early yes only while
+// nothing newer was heard: "Is there honey?" never gets the answer
+// meant for "Is there". A speculation never waits for good: an echo
+// final, or no final 6 s after the newest words, listens again with
+// the silence clock running (t21 sat silent in it until closed).
+import { assignConversation as assign, cancelConversation as cancel, raiseConversation as raise } from './actors';
 import type { ContextArgs } from './actions';
 import { consumedFinal, logConsumedFinal } from './consumed';
+import { understandInput } from './askHints';
+import { ackSpeculated } from './askView';
 import {
   alertDue,
   assignHelp,
@@ -13,6 +21,8 @@ import {
   logHeardStripped,
   logHelp,
   logReprompt,
+  markTalkBusy,
+  markTalkQuiet,
   micDue,
   nonEmptyFinal,
   noteAlert,
@@ -23,6 +33,8 @@ import {
   noteStreamOpen,
   playHeard,
   raiseHeard,
+  raiseQuestion,
+  repromptDue,
   repromptFree,
 } from './actions';
 import { echoFull, echoStripped } from './echo';
@@ -38,6 +50,8 @@ interface SpecArgs {
 }
 
 const YES_STABLE_MS = 800;
+
+const STALE_MS = 6000;
 
 function heardText(event: ExpressionEvent): string | null {
   return event.type === 'PARTIAL_TEXT' || event.type === 'FINAL_TEXT' ? event.text : null;
@@ -55,7 +69,7 @@ export const partialChanged = ({ context, event }: SpecArgs): boolean => {
 
 export const finalMatch = ({ context, event }: SpecArgs): boolean =>
   event.type === 'FINAL_TEXT' &&
-  event.text === context.specText &&
+  event.text === context.specAsked &&
   context.specAnswer !== null &&
   context.specEpoch === context.epoch;
 
@@ -66,8 +80,27 @@ export const notePartial = assign({
   lastPartialAt: () => Date.now(),
 });
 
+const notePartialText = assign({
+  specText: ({ event }) => heardText(event),
+  lastPartialAt: () => Date.now(),
+});
+
+/** On entering speculation: the call goes out for this text. */
+const noteSpecAsked = assign({ specAsked: ({ context }: ContextArgs) => context.specText });
+
+const armStale = raise({ type: 'SPEC_STALE' }, { delay: STALE_MS, id: 'specStale' });
+
+const dropStale = cancel('specStale');
+
+const logStale = (): void => {
+  logIttro('speculation got no final, listening again');
+};
+
 export const specYesReady = ({ context }: ContextArgs): boolean =>
-  context.specAnswer !== null && context.specAnswer.intent === 'confirm_yes' && context.specEpoch === context.epoch;
+  context.specAnswer !== null &&
+  context.specAnswer.intent === 'confirm_yes' &&
+  context.specEpoch === context.epoch &&
+  context.specText === context.specAsked;
 
 export const specYesStale = ({ context }: SpecArgs): boolean =>
   specYesReady({ context }) && context.lastPartialAt !== null && Date.now() - context.lastPartialAt > YES_STABLE_MS;
@@ -82,6 +115,7 @@ export const noteSpecEarly = assign({
   consumedText: ({ context }: ContextArgs) => context.specText,
   consumedAt: () => Date.now(),
   specText: null,
+  specAsked: null,
   specAnswer: null,
 });
 
@@ -96,6 +130,7 @@ export const noteSpeculative = assign({
 
 export const noteSpecClear = assign({
   specAnswer: null,
+  specAsked: null,
 });
 
 export const noteSpecHit = assign({
@@ -108,20 +143,16 @@ export const noteSpecHit = assign({
   routeAnswer: ({ context }) => context.specAnswer,
   misses: 0,
   specText: null,
+  specAsked: null,
   specAnswer: null,
 });
 
 export const speculatingState = {
+  entry: [markTalkBusy, noteSpecAsked, armStale],
+  exit: [markTalkQuiet, dropStale],
   invoke: {
     src: 'understandAnswer' as const,
-    input: ({ context }: ContextArgs) => ({
-      transcript: context.specText ?? '',
-      lang: context.lang,
-      step: context.step,
-      pendingQuestion: context.pendingQuestion,
-      pendingRequest: context.pendingRequest ?? context.request,
-      lastLine: context.lastLine,
-    }),
+    input: ({ context }: ContextArgs) => understandInput(context, context.specAsked ?? context.specText ?? ''),
     onDone: [
       { guard: specYesStale, actions: [logSpecEarly, noteSpecEarly, raiseLinkOk], target: 'routing' },
       { actions: [noteSpeculative, raiseLinkOk] },
@@ -135,17 +166,18 @@ export const speculatingState = {
     FINAL_TEXT: [
       { guard: consumedFinal, actions: [logConsumedFinal] },
       { guard: finalMatch, actions: [noteSpecHit], target: 'routing' },
-      { guard: echoFull, actions: [logEchoDrop] },
+      { guard: echoFull, actions: [logEchoDrop, noteSpecClear, raiseQuestion], target: 'listening' },
       { guard: echoStripped, actions: [noteHeardStripped, logHeardStripped, raiseHeard], target: 'understanding' },
       { guard: nonEmptyFinal, actions: [noteHeard, logHeard, raiseHeard], target: 'understanding' },
     ],
     PARTIAL_TEXT: [
       { guard: echoFull, actions: [logEchoDrop] },
-      { guard: partialChanged, actions: [notePartial, raiseHeard], target: 'speculating' },
+      { guard: partialChanged, actions: [notePartialText, raiseHeard, dropStale, armStale] },
     ],
+    SPEC_STALE: { actions: [logStale, noteSpecClear, raiseQuestion], target: 'listening' },
     SPEECH_ENDED: [
       { guard: specYesReady, actions: [playHeard, logSpecEarly, noteSpecEarly], target: 'routing' },
-      { actions: [playHeard, raiseHeard] },
+      { actions: [playHeard, ackSpeculated, raiseHeard] },
     ],
     STREAM_OPEN: { actions: [noteStreamOpen, raiseLinkOk] },
     STREAM_CLOSED: { actions: [noteStreamDown, sendStart] },
@@ -153,7 +185,7 @@ export const speculatingState = {
     STREAM_FAILED: { actions: [noteStreamDown, raiseLinkDown, sendStart] },
     MIC_FAILED: { guard: micDue, actions: [noteMicComplaint], target: 'saying' },
     ALERT: { guard: alertDue, actions: [noteAlert], target: 'saying' },
-    REPROMPT: { guard: repromptFree, actions: [assignReprompt, logReprompt], target: 'sayingReprompt' },
+    REPROMPT: { guard: repromptDue, actions: [assignReprompt, logReprompt], target: 'sayingReprompt' },
     HELP: { guard: repromptFree, actions: [assignHelp, logHelp], target: 'sayingHelp' },
   },
 };

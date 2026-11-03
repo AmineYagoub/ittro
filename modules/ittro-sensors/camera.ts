@@ -15,10 +15,12 @@ export interface HandFrame {
   frameMs: number;
   frame: number;
   dropped: number;
-  // The drawn outline's key and how far the camera moved it, in photo pixels.
+  // The drawn outline's key, how far the camera moved it, in photo
+  // pixels, and how much it grew about the frame's middle.
   outlineKey?: string;
   outlineDx?: number;
   outlineDy?: number;
+  outlineScale?: number;
 }
 
 export interface TrackPan {
@@ -31,7 +33,10 @@ export interface TrackPan {
 }
 
 // The guided outline the camera draws and moves natively every frame:
-// SAM's cut in the still numbered `shot` (null: placed as it is now).
+// SAM's cut in the still numbered `shot` (null: placed as it is now),
+// moved from where the camera pointed for that still, `panX`/`panY`/
+// `panS` in cameraPan()'s terms, when known; else from the still's
+// frame time.
 export interface CameraOutline {
   key: string;
   name: string;
@@ -43,6 +48,10 @@ export interface CameraOutline {
   h: number;
   points: number[] | null;
   shot: number | null;
+  panX: number | null;
+  panY: number | null;
+  panS: number | null;
+  panSession: number | null;
 }
 
 export interface CameraViewProps {

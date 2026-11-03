@@ -1,10 +1,14 @@
 // The next request reads the last request's crops at once when the
 // camera has barely moved: t13's Guedila request waited 3.6 s for a
 // new photo and SAM on a shelf outlined seconds before. A camera that
-// moved, an old carry, or the same request start from a photo.
+// moved, an old carry, the same request, or a carry of only the last
+// product (t30) start from a photo. A carried outline keeps its still
+// and where the camera pointed for it, and is placed from there long
+// after the camera has forgotten the still (t39).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createShelfLoop } from '../src/shelf/loop';
+import { boxNow } from '../src/shelf/outlines';
 import type { LoopDeps, LoopPhoto, ShelfCarry, ShelfLoop } from '../src/shelf/loopTypes';
 import type { ShelfBox, ShelfOutline, ShelfRead } from '../src/relay';
 import type { ConversationEvent } from '../src/conversation/types';
@@ -87,8 +91,25 @@ test('t13: the next request is found from the carried crops, with no photo and n
   const [guedila] = found(next.sent);
   // Moved with the camera: 0.01 of 960 px.
   assert.equal(guedila?.box.x1, GUEDILA.x1 + 10);
-  assert.equal(guedila?.anchor, undefined);
   assert.ok(next.logs.some((line) => line.startsWith('shelf read carried')));
+});
+
+test('t39: a carried outline keeps its still and where the camera pointed for it, and is placed from there', async () => {
+  const clock = { now: 0 };
+  const first = rig(clock);
+  first.loop.setTarget('Masaad water', 1);
+  await first.loop.cloudPass([{ ...photo(), shot: 4, pan: { x: 0.1, y: 0.2, session: 1 } }]);
+  const carry = first.loop.carry({ x: 0.1, y: 0.2, session: 1 });
+  assert.ok(carry);
+  const next = rig(clock);
+  next.loop.setTarget('Guedila water', 2);
+  assert.equal(next.loop.seed(carry, { x: 0.11, y: 0.2, session: 1 }), true);
+  assert.equal(await next.loop.carriedPass(), true);
+  const [guedila] = found(next.sent);
+  assert.ok(guedila);
+  assert.deepEqual(guedila.anchor && [guedila.anchor.shot, guedila.anchor.box.x1, guedila.anchor.pan], [4, GUEDILA.x1, { x: 0.1, y: 0.2, session: 1 }]);
+  // Half a frame turned since the still, which the camera no longer remembers.
+  assert.equal(boxNow(guedila, { x: 0.6, y: 0.2, session: 1 }, () => null).x1, GUEDILA.x1 + 480);
 });
 
 test('t14: a phone moved by a tenth of the frame still carries, shifted', async () => {
@@ -120,6 +141,21 @@ test('a camera that moved, an old carry or the same request start from a photo',
   const reopened = rig(clock);
   reopened.loop.setTarget('Guedila water', 2);
   assert.equal(reopened.loop.seed(carry, { x: 0.1, y: 0.2, session: 2 }), false);
+});
+
+test('t30: a carry of only the last product starts from a photo, and a mixed one leaves it behind', async () => {
+  const clock = { now: 0 };
+  const carry = await masaadCarry(clock);
+  const lastOnly: ShelfCarry = { ...carry, tracks: carry.tracks.filter((entry) => entry.read?.verdict === 'yes') };
+  const next = rig(clock);
+  next.loop.setTarget('Guedila water', 2);
+  assert.equal(next.loop.seed(lastOnly, { x: 0.1, y: 0.2 }), false);
+  assert.equal(await next.loop.carriedPass(), false);
+  assert.ok(next.logs.includes('shelf carry skipped, its 1 outlines were the last product'));
+  const mixed = rig(clock);
+  mixed.loop.setTarget('Guedila water', 2);
+  assert.equal(mixed.loop.seed(carry, { x: 0.1, y: 0.2 }), true);
+  assert.ok(mixed.logs.includes('shelf carried 1 outlines from the last request, camera moved 0.000,0.000'));
 });
 
 test('no camera motion known, no carry', async () => {

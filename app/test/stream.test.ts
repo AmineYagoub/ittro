@@ -1,12 +1,13 @@
 // Stream drops: a relay-side error or close restarts the stream
 // silently, only a failed connect says the internet is lost, an open
 // socket never restarts itself, and a drop mid-understanding still
-// restarts.
+// restarts. The mic line reports the level sent, so a quiet mic and
+// a deaf stream look different in the log (t23).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startListening } from './driver';
 import { resetStorage } from './stubs.mjs';
-import { createMicStats } from '../src/conversation/micStats';
+import { createMicStats, micLine } from '../src/conversation/micStats';
 
 test('a relay error restarts the stream silently', async () => {
   resetStorage();
@@ -99,6 +100,25 @@ test('recorded mic arrivals summarize rate, gaps and faults', () => {
   stats.reset();
   assert.equal(stats.count(), 0);
   assert.equal(stats.snapshot().seqGaps, 0);
+});
+
+test('the mic line reports gated frames and the level sent', () => {
+  const stats = createMicStats(() => 0);
+  const half = new Uint8Array(3840);
+  for (let at = 0; at < half.length; at += 2) {
+    half[at + 1] = at % 4 === 0 ? 0x40 : 0xc0;
+  }
+  stats.frame(new Uint8Array(3840), true);
+  stats.frame(null, false);
+  assert.equal(stats.snapshot().gated, 1);
+  assert.equal(stats.snapshot().peakDb, null);
+  assert.match(micLine(stats.snapshot()), /gated 1 level -$/);
+  stats.frame(half, false);
+  assert.equal(stats.snapshot().peakDb, -6);
+  assert.equal(stats.snapshot().rmsDb, -6);
+  stats.reset();
+  stats.frame(new Uint8Array(3840), false);
+  assert.match(micLine(stats.snapshot()), /gated 0 level peak -120 rms -120 dBFS$/);
 });
 
 test('a drop mid-understanding restarts the stream silently', async () => {

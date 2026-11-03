@@ -3,17 +3,31 @@
 // passes outline and read in the background without blocking it. The
 // clock, the frames and the cloud are injected, so tests walk the
 // loop with simulated time and the phone drives it with real timers.
-import type { ShelfCrop, ShelfOutline, ShelfRead } from '../relay';
+// While the hand is guided to the found product the outlines still
+// refresh, but settled labels are not read again every pass (13 reads
+// in 40 s on the phone, each 2.3 to 4.7 s, against the budget and the
+// confirm), and once the phone rests after a move the outline is cut
+// again from a still taken since (recut.ts: t31's slid half a bottle).
+// While guiding with a hand near the product no pass runs, and
+// outlines a hand touches are dropped: SAM would cut the hand in
+// (t34). Another search starts a fresh shelf inventory.
+import type { ShelfCrop, ShelfRead } from '../relay';
 import { linkKindFor } from '../metaCall';
 import { pickSharpest, sharpness } from './tracker';
-import { anchorOutlines, moveOutlines } from './outlines';
+import { anchorOutlines } from './outlines';
 import { biggestFirst, needsRead, reconcileTracks } from './shelfTracks';
 import { outlineSignature, packageKind } from './match';
-import { QUIET_MS, maybeSwept, readBatch, reportEmpty, reportRefind, reportVerdicts, targetJumped } from './loopReads';
+import { QUIET_MS, maybeSwept, prefetchPhrase, readBatch, reportEmpty, reportRefind, reportVerdicts, targetJumped } from './loopReads';
 import type { LoopDeps, LoopPhoto, LoopStats, ShelfLoop } from './loopTypes';
 import { freshState, searchReset } from './loopState';
 import { runCarried, seedCarry, takeCarry } from './carry';
 import { findPass } from './loopFind';
+import { afterSweepRead, stopPhotos, tickSweep } from './loopSweep';
+import { sweepDue } from './sweep';
+import { seenFor } from './inventory';
+import { guideStills, reanchorDue, readsDue, recutDue, recutPhotos } from './recut';
+import { handBlocks, handFreeCut } from './handClear';
+import { placer, shiftTracks } from './place';
 
 const REFRESH_MS = 15000;
 // An unsure label is read again from the next sharp frame soon after (t9:
@@ -22,6 +36,9 @@ const REREAD_MS = 1200;
 const EMPTY_BEFORE_CLEAR = 3;
 const PRIORITY_BATCH = 2;
 const READ_MIN_SHARPNESS = 800;
+// The find reads whole packages, not small crops: t20 read GUEDILA and
+// Messäd at 724 and 772, after waiting 2 s for frames over 800.
+const FIND_MIN_SHARPNESS = 600;
 const BLURRY_SKIP_MAX = 2;
 
 export function createShelfLoop(deps: LoopDeps): ShelfLoop {
@@ -50,6 +67,7 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
     setTarget(request: string, epoch: number): void {
       if (state.request !== request || state.epoch !== epoch) {
         searchReset(state);
+        seenFor(`${epoch}:${request}`);
       }
       state.request = request;
       state.epoch = epoch;
@@ -72,31 +90,23 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
       if (state.cloudBusy || state.request === '') {
         return false;
       }
+      if (deps.readContext().guiding && handBlocks(deps)) {
+        return false;
+      }
+      const swept = state.foundTrack === null ? sweepDue(state.sweep, deps.now()) : null;
+      if (swept !== null) {
+        return swept;
+      }
       if (state.outlinedAt === null || state.sceneChanged || deps.now() - state.outlinedAt >= REFRESH_MS) {
         return true;
       }
       return (
-        needsRead(state.tracks).length > 0 && (state.readAt === null || deps.now() - state.readAt >= REREAD_MS)
+        recutDue(ctx) || readsDue(ctx, needsRead(state.tracks).length > 0 && (state.readAt === null || deps.now() - state.readAt >= REREAD_MS))
       );
     },
 
     trackShift(dx: number, dy: number, changed: boolean, scale: number): void {
-      if (!Number.isFinite(dx) || !Number.isFinite(dy) || !(scale > 0)) {
-        return;
-      }
-      if (changed) {
-        state.sceneChanged = true;
-        return;
-      }
-      if (state.tracks.length === 0 || (dx === 0 && dy === 0)) {
-        return;
-      }
-      const moved = moveOutlines(
-        state.tracks.map((entry) => entry.outline),
-        { dx, dy, scale },
-      );
-      state.tracks = state.tracks.map((entry, at) => ({ ...entry, outline: moved[at] as ShelfOutline }));
-      deps.send({ type: 'OUTLINES_MOVED', outlines: moved });
+      shiftTracks(deps, state, { dx, dy, scale }, changed);
     },
 
     async cloudPass(photos: LoopPhoto[], hand: ShelfCrop | null = null): Promise<void> {
@@ -109,29 +119,37 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
       state.cloudBusy = true;
       const epoch = state.epoch;
       const request = state.request;
+      const outlinedBefore = state.outlinedAt;
       try {
-        const sharpest = photos[pickSharpest(photos.map((frame) => frame.grey))] as LoopPhoto;
+        await pass();
+        if (state.outlinedAt !== outlinedBefore) {
+          await afterSweepRead(ctx, request, epoch);
+        }
+      } catch (error) {
+        fail(error);
+      } finally {
+        state.cloudBusy = false;
+      }
+
+      async function pass(): Promise<void> {
+        const usable = guideStills(ctx, recutPhotos(state, stopPhotos(state, photos)));
+        if (usable.length === 0) {
+          deps.log(deps.readContext().guiding ? 'shelf pass waits for a fresh still without a hand' : 'shelf stop waits for a still taken once the camera settled');
+          return;
+        }
+        const sharpest = usable[pickSharpest(usable.map((frame) => frame.grey))] as LoopPhoto;
+        state.lastStill = sharpest;
         const picked = sharpness(sharpest.grey);
         const scored = sharpest.grey.data.length > 0;
-        if (scored && picked < READ_MIN_SHARPNESS && state.blurrySkips < BLURRY_SKIP_MAX) {
-          // The phrase names the package, which a blurry frame still shows:
-          // ask for it now rather than after the sharp frame (t9: 2.8 s).
-          if (!state.phrases.has(request) && !state.phraseWait) {
-            const asked = request;
-            state.phraseWait = deps.fetchPhrase(asked, sharpest.image, sharpest.mime).then((found) => {
-              state.phrases.set(asked, found);
-              return found;
-            });
-            state.phraseWait.catch(() => {
-              state.phraseWait = null;
-            });
-          }
+        const findable = deps.find !== undefined && !hand && !deps.readContext().guiding;
+        if (scored && picked < (findable ? FIND_MIN_SHARPNESS : READ_MIN_SHARPNESS) && state.blurrySkips < BLURRY_SKIP_MAX) {
+          prefetchPhrase(ctx, request, sharpest);
           state.blurrySkips += 1;
           deps.log(`shelf frame too blurry for a read (${Math.round(picked)}), waiting for a sharper one`);
           return;
         }
         state.blurrySkips = 0;
-        if (!hand && !deps.readContext().guiding && (await findPass(ctx, request, epoch, sharpest, nextId, picked))) {
+        if (findable && (await findPass(ctx, request, epoch, sharpest, nextId, picked))) {
           if (!stale(epoch)) {
             deps.send({ type: 'LINK_OK' });
           }
@@ -165,18 +183,25 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
           if (stale(epoch)) {
             return;
           }
-          // The shelf answers to the short word: the next passes ask it first.
           if (outlined.outlines.length > 0) {
             state.phrases.set(request, shorter);
             deps.keepPhrase?.(request, shorter);
           }
         }
-        outlined = { ...outlined, outlines: anchorOutlines(outlined.outlines, sharpest.shot) };
+        outlined = { ...outlined, outlines: anchorOutlines(outlined.outlines, sharpest.shot, sharpest.pan) };
+        const clear = handFreeCut(deps, outlined.outlines, sharpest.handBox);
+        if (!clear) {
+          state.outlinedAt = deps.now();
+          return;
+        }
+        outlined = { ...outlined, outlines: clear };
         const masked = outlined.outlines.filter((outline) => outline.mask).length;
         deps.log(
           `shelf sam ${outlined.samMs}ms masks ${outlined.maskMs}ms outlines ${outlined.outlines.length} masked ${masked} sharpness ${Math.round(picked)}`,
         );
         state.outlinedAt = deps.now();
+        state.outlinedPan = sharpest.pan ?? null;
+        const reanchor = reanchorDue(ctx, outlined.outlines);
         state.sceneChanged = false;
         if (outlined.outlines.length === 0) {
           state.emptyOutlines += 1;
@@ -189,12 +214,12 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
           return;
         }
         state.emptyOutlines = 0;
-        state.tracks = reconcileTracks(state.tracks, outlined.outlines, nextId);
+        state.tracks = reconcileTracks(state.tracks, outlined.outlines, nextId, placer(deps));
         const context = deps.readContext();
         const signature = outlineSignature(outlined.outlines);
         if (signature !== state.lastSignature) {
           state.lastSignature = signature;
-          deps.send({ type: 'SHELF_OUTLINED', outlines: outlined.outlines, kind: packageKind(phrase, context.lang) });
+          deps.send({ type: 'SHELF_OUTLINED', outlines: outlined.outlines, now: outlined.outlines.map(placer(deps)), kind: packageKind(phrase, context.lang) });
         }
         if (hand) {
           const answer = await deps.read(request, [{ id: hand.id, image: hand.image, mime: hand.mime }]);
@@ -207,17 +232,9 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
           deps.log(`shelf hand read ${answer.readMs}ms verdict ${verdict}`);
         }
         const verifying =
-          context.guiding && !context.handCovering && (context.guideLost || context.guideRecheck || targetJumped(state));
+          context.guiding && !context.handCovering && (reanchor || context.guideLost || context.guideRecheck || targetJumped(state, placer(deps)));
         if (context.guiding && !verifying) {
-          if (context.handCovering) {
-            deps.log('shelf target held under hand');
-          } else {
-            // The product is found and the hand is being guided: the
-            // outlines still refresh, but settled labels are not read
-            // again every pass (13 reads in 40 s on the phone, each
-            // 2.3 to 4.7 s, all against the budget and the confirm).
-            deps.log('shelf reads paused while guiding');
-          }
+          deps.log(context.handCovering ? 'shelf target held under hand' : 'shelf reads paused while guiding');
           deps.send({ type: 'LINK_OK' });
           return;
         }
@@ -233,7 +250,7 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
             return;
           }
           if (verifying) {
-            reportRefind(ctx, request, passReads, epoch);
+            reportRefind(ctx, request, passReads, epoch, reanchor);
           } else {
             reportVerdicts(ctx, request, passReads, epoch);
           }
@@ -245,19 +262,15 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
             return;
           }
           if (verifying) {
-            reportRefind(ctx, request, passReads, epoch);
+            reportRefind(ctx, request, passReads, epoch, reanchor);
           } else {
             reportVerdicts(ctx, request, passReads, epoch);
           }
         }
         if (!verifying) {
-          maybeSwept(ctx, passReads, epoch);
+          await maybeSwept(ctx, request, passReads, epoch);
         }
         deps.send({ type: 'LINK_OK' });
-      } catch (error) {
-        fail(error);
-      } finally {
-        state.cloudBusy = false;
       }
     },
 
@@ -271,6 +284,10 @@ export function createShelfLoop(deps: LoopDeps): ShelfLoop {
 
     carriedPass() {
       return runCarried(ctx);
+    },
+
+    sweepTick() {
+      tickSweep(ctx);
     },
 
     stats(): LoopStats {

@@ -29,16 +29,33 @@ export function memoryStatus() {
   return null;
 }
 
+export const audioStreamCalls = [];
+
 export function startAudioStream() {
+  audioStreamCalls.push('start');
   return true;
 }
 
 export function stopAudioStream() {
+  audioStreamCalls.push('stop');
   return true;
 }
 
-export function addAudioChunkListener() {
-  return { remove() {} };
+const audioListeners = new Set();
+
+export function addAudioChunkListener(listener) {
+  audioListeners.add(listener);
+  return {
+    remove() {
+      audioListeners.delete(listener);
+    },
+  };
+}
+
+export function emitAudioChunk(chunk, sequence) {
+  for (const listener of [...audioListeners]) {
+    listener({ chunk, sequence });
+  }
 }
 
 export function setButtonsActive() {
@@ -74,6 +91,10 @@ export function setHandDelegate() {
 }
 
 export function cameraPan() {
+  return null;
+}
+
+export function shotPan() {
   return null;
 }
 

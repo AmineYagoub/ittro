@@ -1,13 +1,15 @@
 // Confirms the product held in the hand, and reads one label detail
 // word for word. One photo, one strict answer: yes only when every
 // asked attribute is read and matches, no when anything is
-// contradicted, unsure when anything asked is unreadable, picture
-// when the photo itself is unusable. Details are copied exactly and
-// never advised on: no medicines identified, no safety judged.
+// contradicted (another spelling of the asked name is not: t27 heard
+// no for a Messäd bottle read as مساد), unsure when anything asked
+// is unreadable, picture when the photo itself is unusable. Details
+// are copied exactly and never advised on: no medicines identified,
+// no safety judged.
 import { callSparkJson } from './spark.ts';
 import type { SparkSchema } from './spark.ts';
-import { effortField, mimeField, textField } from './bodies.ts';
-import { recordSparkCost } from './gate.ts';
+import { effortField, mimeField, shortText, textField } from './bodies.ts';
+import { charged, recordSparkCost } from './gate.ts';
 import type { Env } from './gate.ts';
 import { settleConfirm } from './settle.ts';
 
@@ -168,7 +170,10 @@ const CONFIRM_INSTRUCTIONS = [
   'First parse the request into asked attributes: brand (the maker), product (the kind),',
   'variant (flavour or type), size (weight, volume or count); unknown is null.',
   'Then fill read. brand, variant and size: only text you can really read on the held',
-  'product, transliterated into the script of the request so it can be spoken. product',
+  'product, transliterated into the script of the request so it can be spoken. A name',
+  'printed in another script or spelling that plainly sounds the same is the asked name',
+  '(Guedila is قديلة; a Latin a, ä or aa can stand for ع): write it as the request spells',
+  'it. product',
   '(the kind): the printed kind, or when the label does not print it, what the held item',
   'plainly is (a clear bottle of still water is water, a carton of milk is milk), in the',
   "request's own words when it means the same. Anything unreadable is null, never a",
@@ -177,7 +182,8 @@ const CONFIRM_INSTRUCTIONS = [
   "l'eau Guedila) from what you read, or empty when nothing is readable.",
   'unreadable lists each asked attribute you could not read. Verdict: picture when',
   'picture_problem naming it (blurry, dark, glare, far, turned); else no when any asked',
-  'attribute is contradicted by what you read; else unsure when any asked attribute is',
+  'attribute is contradicted by what you read (a different name, never another spelling',
+  'of the asked one); else unsure when any asked attribute is',
   'unreadable; else yes. A wrong yes is the worst outcome: when in doubt, unsure.',
 ].join(' ');
 
@@ -232,19 +238,16 @@ function detailField(value: unknown): DetailKind | null {
 
 export async function confirmRoute(body: unknown, env: Env): Promise<Response> {
   const record = (body ?? {}) as { request?: unknown; image?: unknown; mime?: unknown; effort?: unknown };
-  const wanted = textField(record.request);
+  const wanted = shortText(record.request, 200);
   const image = textField(record.image);
   if (!wanted || !image) {
     return Response.json({ ok: false, error: 'missing request or image' }, { status: 400 });
   }
   try {
-    const result = await confirmInHand(fetch, env.META_API_BASE, env.META_API_KEY, {
-      request: wanted,
-      image,
-      mime: mimeField(record.mime),
-      effort: effortField(record.effort),
-    });
-    await recordSparkCost(env);
+    const result = await charged(
+      () => recordSparkCost(env),
+      () => confirmInHand(fetch, env.META_API_BASE, env.META_API_KEY, { request: wanted, image, mime: mimeField(record.mime), effort: effortField(record.effort) }),
+    );
     return Response.json({ ok: true, read: result.read, readMs: result.readMs });
   } catch (err) {
     return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
@@ -259,12 +262,10 @@ export async function detailRoute(body: unknown, env: Env): Promise<Response> {
     return Response.json({ ok: false, error: 'missing detail or image' }, { status: 400 });
   }
   try {
-    const result = await readLabelDetail(fetch, env.META_API_BASE, env.META_API_KEY, {
-      detail,
-      image,
-      mime: mimeField(record.mime),
-    });
-    await recordSparkCost(env);
+    const result = await charged(
+      () => recordSparkCost(env),
+      () => readLabelDetail(fetch, env.META_API_BASE, env.META_API_KEY, { detail, image, mime: mimeField(record.mime) }),
+    );
     return Response.json({ ok: true, read: result.read, readMs: result.readMs });
   } catch (err) {
     return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });

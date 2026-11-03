@@ -6,8 +6,12 @@ import type { Language } from '../theme';
 import type { Prefs } from '../store';
 import type { LinkKind } from '../metaCall';
 import type { ConfirmAttr, DetailKind, DetailReason, PictureProblem, ShelfBox, ShelfOutline, UnderstandAnswer } from '../relay';
+import type { SearchContext, SearchEvent } from './searchTypes';
+import type { AskContext, AskEvent, UnderstandAsk } from './askTypes';
 
-export type ConversationStep = 'welcome' | 'confirm' | 'offer' | 'sleep' | 'language' | 'tour' | 'translate' | 'alternative' | 'verdict' | 'helperName' | 'helperSend' | 'helperOffer';
+export type { SearchAnnouncement, SearchContext, SearchEvent } from './searchTypes';
+
+export type ConversationStep = 'welcome' | 'confirm' | 'offer' | 'sleep' | 'language' | 'tour' | 'translate' | 'alternative' | 'verdict' | 'helperName' | 'helperSend' | 'helperOffer' | 'viewOffer';
 
 export type { ConfirmAttr, DetailKind, DetailReason, PictureProblem };
 
@@ -31,10 +35,6 @@ export interface GuideHand {
   x: number;
   y: number;
   box?: { x1: number; y1: number; x2: number; y2: number };
-}
-
-export interface SearchAnnouncement extends SpokenLine {
-  kind: 'status' | 'alternative';
 }
 
 export interface HelperContact {
@@ -91,7 +91,7 @@ export type StreamEmitted =
 
 export type StreamRef = ActorRef<Snapshot<undefined>, StreamCommand | StreamEmitted> | null;
 
-export interface ConversationContext {
+export interface ConversationContext extends SearchContext, AskContext {
   lang: Language;
   epoch: number;
   askedEpoch: number;
@@ -105,6 +105,7 @@ export interface ConversationContext {
   offered: boolean;
   misses: number;
   specText: string | null;
+  specAsked: string | null;
   specAnswer: UnderstandAnswer | null;
   specEpoch: number;
   lastPartialAt: number | null;
@@ -137,18 +138,8 @@ export interface ConversationContext {
   streamRef: StreamRef;
   relayUrl: string;
   relayCode: string;
-  cameraOn: boolean;
-  searching: boolean;
-  outlines: ShelfOutline[];
-  checkedCount: number;
-  searchEpoch: number;
-  pendingSearch: SearchAnnouncement[];
-  alternative: string | null;
   guiding: boolean;
   guideTarget: ShelfOutline | null;
-  shelfTarget: ShelfOutline | null;
-  shelfCrop: string | null;
-  readingSaidEpoch: number;
   guideLabel: string;
   guideKind: string;
   guideMatches: number;
@@ -216,19 +207,12 @@ export type ConversationEvent =
   | { type: 'QUESTION_ASKED' }
   | { type: 'TALK_IDLE' }
   | { type: 'HEARD' }
-  | { type: 'SEARCH_BEGIN' }
-  | { type: 'SEARCH_END' }
-  | { type: 'SHELF_OUTLINED'; outlines: ShelfOutline[]; kind: string }
-  | { type: 'SHELF_SWEPT'; checked: number }
-  | { type: 'WRONG_SHELF'; kind: string; aisle: string }
-  | { type: 'CLOSE_MATCH'; wanted: string; found: string }
-  | { type: 'HAND_HOLD' }
-  | { type: 'SEARCH_FAILED'; kind: LinkKind }
+  | { type: 'SPEC_STALE' }
+  | { type: 'HEARD_STALE' }
   | { type: 'LINK_DOWN' }
   | { type: 'LINK_LIMITED' }
   | { type: 'LINK_BROKEN' }
   | { type: 'LINK_OK' }
-  | { type: 'SHELF_FOUND'; product: string; outline: ShelfOutline | null; matches: number; kind: string; position: GuidePosition; crop?: string | null }
   | { type: 'GUIDE_CUE'; cue: string; proximity: number; hand: GuideHand }
   | { type: 'GUIDE_ALIGNED'; proximity: number; hand: GuideHand }
   | { type: 'GUIDE_COVERING'; proximity: number; hand: GuideHand }
@@ -238,11 +222,9 @@ export type ConversationEvent =
   | { type: 'GUIDE_CONTACT' }
   | { type: 'GUIDE_WRONG'; label: string; cue: string }
   | { type: 'GUIDE_TARGET_LOST'; cue: string }
+  | { type: 'GUIDE_TARGET_BACK' }
   | { type: 'GUIDE_RESTART' }
   | { type: 'GUIDE_END' }
-  | { type: 'NO_SHELF'; floor: boolean }
-  | { type: 'OUTLINES_MOVED'; outlines: ShelfOutline[] }
-  | { type: 'SHELF_TURN'; direction: 'left' | 'right' }
   | { type: 'CONFIRM_BEGIN' }
   | { type: 'CONFIRM_AUTO' }
   | { type: 'CONFIRM_TOUCHED'; label: string }
@@ -265,7 +247,9 @@ export type ConversationEvent =
   | { type: 'HELPER_ANSWER'; verdict: 'yes' | 'no' | 'cant_tell'; note: string | null; helper: string }
   | { type: 'HELPER_NUDGE' }
   | { type: 'HELPER_TIMEOUT'; names: string[] }
-  | { type: 'HELPER_END' };
+  | { type: 'HELPER_END' }
+  | SearchEvent
+  | AskEvent;
 
 export type ExpressionEvent = ConversationEvent | DoneActorEvent | ErrorActorEvent;
 
@@ -293,6 +277,7 @@ export interface UnderstandInput {
   pendingQuestion: string | null;
   pendingRequest: string | null;
   lastLine: string;
+  ask?: UnderstandAsk;
 }
 
 export interface TourInput {

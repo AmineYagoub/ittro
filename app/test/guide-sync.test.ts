@@ -1,8 +1,11 @@
 // One target of truth: the loop steers toward the box the statechart
 // holds, synced every frame, so a fresh shelf pass never restarts
 // the approach or leaves the loop on a stale box; out of view, the
-// hand cues stop and the phone cue repeats; every first cue logs
-// where it came from.
+// hand cues stop, the no-hand and lost cues too (t30), and the phone
+// cue repeats; every first cue logs where it came from, and a lost
+// target where its box was; a target back in view tells the
+// conversation, so its outline shows again (t34); a product above the
+// picture asks for the phone higher (t37).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGuideLoop } from '../src/guide/loop';
@@ -159,6 +162,16 @@ test('a target leaving the view reports the way to turn the phone', async () => 
   assert.deepEqual(lost[0], { type: 'GUIDE_TARGET_LOST', cue: 'phone_left_small' });
 });
 
+test('t37: a product placed above the picture asks for the phone higher', async () => {
+  const env = harness();
+  env.loop.syncTarget({ ...TARGET.box, y1: -905, y2: -279 });
+  await env.loop.handFrame(fix(300, 520, env.at()), [TARGET], 1280, 960, true);
+  env.tick(250);
+  await env.loop.handFrame(fix(300, 520, env.at()), [TARGET], 1280, 960, true);
+  const lost = env.sent.filter((event) => event.type === 'GUIDE_TARGET_LOST');
+  assert.deepEqual(lost.at(-1), { type: 'GUIDE_TARGET_LOST', cue: 'phone_up_small' });
+});
+
 test('a covered product still reports when it stays gone past the patience', async () => {
   const env = harness();
   await env.loop.handFrame(fix(680, 520, env.at()), [TARGET], 1280, 960);
@@ -170,15 +183,34 @@ test('a covered product still reports when it stays gone past the patience', asy
   assert.equal(env.sent.filter((event) => event.type === 'GUIDE_TARGET_LOST').length, 1);
 });
 
-test('a target leaving and returning logs both moments', async () => {
+test('a target leaving and returning logs both moments, with where the box was (t30), and says it is back (t34)', async () => {
   const env = harness();
   await env.loop.handFrame(fix(300, 520, env.at()), [TARGET], 1280, 960);
   env.tick(250);
   await env.loop.handFrame(fix(300, 520, env.at()), [], 1280, 960);
   env.tick(250);
   await env.loop.handFrame(fix(300, 520, env.at()), [], 1280, 960);
-  assert.ok(env.logs.includes('guide target out of view'));
+  assert.ok(env.logs.includes('guide target out of view, box 600,400,760,640 overlap 0.00'));
   env.tick(250);
   await env.loop.handFrame(fix(300, 520, env.at()), [TARGET], 1280, 960);
   assert.ok(env.logs.includes('guide target back in view'));
+  assert.ok(env.sent.some((event) => event.type === 'GUIDE_TARGET_BACK'));
+});
+
+test('out of view mutes the no-hand and lost cues, which come back with the target (t30)', async () => {
+  const env = harness();
+  await env.loop.handFrame(null, [TARGET], 1280, 960);
+  assert.equal(env.sent.at(-1)?.type, 'GUIDE_NOHAND');
+  for (let step = 0; step < 24; step += 1) {
+    env.tick(250);
+    await env.loop.handFrame(null, [], 1280, 960);
+  }
+  const kinds = env.sent.map((event) => event.type);
+  const lostAt = kinds.indexOf('GUIDE_TARGET_LOST');
+  assert.ok(lostAt > 0, 'the phone cue plays');
+  const after = kinds.slice(lostAt).filter((kind) => kind === 'GUIDE_NOHAND' || kind === 'GUIDE_LOST');
+  assert.equal(after.length, 0, 'no bouncing between the out-of-view line and the hand cues');
+  env.tick(250);
+  await env.loop.handFrame(null, [TARGET], 1280, 960);
+  assert.equal(env.sent.at(-1)?.type, 'GUIDE_NOHAND', 'back in view, the no-hand cue resumes');
 });

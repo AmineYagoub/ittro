@@ -18,6 +18,8 @@ import type {
 import type { Language } from '../src/theme';
 import type { UnderstandAnswer } from '../src/relay';
 import type { PairHelperInput, PairHelperOutput, SendHelpInput, SendHelpOutput } from '../src/helper/actors';
+import type { AskViewInput } from '../src/conversation/askView';
+import type { ViewReply } from '../src/conversation/askTypes';
 
 export type UnderstandScript = (input: UnderstandInput) => UnderstandAnswer | Promise<UnderstandAnswer>;
 
@@ -30,6 +32,8 @@ export function answer(patch: Partial<UnderstandAnswer> & { intent: string }): U
     detail: patch.detail ?? null,
     target_language: patch.target_language ?? null,
     helper_name: patch.helper_name ?? null,
+    question: patch.question ?? null,
+    ...(patch.view ? { view: patch.view } : {}),
   };
 }
 
@@ -45,6 +49,8 @@ export type PairScript = (input: PairHelperInput) => PairHelperOutput | Promise<
 
 export type SendScript = (input: SendHelpInput) => SendHelpOutput | Promise<SendHelpOutput>;
 
+export type AskScript = (input: AskViewInput) => ViewReply | Promise<ViewReply>;
+
 export interface Driver {
   spoken: string[];
   parts: SpeechPart[][];
@@ -53,6 +59,8 @@ export interface Driver {
   holdSpeech: (hold: boolean) => void;
   setUnderstand: (script: UnderstandScript) => void;
   setHelper: (scripts: { pair?: PairScript; send?: SendScript }) => void;
+  setAsk: (script: AskScript) => void;
+  asked: AskViewInput[];
   send: (event: ConversationEvent) => void;
   heard: (text: string) => Promise<void>;
   partial: (text: string) => Promise<void>;
@@ -77,6 +85,8 @@ export function startConversation(options?: StartOptions): Driver {
   let script: UnderstandScript = () => answer({ intent: 'not_understood' });
   let pairScript: PairScript = (input) => ({ name: input.name, code: '482715', expiresAt: Date.now() + 600000 });
   let sendScript: SendScript = () => ({ id: 'q1', helpers: ['Sara'], photo: null });
+  let askScript: AskScript = () => ({ answer: 'On this shelf I see rice.', offer: null, unreadable: [] });
+  const asked: AskViewInput[] = [];
   let speechHeld = false;
   let speechGate: (() => void) | null = null;
   const provided = conversationMachine.provide({
@@ -99,6 +109,10 @@ export function startConversation(options?: StartOptions): Driver {
       understandAnswer:
         options?.understandLogic ??
         fromPromise(async ({ input }: { input: UnderstandInput }) => script(input)),
+      askView: fromPromise<ViewReply, AskViewInput>(async ({ input }) => {
+        asked.push(input);
+        return askScript(input);
+      }),
       tourSequence: fromPromise<void, TourInput>(async () => undefined),
       ticking: fromCallback(() => () => undefined),
       streamClient: fromCallback<StreamEmitted | StreamCommand, StreamInput>(({ receive }) => {
@@ -142,6 +156,7 @@ export function startConversation(options?: StartOptions): Driver {
     spoken,
     parts,
     streamCommands,
+    asked,
     async start(): Promise<void> {
       actor.start();
       await flush();
@@ -156,6 +171,9 @@ export function startConversation(options?: StartOptions): Driver {
     },
     setUnderstand(next: UnderstandScript): void {
       script = next;
+    },
+    setAsk(next: AskScript): void {
+      askScript = next;
     },
     setHelper(scripts: { pair?: PairScript; send?: SendScript }): void {
       if (scripts.pair) {

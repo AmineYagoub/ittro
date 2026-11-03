@@ -122,3 +122,30 @@ test('a ready stream resets the wait', async () => {
     restore();
   }
 });
+
+test('a start while a reopen is still opening keeps that socket (t20)', async () => {
+  opened.length = 0;
+  const restore = installSocket();
+  try {
+    const actor = createActor(streamClient, {
+      input: { url: 'ws://localhost:8787', code: 'test', keywords: [], retryBaseMs: 30 },
+    });
+    actor.start();
+    await waitForOpen(1, 500);
+    opened[0]?.onmessage?.({ data: JSON.stringify({ type: 'ready' }) });
+    opened[0]?.onclose?.({ code: 1006, reason: '' });
+    actor.send({ type: 'START', keywords: [] });
+    await waitForOpen(2, 500);
+    actor.send({ type: 'START', keywords: ['قديلة'] });
+    await sleep(120);
+    assert.equal(opened.length, 2);
+    assert.equal(opened[1]?.closed, false);
+    opened[1]?.onmessage?.({ data: JSON.stringify({ type: 'ready' }) });
+    opened[1]?.onclose?.({ code: 1006, reason: '' });
+    actor.send({ type: 'START', keywords: [] });
+    await waitForOpen(3, 500);
+    actor.stop();
+  } finally {
+    restore();
+  }
+});

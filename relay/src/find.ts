@@ -9,7 +9,7 @@ import { callSparkJson } from './spark.ts';
 import type { SparkSchema } from './spark.ts';
 import { outlineProducts } from './sam.ts';
 import type { SamOutline } from './sam.ts';
-import { mimeField, textField } from './bodies.ts';
+import { mimeField, shortText, textField } from './bodies.ts';
 import { recordSamCost, recordSparkCost } from './gate.ts';
 import type { Env } from './gate.ts';
 
@@ -89,8 +89,9 @@ function isGrounding(value: unknown): value is { items: Grounded[] } {
 // fixed both. A general request must match every variety, or rice
 // missed four frames.
 function groundingText(request: string): string {
+  const named = request.replace(/[«»\r\n]/g, ' ').trim();
   return [
-    `You are an object grounding expert. A blind shopper asked for: «${request}». Read the package labels and find every package that is this product.`,
+    `You are an object grounding expert. A blind shopper asked for: «${named}». Read the package labels and find every package that is this product.`,
     'A general request (rice) matches every variety of it; a request naming a variety (white rice, basmati) matches only that variety.',
     'For each, give its box as [x_min, y_min, x_max, y_max] on a 0-1000 grid of this image, label: the name printed on that package as you read it,',
     "never the request's words, and is_requested: true only when that printed name is this product (a different kind of product, a reflection or a",
@@ -164,20 +165,25 @@ export async function findOnShelf(
 
 export async function findRoute(body: unknown, env: Env): Promise<Response> {
   const record = (body ?? {}) as { request?: unknown; image?: unknown; mime?: unknown; w?: unknown; h?: unknown };
-  const wanted = textField(record.request);
+  const wanted = shortText(record.request, 200);
   const image = textField(record.image);
   const w = typeof record.w === 'number' ? record.w : 0;
   const h = typeof record.h === 'number' ? record.h : 0;
   if (!wanted || !image || !Number.isInteger(w) || w <= 0 || !Number.isInteger(h) || h <= 0) {
     return Response.json({ ok: false, error: 'missing request, image or photo size' }, { status: 400 });
   }
+  let grounded = false;
   try {
-    const result = await findOnShelf(fetch, env.META_API_BASE, env.META_API_KEY, { request: wanted, image, mime: mimeField(record.mime), w, h }, () => recordSparkCost(env));
+    const result = await findOnShelf(fetch, env.META_API_BASE, env.META_API_KEY, { request: wanted, image, mime: mimeField(record.mime), w, h }, () => {
+      grounded = true;
+      return recordSparkCost(env);
+    });
     if (result.outlines.length > 0 || result.samMs > 0) {
       await recordSamCost(env);
     }
     return Response.json({ ok: true, ...result });
   } catch (err) {
+    await (grounded ? recordSamCost(env) : recordSparkCost(env)).catch(() => undefined);
     return Response.json({ ok: false, error: String((err as Error)?.message ?? err) }, { status: 502 });
   }
 }

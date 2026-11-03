@@ -18,6 +18,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 // where sentences end, so there are no fixed-length clips. Listening
 // comes first: the mic thread runs at audio priority and emits
 // straight from that thread, never queued behind the main thread.
+// The mic is the plain MIC source. On the OnePlus test phone,
+// VOICE_RECOGNITION runs the vendor's dual-mic voice processing: in
+// t25 it sent the answer at the second yes 10 to 20 dB quieter than at
+// the first, and Meta heard nothing. On MIC, t26 heard the answer at
+// both yes screens.
 class IttroSensorsModule : Module() {
   private var recorder: AudioRecord? = null
   private var streamThread: Thread? = null
@@ -47,7 +52,7 @@ class IttroSensorsModule : Module() {
       return false
     }
     val record = try {
-      AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, STREAM_RATE, channel, encoding, minBuf * 2)
+      AudioRecord(MediaRecorder.AudioSource.MIC, STREAM_RATE, channel, encoding, minBuf * 2)
     } catch (e: Exception) {
       return false
     }
@@ -196,6 +201,10 @@ class IttroSensorsModule : Module() {
 
     Function("getCameraPan") {
       OutlineTrack.pan()
+    }
+
+    Function("getShotPan") { number: Int ->
+      OutlineTrack.shotPan(number)
     }
 
     Function("setHandDelegate") { delegate: String ->

@@ -19,6 +19,10 @@ const CLIP_GRACE_MS = 400;
 
 const CLIP_POLL_MS = 200;
 
+// EXPO_PUBLIC_ENGINE_CUES=on speaks the English and French cues in the
+// picked engine voice, as Arabic is, to compare with the MMS clips.
+const ENGINE_CUES = process.env['EXPO_PUBLIC_ENGINE_CUES'] === 'on';
+
 let generation = 0;
 let talkBack = false;
 let activePlayer: AudioPlayer | null = null;
@@ -68,6 +72,16 @@ function waitEstimate(text: string, g: number): Promise<void> {
     };
     tick();
   });
+}
+
+/** Says a short line once the clip now playing has had waitMs to end, unless something else was played or said first. */
+export function sayAfterClip(text: string, lang: Language, waitMs: number): void {
+  const g = generation;
+  setTimeout(() => {
+    if (generation === g) {
+      void say(text, lang);
+    }
+  }, waitMs);
 }
 
 export async function say(text: string, lang: Language): Promise<void> {
@@ -174,7 +188,7 @@ export function sayClip(id: string, lang: Language): Promise<void> {
   if (!cue) {
     return Promise.resolve();
   }
-  if (lang === 'ar' || talkBack) {
+  if (lang === 'ar' || talkBack || ENGINE_CUES) {
     return say(cue[lang], lang);
   }
   const clip = cueClip[id]?.[lang];

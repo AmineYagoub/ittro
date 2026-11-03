@@ -6,6 +6,7 @@
 // self transition: every re-arm enters waiting fresh.
 import { setup } from 'xstate';
 import { speakMany, speakParts, ticking, tourSequence, understandAnswer } from './actors';
+import { askViewActor } from './askView';
 import { answerPoll, pairHelper, pairPoll, pulseTick, sendHelp } from '../helper/actors';
 import { streamClient } from './streamActor';
 import { speech } from '../theme';
@@ -26,7 +27,7 @@ import type { ConversationContext, ConversationEvent, MachineInput } from './typ
 
 export const conversationMachine = setup({
   types: { context: {} as ConversationContext, events: {} as ConversationEvent, input: {} as MachineInput },
-  actors: { speakMany, speakParts, understandAnswer, ticking, tourSequence, streamClient, pairHelper, sendHelp, pairPoll, answerPoll, pulseTick },
+  actors: { speakMany, speakParts, understandAnswer, askView: askViewActor, ticking, tourSequence, streamClient, pairHelper, sendHelp, pairPoll, answerPoll, pulseTick },
 }).createMachine({
   id: 'conversation',
   context: initialContext,

@@ -52,7 +52,7 @@ Phone numbers (fill after the phone runs, never invent): 20-minute session drain
 ```bash
 git clone https://github.com/AmineYagoub/ittro
 cd ittro/app && npm install && npx tsc --noEmit && npm run lint && npm test
-cd ../relay && npm test && npm run lint
+cd ../relay && npm install && npm test && npm run typecheck && npm run lint
 cd ../modules/ittro-sensors && npm run lint
 ```
 

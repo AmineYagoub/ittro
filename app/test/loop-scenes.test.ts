@@ -17,7 +17,7 @@ function scene(part: Partial<SceneView>): SceneView {
   return { scene: 'shelf', kinds: ['bags'], aisle_hint: null, ...part };
 }
 
-function rig(scenes: SceneView[]): {
+function rig(scenes: SceneView[], lang: 'en' | 'ar' | 'fr' = 'en'): {
   loop: ShelfLoop;
   sent: ConversationEvent[];
   calls: { read: string[][]; classify: number };
@@ -39,7 +39,7 @@ function rig(scenes: SceneView[]): {
       return scenes[0] as SceneView;
     },
     cutCrops: async () => [],
-    readContext: () => ({ lang: 'en', alternative: null, checkedCount: 0 }),
+    readContext: () => ({ lang, alternative: null, checkedCount: 0 }),
     send: (event) => {
       sent.push(event);
     },
@@ -68,6 +68,18 @@ test('a shelf without the kind points to a person, once per scene', async () => 
   const wrong = rigged.sent.filter((event) => event.type === 'WRONG_SHELF');
   assert.equal(wrong.length, 1);
   assert.equal(rigged.calls.classify, 2);
+});
+
+test('the scene check says whether the shelf fits, and names it in the shopper\'s language', async () => {
+  const wrong = rig([scene({ kinds: ['bags'], shelf_label: 'البسكويت', fits_request: false })], 'ar');
+  wrong.loop.setTarget('أرز', 1);
+  await wrong.loop.cloudPass([photo()]);
+  const sent = wrong.sent.find((event) => event.type === 'WRONG_SHELF');
+  assert.deepEqual(sent, { type: 'WRONG_SHELF', shelf: 'البسكويت', product: 'أرز' });
+  const right = rig([scene({ kinds: ['bags'], shelf_label: 'الأرز', fits_request: true })], 'ar');
+  right.loop.setTarget('أرز', 1);
+  await right.loop.cloudPass([photo()]);
+  assert.equal(right.sent.some((event) => event.type === 'WRONG_SHELF'), false);
 });
 
 test('scene reads wait out the quiet window', async () => {

@@ -4,13 +4,12 @@
 // mid-sentence is lost; listening speaks them when it can.
 import { assignConversation as assign, raiseConversation as raise } from './actors';
 import type { ContextArgs, EventArgs } from './actions';
-import { ASK_CHIP, NO_CHIP, YES_CHIP } from '../chips';
+import { ASK_CHIP, LOOK_AGAIN_CHIP } from '../chips';
 import { raiseLinkKind } from './link';
 import { logIttro } from '../log';
-import { shortProduct, stillLooking } from '../requestLines';
+import { lookingFor, shortProduct, stillLooking } from '../requestLines';
 import {
   checkingLine,
-  closeMatchLine,
   holdPhoneLine,
   readingLine,
   searchingLine,
@@ -20,7 +19,7 @@ import {
   wrongShelfLine,
 } from '../shelf/searchLines';
 import type { ConversationContext, GuidePosition, SearchAnnouncement } from './types';
-import { decideTarget } from './searchTarget';
+import { decideTarget, followMoved } from './searchTarget';
 import { placedTarget } from '../guide/placedBox';
 
 export const raiseSearchBegin = raise({ type: 'SEARCH_BEGIN' });
@@ -81,11 +80,11 @@ export const storeOutlined = assign({
   outlines: ({ event }: EventArgs) => (event.type === 'SHELF_OUTLINED' ? event.outlines : []),
   guideTarget: ({ context, event }: EventArgs) =>
     event.type === 'SHELF_OUTLINED'
-      ? decideTarget(placedTarget(context.guideTarget, Date.now()), event.outlines, context.guideHand).outline
+      ? decideTarget(placedTarget(context.guideTarget, Date.now()), event.outlines, context.guideHand, event.now).outline
       : context.guideTarget,
   guideRecheck: ({ context, event }: EventArgs) =>
     event.type === 'SHELF_OUTLINED'
-      ? decideTarget(placedTarget(context.guideTarget, Date.now()), event.outlines, context.guideHand).recheck
+      ? decideTarget(placedTarget(context.guideTarget, Date.now()), event.outlines, context.guideHand, event.now).recheck
       : context.guideRecheck,
   checkedCount: ({ context, event }: EventArgs) =>
     event.type === 'SHELF_OUTLINED' ? context.checkedCount + event.outlines.length : context.checkedCount,
@@ -113,18 +112,10 @@ export const storeSwept = assign({
 export const storeWrongShelf = assign({
   pendingSearch: ({ context, event }: EventArgs) =>
     event.type === 'WRONG_SHELF'
-      ? queueLine(context, { text: wrongShelfLine(event.kind, event.aisle, context.lang), chips: [ASK_CHIP[context.lang]], kind: 'status' })
-      : context.pendingSearch,
-});
-
-export const storeCloseMatch = assign({
-  alternative: ({ event }: EventArgs) => (event.type === 'CLOSE_MATCH' ? event.found : null),
-  pendingSearch: ({ context, event }: EventArgs) =>
-    event.type === 'CLOSE_MATCH'
       ? queueLine(context, {
-          text: closeMatchLine(event.wanted, event.found, context.lang),
-          chips: [YES_CHIP[context.lang], NO_CHIP[context.lang]],
-          kind: 'alternative',
+          text: wrongShelfLine(event.shelf, shortProduct(event.product), context.lang),
+          chips: [LOOK_AGAIN_CHIP[context.lang], ASK_CHIP[context.lang]],
+          kind: 'status',
         })
       : context.pendingSearch,
 });
@@ -165,11 +156,11 @@ export const storeMoved = assign({
   outlines: ({ event }: EventArgs) => (event.type === 'OUTLINES_MOVED' ? event.outlines : []),
   guideTarget: ({ context, event }: EventArgs) =>
     event.type === 'OUTLINES_MOVED'
-      ? decideTarget(placedTarget(context.guideTarget, Date.now()), event.outlines, context.guideHand).outline
+      ? followMoved(placedTarget(context.guideTarget, Date.now()), event.outlines, context.guideHand, context.guideRecheck).outline
       : context.guideTarget,
   guideRecheck: ({ context, event }: EventArgs) =>
     event.type === 'OUTLINES_MOVED'
-      ? decideTarget(placedTarget(context.guideTarget, Date.now()), event.outlines, context.guideHand).recheck
+      ? followMoved(placedTarget(context.guideTarget, Date.now()), event.outlines, context.guideHand, context.guideRecheck).recheck
       : context.guideRecheck,
 });
 
@@ -219,7 +210,6 @@ export const searchTalkOn = {
   SHELF_OUTLINED: { actions: [storeOutlined, logOutlined] },
   SHELF_SWEPT: { actions: [storeSwept] },
   WRONG_SHELF: { actions: [storeWrongShelf] },
-  CLOSE_MATCH: { actions: [storeCloseMatch] },
   HAND_HOLD: { actions: [storeHandHold] },
   SEARCH_FAILED: { actions: [raiseLinkKind] },
   SHELF_FOUND: { guard: foundWithoutOutline, actions: [storeFound] },
@@ -249,10 +239,9 @@ export const adoptAlternative = assign({
   request: ({ context }: ContextArgs) => context.alternative ?? context.request,
   step: 'welcome',
   pendingQuestion: null,
+  pendingSearch: [],
   alternative: null,
-  pendingSay: ({ context }: ContextArgs) => [
-    { text: searchingStatusLine(context.alternative ?? context.request ?? '', context.checkedCount, context.lang), chips: [] },
-  ],
+  pendingSay: ({ context }: ContextArgs) => [{ text: lookingFor(context.alternative ?? context.request ?? '', context.lang), chips: [] }],
 });
 
 export const declineAlternative = assign({

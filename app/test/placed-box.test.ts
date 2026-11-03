@@ -2,7 +2,11 @@
 // phone panned a bag's width while a hand was in view; the drawn
 // outline followed the Basmati, but the JavaScript box stood still,
 // the cues said "right" towards where it had been, and a new SAM cut
-// of the neighbouring bag now sat on the old box.
+// of the neighbouring bag now sat on the old box. The camera gets
+// where it pointed for a cut's still, the drawn outline grows the box
+// as the phone nears, and an outline with no still moves its shape
+// with its box (t39: a carried Masaad's shape stayed drawn where the
+// bottle had been).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { forgetPlacedBox, lastPlacedBox, placedBox, placedTarget } from '../src/guide/placedBox';
@@ -45,22 +49,52 @@ test('t15: a new cut of the neighbour on the old box does not take the target', 
   forgetPlacedBox();
 });
 
+test('t39: the camera gets where it pointed for the still, so it places the outline however old the still', () => {
+  const [cut] = anchorOutlines([{ id: 3, frame: 0, box: box(645, 389, 811, 771) }], 41, { x: 0.2, y: -0.1, s: 1.1, session: 3 }) as [ShelfOutline];
+  const drawn = cameraOutline(cut, 'مسعد');
+  assert.deepEqual([drawn?.shot, drawn?.panX, drawn?.panY, drawn?.panS, drawn?.panSession], [41, 0.2, -0.1, 1.1, 3]);
+  const unknown = cameraOutline(BASMATI, 'بسمتي');
+  assert.deepEqual([unknown?.shot, unknown?.panX, unknown?.panY, unknown?.panS, unknown?.panSession], [41, null, null, null, null]);
+});
+
+test('t39: the drawn outline grown by stepping closer grows the guided box about the frame\'s middle', () => {
+  forgetPlacedBox();
+  const key = cameraOutline(BASMATI, 'بسمتي')?.key;
+  const placed = placedBox(BASMATI, 'بسمتي', { outlineKey: key, outlineDx: 10, outlineDy: 0, outlineScale: 2 }, 1000);
+  assert.deepEqual(placed && [placed.x1, placed.y1, placed.x2, placed.y2], [820, 138, 1152, 902]);
+  forgetPlacedBox();
+});
+
+test('t39: an outline with no still moves its shape with its placed box', () => {
+  forgetPlacedBox();
+  const loose: ShelfOutline = { id: 0, frame: 0, box: box(493, 433, 718, 1211), mask: { points: [500, 440, 710, 440, 600, 1200] } };
+  const key = cameraOutline(loose, 'مسعد')?.key;
+  placedBox(loose, 'مسعد', { outlineKey: key, outlineDx: -600, outlineDy: 10 }, Date.now());
+  const placed = placedTarget(loose, Date.now());
+  assert.deepEqual(placed?.mask?.points, [-100, 450, 110, 450, 0, 1210]);
+  assert.deepEqual(cameraOutline(placed, 'مسعد')?.points, [-100, 450, 110, 450, 0, 1210]);
+  forgetPlacedBox();
+});
+
 function guideHarness() {
   const sent: ConversationEvent[] = [];
+  const logs: string[] = [];
   let now = 10000;
   const deps: GuideLoopDeps = {
     now: () => now,
     send: (event) => {
       sent.push(event);
     },
-    log: () => undefined,
+    log: (line) => {
+      logs.push(line);
+    },
     cutCrop: async () => ({ id: 'hand-1', image: 'crop', mime: 'image/jpeg' }),
     read: async () => ({ reads: [], readMs: 5 }),
   };
   const loop = createGuideLoop(deps);
   loop.setTarget(BASMATI);
   loop.setPhoto({ image: 'photo', mime: 'image/jpeg' });
-  return { sent, loop, tick: (ms: number) => (now += ms), at: () => now };
+  return { sent, logs, loop, tick: (ms: number) => (now += ms), at: () => now };
 }
 
 function lost(sent: ConversationEvent[]): number {
@@ -85,4 +119,5 @@ test('placed out of the frame, the product is out of view', async () => {
     env.tick(150);
   }
   assert.ok(lost(env.sent) >= 1);
+  assert.ok(env.logs.includes('guide target out of view, box -300,399,-134,781 in frame 0.00'));
 });

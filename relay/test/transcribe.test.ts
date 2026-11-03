@@ -61,7 +61,7 @@ test('rejects answers with no transcript instead of guessing', async () => {
 });
 
 test('sends the documented recording fields', async () => {
-  let seen: FormData | null = null;
+  let seen = null as FormData | null;
   const fetchImpl = (async (_url: string, init: { body: FormData }) => {
     seen = init.body;
     return { ok: true, json: async () => ({ text: 'ok' }) };

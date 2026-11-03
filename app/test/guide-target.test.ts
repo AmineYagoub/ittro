@@ -1,6 +1,9 @@
 // The green rectangle only: the found target follows its track
 // between shelf reads, holds its last box when the track is gone,
-// and the name pill shows the short product name.
+// and the name pill shows the short product name. A pan move follows
+// the target's own cut and a fresh cut is matched where the camera
+// has it now (t34). Back in the picture the overlay shows again, and a
+// target flickering at the edge is said out of view once (t35).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { answer, startListening } from './driver';
@@ -16,9 +19,9 @@ function found() {
   return { type: 'SHELF_FOUND', product: 'Masaad water', outline: TARGET, matches: 1, kind: 'bottles', position: 'middle' } as const;
 }
 
-async function guiding() {
+async function guiding(target: ShelfOutline = TARGET) {
   const driver = await startListening({ request: 'Masaad water' });
-  driver.send(found());
+  driver.send({ ...found(), outline: target });
   await driver.flush();
   assert.equal(driver.guide(), 'aiming');
   driver.send({ type: 'GUIDE_CUE', cue: 'hand_right', proximity: 0.4, hand: { x: 300, y: 520 } });
@@ -127,22 +130,6 @@ test('a re-found outline while directing adopts silently', async () => {
   }
 });
 
-test('a re-found outline when lost goes back to aiming', async () => {
-  const driver = await guiding();
-  try {
-    driver.send({ type: 'GUIDE_TARGET_LOST', cue: 'phone_right_small' });
-    await driver.flush();
-    assert.equal(driver.guide(), 'targetLost');
-    driver.send({ type: 'SHELF_FOUND', product: 'Masaad water', outline: outline(4, 640, 420, 800, 660), matches: 1, kind: 'bottles', position: 'middle' });
-    await driver.flush();
-    assert.equal(driver.guide(), 'aiming');
-    assert.equal(driver.context().guideTarget?.box.x1, 640);
-    assert.equal(driver.context().guideOutOfView, false);
-  } finally {
-    driver.stop();
-  }
-});
-
 test('the overlay hides while the target is out of view', async () => {
   const driver = await guiding();
   try {
@@ -153,6 +140,55 @@ test('the overlay hides while the target is out of view', async () => {
     driver.send({ type: 'GUIDE_CUE', cue: 'hand_right', proximity: 0.4, hand: { x: 300, y: 520 } });
     await driver.flush();
     assert.equal(driver.context().guideOutOfView, false);
+  } finally {
+    driver.stop();
+  }
+});
+
+test("t34: a pan move follows the target's own cut, never a neighbour moved over it", async () => {
+  const anchored = { ...TARGET, anchor: { shot: 4, box: TARGET.box, points: null } };
+  const driver = await guiding(anchored);
+  try {
+    const own = { ...anchored, box: outline(7, 300, 400, 460, 640).box };
+    const neighbour = { ...outline(9, 600, 400, 760, 640), anchor: { shot: 4, box: outline(9, 780, 400, 940, 640).box, points: null } };
+    driver.send({ type: 'OUTLINES_MOVED', outlines: [neighbour, own] });
+    await driver.flush();
+    assert.equal(driver.context().guideTarget?.id, 7);
+    assert.equal(driver.context().guideTarget?.box.x1, 300);
+    assert.equal(driver.context().guideRecheck, false);
+  } finally {
+    driver.stop();
+  }
+});
+
+test('t34: a fresh cut is matched where the camera has it now', async () => {
+  const driver = await guiding();
+  try {
+    const away = outline(2, 600, 400, 760, 640);
+    const over = outline(3, 300, 400, 460, 640);
+    driver.send({ type: 'SHELF_OUTLINED', outlines: [away, over], now: [outline(2, 900, 400, 1060, 640).box, TARGET.box], kind: 'bottles' });
+    await driver.flush();
+    assert.equal(driver.context().guideTarget?.id, 3);
+    assert.equal(driver.context().guideRecheck, false);
+  } finally {
+    driver.stop();
+  }
+});
+
+test('t35: back in the picture shows the overlay, and a target flickering at the edge is said out of view once', async () => {
+  const driver = await guiding();
+  try {
+    driver.send({ type: 'GUIDE_TARGET_LOST', cue: 'phone_right_small' });
+    await driver.flush();
+    assert.equal(driver.context().guideOutOfView, true);
+    const said = driver.parts.length;
+    driver.send({ type: 'GUIDE_TARGET_BACK' });
+    await driver.flush();
+    assert.equal(driver.context().guideOutOfView, false);
+    driver.send({ type: 'GUIDE_TARGET_LOST', cue: 'phone_right_small' });
+    await driver.flush();
+    assert.equal(driver.guide(), 'targetLost');
+    assert.equal(driver.parts.length, said);
   } finally {
     driver.stop();
   }

@@ -2,10 +2,10 @@
 // several-matches line, the wrong-product naming and the lost target.
 // DESIGN.md word for word in English; counts and names computed in.
 // Arabic and French await a native-speaker review.
-import type { GuidePosition, SpeechPart } from '../conversation/types';
+import type { SpeechPart } from '../conversation/types';
 import type { Language } from '../theme';
 import { cueText } from '../voiceClips';
-import { countWord } from '../shelf/searchLines';
+import { arabicProducts, countWord } from '../shelf/searchLines';
 import type { GuideDir } from './types';
 
 export const GUIDE_CLUSTER_BOTTOM = 150;
@@ -17,12 +17,6 @@ const DIR_WORD: Record<GuideDir, Record<Language, string>> = {
   left: { en: 'to your left', ar: 'إلى يسارك', fr: 'à votre gauche' },
   up: { en: 'above you', ar: 'فوقك', fr: 'au-dessus de vous' },
   down: { en: 'below you', ar: 'تحتك', fr: 'au-dessous de vous' },
-};
-
-const SPOT_WORD: Record<GuidePosition, Record<Language, string>> = {
-  left: { en: 'on the left', ar: 'على اليسار', fr: 'à gauche' },
-  middle: { en: 'in the middle', ar: 'في الوسط', fr: 'au milieu' },
-  right: { en: 'on the right', ar: 'على اليمين', fr: 'à droite' },
 };
 
 export function dirOfCue(cue: string): GuideDir {
@@ -62,15 +56,19 @@ export function foundToLine(product: string, dir: GuideDir, lang: Language): str
   return `I found ${product} ${DIR_WORD[dir].en}.`;
 }
 
-export function severalPrefix(count: number, product: string, kind: string, position: GuidePosition, lang: Language): string {
-  const amount = countWord(count, lang);
+// Where to move the hand follows this line, so it names no spot of its
+// own: t20 said "the nearest, on the left. Guedila is to your right"
+// (the product sat left of the frame, right of the hand). Arabic counts
+// with its own words, never "أرى 2 قديلة منتجات".
+export function severalPrefix(count: number, product: string, kind: string, lang: Language): string {
   if (lang === 'ar') {
-    return `أرى ${amount} ${product} ${kind}. أرشدك إلى أقربها، ${SPOT_WORD[position].ar}.`;
+    return `أرى ${arabicProducts(count)} من ${product}. أرشدك إلى ${count === 2 ? 'أقربهما' : 'أقربها'}.`;
   }
+  const amount = countWord(count, lang);
   if (lang === 'fr') {
-    return `Je vois ${amount} ${product} ${kind}. Je vous guide vers le plus proche, ${SPOT_WORD[position].fr}.`;
+    return `Je vois ${amount} ${kind} ${product}. Je vous guide vers le plus proche.`;
   }
-  return `I see ${amount} ${product} ${kind}. Guiding you to the nearest one, ${SPOT_WORD[position].en}.`;
+  return `I see ${amount} ${product} ${kind}. Guiding you to the nearest one.`;
 }
 
 export function thisIsLine(label: string, lang: Language): string {

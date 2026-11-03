@@ -1,6 +1,6 @@
 // A find reaches the shopper fast: found before yes is announced
 // right after it, later outlines queue nothing stale, a find drops
-// the close alternative, and arming never talks over a live line.
+// the not-here offer, and arming never talks over a live line.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { answer, startListening } from './driver';
@@ -56,7 +56,7 @@ test('outlines after the find queue no reading line', async () => {
   }
 });
 
-test('a find drops the close alternative and guides to the request', async () => {
+test('a find drops the not-here offer and guides to the request', async () => {
   resetStorage();
   const driver = await startListening();
   try {
@@ -67,7 +67,7 @@ test('a find drops the close alternative and guides to the request', async () =>
     );
     await driver.heard("I'm looking for Masaad water");
     await driver.heard('Yes');
-    driver.send({ type: 'CLOSE_MATCH', wanted: 'Masaad water', found: 'Guedila water' });
+    driver.send({ type: 'NOT_HERE', wanted: 'Masaad water', answer: 'No Masaad water on this shelf. I see Guedila water.', offer: 'Guedila water', checked: 4, whole: true });
     await driver.flush();
     assert.equal(driver.context().step, 'alternative');
     driver.send({ type: 'SHELF_FOUND', product: 'Masaad water', outline: BAGS[0] as never, matches: 1, kind: 'bottles', position: 'middle' });

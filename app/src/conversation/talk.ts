@@ -42,18 +42,23 @@ import {
   raiseHeard,
   raiseQuestion,
   raiseTalkIdle,
+  repromptDue,
   repromptFree,
   returnSleeping,
   spawnStream,
   usePausedNote,
 } from './actions';
 import { consumedFinal, logConsumedFinal } from './consumed';
+import { understandInput } from './askHints';
+import { ackHeard, askTalkOn, askingState } from './askView';
+import { sweepTalkOn } from './sweepTalk';
 import type { ContextArgs } from './actions';
 import { buttonsLines } from './answers';
 import { UNDERSTAND_TIMEOUT_MS, hasLinkLine, raiseLinkDown, raiseLinkForError, raiseLinkOk, sayLinkLine, understandTimedOut } from './link';
 import { sayTo } from './sayTo';
 import { applyTranslated, skipKeep, skipSay, translateKeep } from './translation';
 import { notePartial, partialWorthy, speculatingState } from './speculating';
+import { armHeardStale, dropHeardStale, heardStaleOn } from './heardStale';
 import { chainActions, routingTransitions } from './routing';
 import { earbudTalkOn, guideTalkOn, logButton, noteButton, stopSpokenVoice } from './buttons';
 import {
@@ -81,9 +86,15 @@ const listeningShared = {
     { guard: echoStripped, actions: [noteHeardStripped, logHeardStripped, raiseHeard], target: 'understanding' },
     { guard: nonEmptyFinal, actions: [noteHeard, logHeard, raiseHeard], target: 'understanding' },
   ],
-  SPEECH_ENDED: { actions: [playHeard, raiseHeard] },
+  SPEECH_ENDED: { actions: [playHeard, raiseHeard, ...armHeardStale] },
   STREAM_OPEN: { actions: [noteStreamOpen, raiseLinkOk] },
 };
+
+const heardPartial = [
+  { guard: echoFull, actions: [logEchoDrop] },
+  { guard: partialWorthy, actions: [notePartial, raiseHeard], target: 'speculating' },
+  { actions: [raiseHeard, ...armHeardStale] },
+];
 
 const buttonRoute = { actions: [stopSpokenVoice, noteButton, logButton, raiseHeard], target: '.routing' };
 
@@ -91,6 +102,8 @@ export const talkState = {
   initial: 'boot',
   on: {
     ...searchTalkOn,
+    ...sweepTalkOn,
+    ...askTalkOn,
     ...guideTalkOn,
     ...earbudTalkOn,
     ...helperTalkOn,
@@ -141,6 +154,7 @@ export const talkState = {
     sayingFlTourOffer: sayTo('listening', true),
     listening: {
       entry: [ensureStream, noteSnapshot, raiseTalkIdle],
+      exit: [dropHeardStale],
       always: [
         { guard: hasLinkLine, actions: [sayLinkLine], target: 'sayingReprompt' },
         { guard: hasQueuedHelperAnswer, actions: [sayQueuedHelper], target: 'saying' },
@@ -150,17 +164,14 @@ export const talkState = {
       ],
       on: {
         ...listeningShared,
-        PARTIAL_TEXT: [
-          { guard: echoFull, actions: [logEchoDrop] },
-          { guard: partialWorthy, actions: [notePartial, raiseHeard], target: 'speculating' },
-          { actions: [raiseHeard] },
-        ],
+        ...heardStaleOn,
+        PARTIAL_TEXT: heardPartial,
         STREAM_CLOSED: { actions: [noteStreamDown, sendStart] },
         STREAM_ERROR: { actions: [noteStreamDown, sendStart] },
         STREAM_FAILED: { actions: [noteStreamDown, raiseLinkDown, sendStart] },
         MIC_FAILED: { guard: micDue, actions: [noteMicComplaint], target: 'saying' },
         ALERT: { guard: alertDue, actions: [noteAlert], target: 'saying' },
-        REPROMPT: { guard: repromptFree, actions: [assignReprompt, logReprompt], target: 'sayingReprompt' },
+        REPROMPT: { guard: repromptDue, actions: [assignReprompt, logReprompt], target: 'sayingReprompt' },
         HELP: { guard: repromptFree, actions: [assignHelp, logHelp], target: 'sayingHelp' },
       },
     },
@@ -188,21 +199,14 @@ export const talkState = {
         onError: [{ guard: translateKeep, target: 'routing' }, { target: 'saying' }],
       },
     },
-    speculating: { ...speculatingState, entry: [markTalkBusy], exit: [markTalkQuiet] },
+    speculating: speculatingState,
     understanding: {
-      entry: [markTalkBusy],
+      entry: [markTalkBusy, ackHeard],
       exit: [markTalkQuiet],
       invoke: [
         {
           src: 'understandAnswer' as const,
-          input: ({ context }: ContextArgs) => ({
-            transcript: context.transcript,
-            lang: context.lang,
-            step: context.step,
-            pendingQuestion: context.pendingQuestion,
-            pendingRequest: context.pendingRequest ?? context.request,
-            lastLine: context.lastLine,
-          }),
+          input: ({ context }: ContextArgs) => understandInput(context, context.transcript),
           onDone: [
             { guard: freshAnswer, actions: [noteUnderstood, raiseLinkOk], target: 'routing' },
             { target: 'listening' },
@@ -216,6 +220,7 @@ export const talkState = {
     routing: {
       always: routingTransitions,
     },
+    asking: { ...askingState, on: { ...listeningShared, PARTIAL_TEXT: heardPartial } },
     pairingHelper: {
       entry: [markTalkBusy],
       exit: [markTalkQuiet],

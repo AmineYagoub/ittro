@@ -2,7 +2,11 @@
 // the hand to the product is a state with its timings. Aiming waits
 // for the first hand frame, directing repeats its cue every 6 s,
 // almost speaks once, reaching listens for contact, and the hand
-// states stop directing until the hand is back.
+// states stop directing until the hand is back. Out of view names the
+// product once, then repeats only the turn line every 6 s while it is
+// still out (t37). A target back in the picture shows the arrow and
+// meter again, and out of view is not said again while it flickers at
+// the edge (t35 said it every half second).
 import type { ContextArgs } from '../conversation/actions';
 import { noteVoice } from '../conversation/echo';
 import { logIttro } from '../log';
@@ -24,11 +28,15 @@ import {
   sayPick,
   sayReach,
   sayRestart,
+  noteTurn,
+  repeatTurn,
   sayTargetLost,
   sayWrong,
+  showTarget,
+  stillOutOfView,
   trackCue,
 } from './guideSay';
-import { adoptGuideTarget, armFree, foundTarget, hasTarget, logAdopted, readyQuiet, readyToArm, storeGuideTarget } from './guideTarget';
+import { adoptGuideTarget, adoptLostTarget, armFree, foundTarget, hasTarget, logAdopted, readyQuiet, readyToArm, storeGuideTarget } from './guideTarget';
 
 function speakState() {
   return {
@@ -52,6 +60,7 @@ export const guideRegion = {
   on: {
     GUIDE_END: { actions: [endGuide], target: '#guide.idle' },
     GUIDE_RESTART: { guard: hasTarget, actions: [sayRestart], target: '#guide.directing' },
+    GUIDE_TARGET_BACK: { actions: [showTarget] },
   },
   states: {
     idle: {
@@ -205,14 +214,17 @@ export const guideRegion = {
     targetLost: {
       entry: [noteVoice],
       ...speakState(),
-      after: { [REPEAT_MS]: { target: 'targetLost', reenter: true } },
+      after: {
+        [REPEAT_MS]: [{ guard: stillOutOfView, actions: [repeatTurn], target: 'targetLost', reenter: true }, { target: 'aiming' }],
+      },
       on: {
         GUIDE_CUE: { actions: [sayCue], target: 'directing' },
         GUIDE_ALIGNED: { actions: [sayAlmost], target: 'almost' },
         GUIDE_COVERING: { actions: [sayReach], target: 'reaching' },
         GUIDE_NOHAND: { actions: [sayNoHand], target: 'noHand' },
         GUIDE_LOST: { actions: [sayLost], target: 'handLost' },
-        SHELF_FOUND: { guard: foundTarget, actions: [adoptGuideTarget, logAdopted], target: 'aiming' },
+        GUIDE_TARGET_LOST: { actions: [noteTurn] },
+        SHELF_FOUND: { guard: foundTarget, actions: [adoptLostTarget, logAdopted] },
       },
     },
   },

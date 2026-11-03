@@ -40,7 +40,7 @@ function shown(parts: SpeechPart[], context: ConversationContext): string {
 function firstParts(context: ConversationContext, cue: string): SpeechPart[] {
   const where = firstSentence(context.guideLabel, cue, context.lang);
   if (context.guideMatches > 1) {
-    const several = severalPrefix(context.guideMatches, context.guideLabel, context.guideKind, context.guidePosition, context.lang);
+    const several = severalPrefix(context.guideMatches, context.guideLabel, context.guideKind, context.lang);
     return [{ text: `${several} ${where}` }, { clip: cue }];
   }
   return [{ text: where }, { clip: cue }];
@@ -224,6 +224,9 @@ export const sayRestart = assign({
   lastChips: ({ context }: ContextArgs) => context.lastChips,
 });
 
+/** The target is back in the picture: the arrow and meter show again. */
+export const showTarget = assign({ guideOutOfView: false });
+
 export const sayTargetLost = assign({
   guideOutOfView: true,
   guideParts: ({ context, event }: EventArgs) =>
@@ -236,6 +239,23 @@ export const sayTargetLost = assign({
       : context.lastLine,
   lastChips: [],
 });
+
+/** Out of view again while out of view: the turn line follows the product, for the next repeat. */
+export const noteTurn = assign({
+  guideOutOfView: true,
+  guideParts: ({ context, event }: EventArgs) => (event.type === 'GUIDE_TARGET_LOST' ? [{ clip: event.cue }] : context.guideParts),
+  lastLine: ({ context, event }: EventArgs) =>
+    event.type === 'GUIDE_TARGET_LOST'
+      ? shown([{ text: outOfViewLine(context.guideLabel, context.lang) }, { clip: event.cue }], context)
+      : context.lastLine,
+});
+
+/** The out-of-view repeat: the turn line only, as the product was named once (t37 repeated both every 6 s). */
+export const repeatTurn = assign({
+  guideParts: ({ context }: ContextArgs) => context.guideParts.filter((part) => 'clip' in part),
+});
+
+export const stillOutOfView = ({ context }: ContextArgs): boolean => context.guideOutOfView;
 
 function withoutContinue(cue: string): string {
   return cue.replace(/_continue$/, '');

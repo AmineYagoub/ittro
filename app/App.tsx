@@ -1,6 +1,9 @@
 // Ittro: permissions, then the spoken conversation. One statechart
 // owns listening, understanding, pausing and the silence timers;
-// this screen only shows what it says.
+// this screen only shows what it says. The camera keeps the guided
+// outline while the product is out of the picture, so it goes on
+// placing it: in t35 hiding it lost the placement, and the guide
+// called the product back in view every half second.
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Text, View } from 'react-native';
 import type { LayoutChangeEvent } from 'react-native';
@@ -31,6 +34,7 @@ import { micLine, refusedCamera, refusedMic } from './src/lines';
 import type { Language } from './src/theme';
 import { styles } from './src/appStyles';
 import { useConfirm } from './src/confirm/useConfirm';
+import { useViewStill } from './src/shelf/useViewStill';
 import { useButtons } from './src/useButtons';
 import { DetailCrop, VerdictScreen } from './src/confirm/VerdictView';
 import { verdictWord } from './src/confirm/lines';
@@ -73,6 +77,7 @@ export default function App(): React.JSX.Element {
   const guide = useGuide(actorRef, cameraOn);
   const search = useShelfSearch(cameraRef, actorRef, searching, searchRequest, cameraReady, guide);
   useConfirm(cameraRef, actorRef, confirming, searchRequest, cameraReady);
+  useViewStill(cameraRef, cameraReady);
   useButtons(actorRef);
 
   useEffect(() => {
@@ -221,7 +226,7 @@ export default function App(): React.JSX.Element {
       {cameraOn && IttroCameraView ? (
         <IttroCameraView
           active
-          outline={guideCluster ? cameraOutline(guideTarget, guideLabel) : null}
+          outline={guiding && guideTarget !== null ? cameraOutline(guideTarget, guideLabel) : null}
           style={styles.camera}
           accessible={false}
           importantForAccessibility="no"
