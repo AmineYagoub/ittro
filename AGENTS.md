@@ -8,7 +8,7 @@ This file tells coding agents (Claude Code, Codex, Cursor, Copilot and others) h
 
 Ittro is an Android shopping companion for blind and low-vision shoppers, speaking Arabic, French or English. It finds a product on the shelf, guides the hand by voice and vibration, and confirms before saying yes.
 
-Folders: `app/` (Expo + React Native), `relay/` (Cloudflare Worker calling Meta), `modules/ittro-sensors/` (local Kotlin module skeleton). Everything is TypeScript; there is no CI yet.
+Folders: `app/` (Expo + React Native), `relay/` (Cloudflare Worker calling Meta), `modules/ittro-sensors/` (local Kotlin module skeleton). Everything is TypeScript. CI (`.github/workflows/ci.yml`) runs the checks below and builds the APK on every pull request; releases are made by `release.yml` ([releases.md](docs/contributing/releases.md)).
 
 ## Commands
 

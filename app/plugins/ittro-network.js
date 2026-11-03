@@ -29,6 +29,7 @@ function withIttroNetwork(config) {
       const dir = path.join(mod.modRequest.platformProjectRoot, 'app/src/main/res/xml');
       await fs.promises.mkdir(dir, { recursive: true });
       await fs.promises.writeFile(path.join(dir, 'network_security_config.xml'), CONFIG);
+      return mod;
     },
   ]);
   return config;
