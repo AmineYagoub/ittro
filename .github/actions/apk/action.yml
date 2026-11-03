@@ -4,7 +4,8 @@
 # shipped app must. Only the relay holds the Meta key. The APK leaves signed with the template's
 # debug key, until the release workflow signs it again with the release key. It may ask for no
 # permission outside the list in the last step: a new one is added there, in the same pull request,
-# so a reviewer sees it.
+# so a reviewer sees it. MediaPipe's hand model is gitignored, so it is fetched with its pinned hash
+# before the build, and the APK must hold it: without it no hand is ever seen and no check says yes.
 name: Build the APK
 description: The Android release APK from a fresh prebuild, with its permissions checked.
 
@@ -39,6 +40,11 @@ runs:
       shell: bash
       working-directory: app
       run: npm ci --no-audit
+
+    - name: Fetch the hand model
+      shell: bash
+      working-directory: app
+      run: node scripts/fetch-hand-model.mjs
 
     - name: Generate the Android project
       shell: bash
@@ -80,3 +86,11 @@ runs:
           exit 1
         fi
         echo "$found"
+
+    - name: Check that the APK holds the hand model
+      shell: bash
+      run: |
+        if ! unzip -l app/android/app/build/outputs/apk/release/app-release.apk | grep -q ' assets/hand_landmarker.task$'; then
+          echo "::error title=Hand model::The APK has no assets/hand_landmarker.task; run app/scripts/fetch-hand-model.mjs before the build"
+          exit 1
+        fi
