@@ -8,7 +8,7 @@
 import type { ExpoConfig } from 'expo/config';
 
 // x-release-please-start-version
-const VERSION = '0.0.0';
+const VERSION = '0.1.0';
 // x-release-please-end
 
 /** Android's version code for a version: major × 1,000,000 + minor × 10,000 + patch × 100 + n, where n is a beta's number (1 to 98) or 99 for a release, so it only goes up. */
