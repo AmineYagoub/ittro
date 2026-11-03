@@ -50,9 +50,9 @@ flowchart LR
   class shopper person
   class app,relay built
   class asr,spark,sam,mms model
-  style built fill:#F0FDF4,stroke:#15803D
-  style api fill:#EFF6FF,stroke:#1D4ED8
-  style open fill:#EFF6FF,stroke:#1D4ED8
+  style built fill:#F0FDF4,stroke:#15803D,color:#052E16
+  style api fill:#EFF6FF,stroke:#1D4ED8,color:#172554
+  style open fill:#EFF6FF,stroke:#1D4ED8,color:#172554
 ```
 
 | Meta model | What it does in Ittro |
