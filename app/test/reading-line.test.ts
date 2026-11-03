@@ -26,3 +26,9 @@ test('several matches count in Arabic words and leave the way to the hand cue (t
   assert.equal(severalPrefix(3, 'مسعد', 'منتجات', 'ar'), 'أرى 3 منتجات من مسعد. أرشدك إلى أقربها.');
   assert.equal(severalPrefix(2, 'Guedila', 'produits', 'fr'), 'Je vois 2 produits Guedila. Je vous guide vers le plus proche.');
 });
+
+test('a name that ends in its kind takes the plural once (t56)', () => {
+  assert.equal(severalPrefix(2, 'Masad bottle', 'bottles', 'en'), 'I see two Masad bottles. Guiding you to the nearest one.');
+  assert.equal(severalPrefix(2, 'basmati rice', 'rices', 'en'), 'I see two basmati rices. Guiding you to the nearest one.');
+  assert.equal(severalPrefix(3, 'Masaad water', 'bottles', 'en'), 'I see three Masaad water bottles. Guiding you to the nearest one.');
+});
