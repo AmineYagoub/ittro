@@ -29,12 +29,6 @@ export const chooseLanguage: Trilingual = {
   fr: 'Pour le français, dites : français.',
 };
 
-export const privacyLine: Trilingual = {
-  en: "I find products and guide your hand to them. I send camera pictures to Meta to find and read products. I don't keep them.",
-  ar: 'أجد المنتجات وأوجه يدك إليها. أرسل صور الكاميرا إلى ميتا للعثور على المنتجات وقراءتها. لا أحتفظ بها.',
-  fr: 'Je trouve les produits et je guide votre main vers eux. J’envoie les images de la caméra à Meta pour trouver et lire les produits. Je ne les garde pas.',
-};
-
 export const tourOffer: Trilingual = {
   en: 'Do you want to hear what my sounds mean? It takes 30 seconds. Say yes or no.',
   ar: 'هل تريد أن تسمع ماذا تعني أصواتي؟ يستغرق ذلك 30 ثانية. قل نعم أو لا.',
@@ -215,12 +209,6 @@ export const earbudLine: Trilingual = {
   en: 'With your earbuds: press once for yes, twice for no, hold to stop.',
   ar: 'مع سماعات الأذن: اضغط مرة لنعم، ومرتين للا، واستمر بالضغط للإيقاف.',
   fr: 'Avec vos écouteurs : appuyez une fois pour oui, deux fois pour non, maintenez pour arrêter.',
-};
-
-export const volumeLine: Trilingual = {
-  en: 'You can also hold the volume-down key to stop me.',
-  ar: 'يمكنك أيضًا الضغط مطولًا على زر خفض الصوت لإيقافي.',
-  fr: 'Vous pouvez aussi maintenir la touche volume bas pour m’arrêter.',
 };
 
 export const noHoldLine: Trilingual = {

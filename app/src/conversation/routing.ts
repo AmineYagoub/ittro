@@ -224,7 +224,7 @@ export const chainActions = { tourOfferLines, welcomeAfterTour, noteTourDone };
 export const routingTransitions: Route[] = [
   { guard: ignoreSleep, target: 'sleeping' },
   { guard: ignoreAwake, actions: [raiseQuestion], target: 'listening' },
-  { guard: flLangAccept, actions: [acceptLanguage, noteLanguage], target: 'sayingFlPrivacy' },
+  { guard: flLangAccept, actions: [acceptLanguage, noteLanguage, noteTourDone], target: 'saying' },
   { guard: flLang, actions: [missLine], target: 'sayingFlLang' },
   { guard: flTourYes, target: 'touringFl' },
   { guard: flTourNo, actions: [welcomeAfterTour, noteTourDone], target: 'saying' },

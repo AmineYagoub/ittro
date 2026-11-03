@@ -7,6 +7,7 @@ import { fromPromise } from 'xstate';
 import { answer, startConversation, startListening } from './driver';
 import { resetStorage } from './stubs.mjs';
 import type { ShelfOutline } from '../src/relay';
+import { loadPrefs } from '../src/store';
 
 function outline(): ShelfOutline {
   return { id: 7, frame: 3, box: { x1: 600, y1: 400, x2: 760, y2: 640, w: 1280, h: 960, confidence: null } };
@@ -241,17 +242,17 @@ test('five presses without a hold teach the volume key once', async () => {
   }
 });
 
-test('first launch teaches the volume key between privacy and the tour offer', async () => {
+test('first launch ends with the language: one line, then Ittro listens', async () => {
   resetStorage();
   const driver = await startListening({ firstLaunchDone: false, language: 'en' });
   try {
     driver.setUnderstand(() => answer({ intent: 'speak_language', target_language: 'en' }));
+    const before = driver.spoken.length;
     await driver.heard('English');
-    const lines = driver.spoken.join('\n');
-    const privacyAt = lines.indexOf("I don't keep them");
-    const volumeAt = lines.indexOf('hold the volume-down key');
-    const tourAt = lines.indexOf('what my sounds mean');
-    assert.ok(privacyAt >= 0 && volumeAt > privacyAt && tourAt > volumeAt);
+    assert.deepEqual(driver.spoken.slice(before), ["Okay, I'll speak English now. Say speak English to switch back."]);
+    assert.equal(driver.context().step, 'welcome');
+    assert.equal(driver.talk(), 'listening');
+    assert.equal((await loadPrefs()).firstLaunchDone, true);
   } finally {
     driver.stop();
   }
