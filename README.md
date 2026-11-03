@@ -1,12 +1,11 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/design/logo/ittro-wordmark-dark.png">
-    <img src="docs/design/logo/ittro-wordmark-light.png" alt="Ittro" width="300">
-  </picture>
+  <img src="docs/design/logo/ittro-icon-rounded.svg" alt="" width="96">
 </p>
 
+<h1 align="center">Ittro</h1>
+
 <p align="center">
-  <b>A voice-only Android companion that finds the product on the shelf, guides a blind shopper's hand to it, and reads it before saying yes.</b>
+  <b>A voice-first Android app that finds the requested product on a shelf, guides a blind shopper’s hand to it, and checks its label before confirming it’s the right one.</b>
 </p>
 
 <p align="center">
@@ -67,13 +66,20 @@ The phone never holds the Meta API key: only the relay calls Meta.
 
 ## Built with
 
-| Part | Stack |
-|---|---|
-| **App** (`app/`) | [Expo](https://expo.dev) 58 and React Native 0.88, TypeScript, one [XState](https://stately.ai/docs/xstate) 5 statechart for the whole conversation, `expo-camera`, `expo-audio` and `expo-speech` |
-| **Native module** (`modules/ittro-sensors/`) | Kotlin: the 24 kHz mic stream, live camera frames, the outline that follows the gyroscope and the camera's motion, earbud and volume buttons; [MediaPipe](https://ai.google.dev/edge/mediapipe) Tasks Vision for the hand |
-| **Relay** (`relay/`) | A TypeScript [Cloudflare Worker](https://workers.cloudflare.com): access code, rate limit and daily spending limit, every Meta call, mask tracing with Meta's [`@meta-sam/parser`](relay/licenses/SAM-License.txt), and the sighted-helper page |
-| **Meta AI** | Muse Spark, SAM 3.1 and Muse Voice Transcribe on the Meta Model API; MMS-TTS voices |
-| **Tooling** | Node 22, `node --test`, ESLint, GitHub Actions (tests and a fresh Android build on every pull request), release-please and signed APKs on [GitHub Releases](https://github.com/AmineYagoub/ittro/releases) |
+- **[Expo](https://expo.dev) 58 and React Native 0.88**, in TypeScript: the Android app (`app/`).
+- **[XState](https://stately.ai/docs/xstate) 5:** one statechart runs the whole conversation.
+- **`expo-camera`, `expo-audio` and `expo-speech`:** the camera, the recorded cues and the phone's voice.
+- **Kotlin** (`modules/ittro-sensors/`): the 24 kHz mic stream, live camera frames, the outline that follows the gyroscope and the camera's motion, and the earbud and volume buttons.
+- **[MediaPipe](https://ai.google.dev/edge/mediapipe) Tasks Vision:** finds the shopper's hand in the camera frames.
+- **[Cloudflare Workers](https://workers.cloudflare.com)** (`relay/`): the TypeScript relay with the access code, rate limit and daily spending limit, every Meta call, and the sighted-helper page.
+- **Meta's [`@meta-sam/parser`](relay/licenses/SAM-License.txt):** reads SAM's masks before the relay traces them into outlines.
+- **Meta Model API:** Muse Spark, SAM 3.1 and Muse Voice Transcribe; **Meta MMS-TTS** for the recorded cues.
+- **Node 22, `node --test` and ESLint:** the tests and the lints.
+- **GitHub Actions and release-please:** tests and a fresh Android build on every pull request, and signed APKs on [GitHub Releases](https://github.com/AmineYagoub/ittro/releases).
+
+## What was built during the hackathon
+
+Everything in this repository dates from 26 October 2026 onward, except the existing tools it is built on. The day-by-day summary, every change with its commit, and what was not built here are in [docs/BUILD_LOG.md](docs/BUILD_LOG.md).
 
 ## Try it
 
@@ -84,10 +90,6 @@ To build and test from source, see [CONTRIBUTING.md](CONTRIBUTING.md#set-up).
 ## Contributing
 
 New contributors are welcome. Pick an issue labelled [good first issue](https://github.com/AmineYagoub/ittro/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22), comment `/take`, and follow [CONTRIBUTING.md](CONTRIBUTING.md): it has the setup, the checks CI runs, and a map of the code.
-
-## What was built during the hackathon
-
-Everything in this repository dates from 26 October 2026 onward, except the existing tools it is built on. The day-by-day summary, every change with its commit, and what was not built here are in [docs/BUILD_LOG.md](docs/BUILD_LOG.md).
 
 ## Licence
 
