@@ -187,7 +187,7 @@ The pull requests that carry out a decision link to its record.
 
 ## Becoming a maintainer
 
-Maintainers are invited from regular contributors whose changes and reviews show good judgement, above all about the principles. The lead maintainer invites them, and announces each invitation in public ([GOVERNANCE.md](../../GOVERNANCE.md)).
+Maintainers are invited from regular contributors whose changes and reviews show good judgement, above all about the principles. The lead maintainer invites them, and announces each invitation in public ([CONTRIBUTING.md](../../CONTRIBUTING.md#who-decides)).
 
 Every maintainer turns on two-factor authentication, and signs the release tags they make.
 
