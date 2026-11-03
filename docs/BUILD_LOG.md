@@ -65,7 +65,7 @@ New work only, 26 October 2026 onward. Each day below has every change with its 
 - 1 Nov: SAM's own outline drawn natively and following the camera, a 4:3 preview, finer outlines; reflections never the product; the last shelf read again at once for the next request; a named variety must be the one on the label.
 - 1 Nov, evening: the grounding find (Spark boxes each matching package, SAM cuts each box); questions about the shelf answered on the spot; the shelf named in the shopper's language, and a wrong shelf says so; a sweep that remembers what each stop read.
 - 2 Nov: fixes from phone tests t21–t44: the plain mic, so Ittro keeps hearing; the outline moves with the phone's turn from the gyroscope, grows and shrinks as the phone steps closer, and holds while the hand reaches; it is cut again while the phone moves; the relay mends SAM's torn mask rows; the relay is type-checked.
-- 3 Nov: CI on every pull request and signed releases built by CI (v0.1.0, then v0.1.1 with the hand model); fixes from phone tests t45–t56 for the recorded demo: a shorter first launch, one live voice, the mic that opens when a line ends, and guidance cues nothing cuts.
+- 3 Nov: CI on every pull request and signed releases built by CI (v0.1.0, then v0.1.1 with the hand model); fixes from phone tests t45–t56 for the recorded demo: a shorter first launch, one live voice, the mic that opens when a line ends, and guidance cues nothing cuts; from a code review, a yes that needs every word and amount on the label to agree.
 
 ## 3 November 2026
 
@@ -79,6 +79,10 @@ New work only, 26 October 2026 onward. Each day below has every change with its 
   - Hearing: the mic opens when a line ends, not when its word-count estimate runs out; in t49 the estimate outlived the audio by 3.4 s and cut the shopper's answer, which had to be said twice.
   - Shelf question: a camera the question opened gets 1 s to focus before its photo (t54: "I cannot read anything on this shelf").
   - Guidance: ticks and chimes play on their own player, so they no longer stop each cue a fifth of a second in, which showed its text with nothing heard (t54); the six-second repeat keeps its cue, so the next frame no longer cuts it (t56); "two Masad bottle bottles" is said "two Masad bottles" (t56).
+- Fixes from a code review of the in-hand check, each with a test that fails without it:
+  - A yes needs the label to agree word by word: a word that changes the product ("unsalted" for "salted", "Coca-Cola Zero" for "Coca-Cola", "sans", "بدون") or another amount is a no. Sizes read the decimal comma and the Arabic decimal sign, so 1,5 L no longer matches 1,75 L, and compare across units, so 1 kg matches 1000 g (42d604f).
+  - A hand fix older than 2 s voids the answer whenever it was taken; a fix taken just after the photo had passed however old it was, so a yes could land on a product already put back (1166685).
+  - The 15 s relay deadline holds until the answer is read, so an answer that stalls halfway is said as the link down instead of a silent wait (322595c).
 
 ## 2 November 2026
 
