@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/AmineYagoub/ittro/compare/v0.1.0...v0.1.1) (2026-11-03)
+
+
+### Fixed
+
+* **ci:** ship the hand model in the release APK ([#4](https://github.com/AmineYagoub/ittro/issues/4)) ([96a0339](https://github.com/AmineYagoub/ittro/commit/96a033988bdfd0140accc9a39227688195e50127))
+
 ## 0.1.0 (2026-11-03)
 
 
