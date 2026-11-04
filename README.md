@@ -15,6 +15,14 @@
   <a href="docs/BUILD_LOG.md"><img src="https://img.shields.io/badge/Meta%20Global%20AI%20Hackathon-Indie%20track-0866FF" alt="Meta Global AI Developer Hackathon, Indie track"></a>
 </p>
 
+<p align="center">
+  <a href="https://youtu.be/sZRq0-N3w9c"><img src="docs/ittro-finds-product.gif" width="280" alt="On a phone screen showing a store shelf, Ittro says it is looking for basmati rice. A green outline labelled basmati rice then appears on the basmati bag, next to a similar bag of white rice from the same brand, and the caption reads: I found basmati rice in the middle."></a>
+</p>
+
+<p align="center">
+  <a href="https://youtu.be/sZRq0-N3w9c">Watch the full 3-minute demo on YouTube</a>
+</p>
+
 Ittro is our entry for the Meta Global AI Developer Hackathon (Indie track). A blind shopper asks what is on the shelf, names the product they want, and Ittro guides their hand to it by voice, ticks and vibration. When the hand closes on a product, Ittro reads it and says yes only when the label matches. A wrong yes is the worst outcome, so "I can't confirm yet" always beats a guess.
 
 There are no buttons to find: every word on screen is spoken, and every wait has a sound. The demo is in English; Arabic and French are one spoken command away.
