@@ -12,6 +12,15 @@ hackathon (27 October to 4 November 2026), so that judges can tell
 it apart. Shot 2 states what was built before the take is shown;
 shot 4 backs it with the diagram, the dated build log and the code.
 
+The opening (shots 1 and 2) states the gaps found by the two research reports run on 22 October, before the build ("What Blind and Low-Vision People Still Struggle With in Shopping and Daily Life" and "Blind shoppers still cannot find and confirm items"; how the design answers each finding is in [design/AUDIT.md](design/AUDIT.md)): apps describe the shelf but none checks the item against the request, models confuse look-alike products, visual assistants give incorrect information, and the research prototypes we reviewed guide people with depth-sensing iPhones or smart glasses. Each figure is quoted as research, with its source on the card:
+
+- Look-alikes: "What Matters for Grocery Product Retrieval", ICPR 2026: 190 open-source models; state-of-the-art models reach 94.5% Recall@5 and drop 17.5% at Recall@1, so about 77% right first (our subtraction), and fail to rank visually similar products.
+- Incorrect answers: diary study with 20 blind and low-vision people, CHI 2026: on VisionPal, a study app built on GPT-4o, 122 of 549 answerable follow-ups (22.2%) were fully or partly incorrect.
+- Special hardware: NaviSense (ASSETS 2025) and Touvigation (2026) use a depth-sensing iPhone, the latter chest-mounted; ObjectFinder (2026) uses smart glasses.
+- No check: Be My AI and Google's Guided Vision (1 October 2026) describe the scene or help aim the camera; neither checks the item against the request.
+
+The name comes from the question: **I**s **T**his **T**he **R**ight **O**ne?
+
 Two voices are heard, and they must never be confused:
 
 - **The narrator:** the founder, recorded afterwards in the founder's
@@ -52,11 +61,11 @@ no `.dev.vars`, no access code.
 
 | # | Time | Camera shows | Spoken |
 |---|---|---|---|
-| 1 | 0:00–0:15 | Close on the El Taounia bags: the white rice and the basmati side by side, same brand, same pattern. Then the shopper with the phone. | **Narrator:** "These two bags look almost the same. One is white rice, one is basmati. A blind shopper has to ask which is which. Ittro guides the hand to the right one and reads it before it says yes." |
-| 2 | 0:15–0:35 | The phone's screen on the shelf, the outline drawn. Caption: "Built during the hackathon". | **Narrator:** "During this hackathon I built Ittro's voice conversation, its hand guidance, and the relay to Meta's models. Muse Voice Transcribe hears the shopper. Muse Spark reads the shelf and checks the product in the hand. SAM 3.1 outlines it, and the app keeps the outline on it." |
-| 3 | 0:35–1:58 | The take, 1:23, uncut: over the shoulder, phone screen visible. On-screen timer labelled "elapsed since shelf question", from the end of "What's on the shelf?". | See "Inside the take" below. |
-| 4 | 1:58–2:50 | The README's diagram for 8–10 s, then `docs/BUILD_LOG.md` scrolled through its dated days, then `relay/src/find.ts`, `relay/src/masks.ts` and `Gyro.kt`, then the release page. | **Narrator:** "This diagram shows what I built and what each Meta model does. The build log dates every piece. The relay asks Muse Spark to box each matching package in the shelf photo, and SAM 3.1 cuts each box into a mask, which the relay traces into an outline. On the phone, the outline is kept on the product with the gyroscope and the camera's own motion. Meta's models, MediaPipe's hand model, Expo and the MMS voices are existing tools. The dated entries identify our original Ittro work; existing tools and prior materials are listed separately." |
-| 5 | 2:50–3:00 | Card: Ittro, the repo link, the release link. | **Narrator:** "Ittro is open source. The app is on the release page." |
+| 1 | 0:00–0:30 | Close on the El Taounia bags: the white rice and the basmati side by side, same brand, same pattern. Then the shopper with the phone. Card 01 (the problem, with its sources), then card 01b: "Is This The Right One?" with I, T, T, R, O lit. | **Narrator:** "Blind shoppers can ask an app what's on the shelf. With the apps we reviewed, checking the package in their hand is still left to them. And AI alone isn't enough. In one grocery benchmark, top models ranked the right product first only about 77% of the time. In another study, a visual assistant gave incorrect information in over one in five follow-ups. So shoppers still ask someone: is this the right one? That question gave Ittro its name." |
+| 2 | 0:30–0:48 | The phone's screen on the shelf, the outline drawn. Caption: "Built during the hackathon". | **Narrator:** "During this hackathon, I built Ittro for a standard Android phone: the voice conversation, hand guidance, the label check once the product is in hand, and the relay server that calls Meta's models." |
+| 3 | 0:48–2:11 | The take, 1:23, uncut: over the shoulder, phone screen visible. On-screen timer labelled "elapsed since shelf question", from the end of "What's on the shelf?". | See "Inside the take" below. |
+| 4 | 2:11–2:55 | The README's diagram for 8–10 s, then `docs/BUILD_LOG.md` scrolled through its dated days, then `relay/src/find.ts`, `relay/src/masks.ts` and `Gyro.kt`, then the release page. | **Narrator:** "This diagram shows what I built and what each Meta model does. The build log dates every piece. The relay asks Muse Spark to box each matching package in the shelf photo, and SAM 3.1 cuts each box into a mask, which the relay traces into an outline. On the phone, the outline is kept on the product with the gyroscope and the camera's own motion. Meta's models, MediaPipe's hand model, Expo and the MMS voices are existing tools. The dated entries identify our original Ittro work; existing tools and prior materials are listed separately." |
+| 5 | 2:55–3:00 | Card: Ittro, the repo link, the release link. | **Narrator:** "Ittro is open source. The app is on the release page." |
 
 ## Inside the take (shot 3)
 
